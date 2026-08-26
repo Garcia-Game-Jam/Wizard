@@ -4,6 +4,9 @@ extends Node
 ## Applies spell gameplay and visual effects locally or via multiplayer sync.
 
 const SyncScript := preload("res://scripts/spells/spell_effect_sync.gd")
+const SpellSyncLaneScript := preload("res://scripts/spells/spell_sync_lane.gd")
+const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
 
 
 func apply_effect(player: CharacterBody3D, spell: SpellDefinition) -> void:
@@ -44,6 +47,10 @@ func _dispatch_cast(
 	spell: SpellDefinition,
 	params: Dictionary
 ) -> void:
+	var effect_id := str(params.get("effect_id", ""))
+	if NetClockScript.is_ticking() and SpellSyncLaneScript.predicts_locally(effect_id):
+		NetWorldEventScript.dispatch_spell(player, params)
+		return
 	if not GameState.is_multiplayer:
 		SyncScript.apply(player, params)
 		return
@@ -67,5 +74,8 @@ func apply_synced_cast(
 		return
 	var resolved := SyncScript.resolve_network_params(spell, player, params)
 	if resolved.is_empty():
+		return
+	if NetClockScript.is_ticking():
+		NetWorldEventScript.dispatch_spell(player, resolved)
 		return
 	SyncScript.apply(player, resolved)

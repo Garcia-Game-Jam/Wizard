@@ -320,6 +320,12 @@ func _uses_continuous_chase_move_timer() -> bool:
 	return false
 
 
+func _net_state_extra() -> PackedStringArray:
+	return PackedStringArray([
+		":net_phase", ":net_telegraph", ":_head_pitch", "Head:rotation", "Body:rotation"
+	])
+
+
 func _face_horizontal(desired_vel: Vector3) -> void:
 	_face_horizontal_at_speed(
 		desired_vel, get_physics_process_delta_time(), patrol_turn_speed_rad
@@ -327,6 +333,28 @@ func _face_horizontal(desired_vel: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if NetClockScript.is_ticking():
+		_sync_charge_net_pose()
+		return
+	_simulate_charger(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		_sync_charge_net_pose()
+		return
+	if _phase != ChargePhase.NONE:
+		_simulate_charger(delta)
+		return
+	if is_fresh:
+		_simulate_charger(delta)
+		return
+	_replay_restored_motion(delta)
+	_sync_los_eyes()
+	_sync_charge_net_pose()
+
+
+func _simulate_charger(delta: float) -> void:
 	if not is_alive() or _charge.pose_only:
 		return
 	if _phase != ChargePhase.NONE:
@@ -334,11 +362,30 @@ func _physics_process(delta: float) -> void:
 			return
 		_tick_locked_phase(delta)
 		_sync_los_eyes()
+		_sync_charge_net_pose()
 		return
 	if Engine.is_editor_hint() and not bool(get_meta("lookdev_live_ai", false)):
 		return
-	super._physics_process(delta)
+	_simulate_monster(delta)
 	_sync_los_eyes()
+	_sync_charge_net_pose()
+
+
+func _sync_charge_net_pose() -> void:
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		_phase = net_phase as ChargePhase
+		var tell := 0.0
+		if _phase == ChargePhase.TELEGRAPH:
+			tell = net_telegraph
+		elif _phase == ChargePhase.CHARGE:
+			tell = 1.0
+		_apply_charge_tint(tell)
+		return
+	net_phase = int(_phase)
+	if _phase == ChargePhase.TELEGRAPH:
+		net_telegraph = _charge.telegraph_progress(telegraph_sec)
+	else:
+		net_telegraph = 0.0
 
 
 func _tick_chase(delta: float) -> void:
@@ -383,7 +430,7 @@ func _tick_locked_phase(delta: float) -> void:
 		else:
 			MonsterAIScript.apply_move(self, delta)
 		return
-	move_and_slide()
+	NetClockScript.move_character(self)
 	if _phase == ChargePhase.CHARGE:
 		_try_ram_contacts()
 

@@ -209,6 +209,17 @@ func begin_cast_charge_fx(spell: SpellDefinition) -> void:
 	_apply_cast_charge_sparks(_charge_spell_color)
 	set_cast_charge_progress(0.0 if spell == null or not spell.is_channelled() else 1.0)
 
+
+func set_replicated_charge_progress(t: float) -> void:
+	var factor := clampf(t, 0.0, 1.0)
+	if factor <= 0.02:
+		if _cast_charging_fx:
+			end_cast_charge_fx()
+		return
+	if not _cast_charging_fx:
+		begin_cast_charge_fx(null)
+	set_cast_charge_progress(factor)
+
 func _spawn_cast_charge_fx(spell: SpellDefinition) -> void:
 	_clear_cast_charge_fx()
 	var host := _ensure_cast_charge_host()

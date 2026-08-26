@@ -9,6 +9,7 @@ const SyncScript := preload("res://scripts/spells/spell_effect_sync.gd")
 func run() -> int:
 	var failures := 0
 	failures += _test_known_effects_have_lanes()
+	failures += _test_predicted_node_names()
 	failures += _test_lane_descriptions()
 	failures += _test_ephemeral_ray_round_trip()
 	failures += _test_effect_sync_lane_helper()
@@ -39,6 +40,25 @@ func _test_known_effects_have_lanes() -> int:
 				"Expected effect '%s' lane '%s'" % [effect_id, str(expected[effect_id])]
 			)
 			return 1
+	if not LaneScript.predicts_locally("fireball") or not LaneScript.predicts_locally("haste"):
+		push_error("Ephemeral and player-bound casts should predict locally")
+		return 1
+	if LaneScript.predicts_locally("target") or LaneScript.predicts_locally("light_ball"):
+		push_error("Targeted and world-object casts should stay on the session RPC")
+		return 1
+	return 0
+
+
+func _test_predicted_node_names() -> int:
+	if LaneScript.player_node_name("fireball") != "FireballWeapon":
+		push_error("Ephemeral casts should bind a Weapon child from the effect id")
+		return 1
+	if LaneScript.player_node_name("flashlight_toggle") != "FlashlightToggleAction":
+		push_error("Player-bound casts should bind an Action child from the effect id")
+		return 1
+	if not LaneScript.player_node_name("target").is_empty():
+		push_error("Targeted casts should not bind a per-player netfox node")
+		return 1
 	return 0
 
 

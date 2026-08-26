@@ -7,6 +7,8 @@ enum State { IDLE, PATROL, CHASE, ALERT }
 ## Lookdev pose → eyes. Chase shows eyes; Patrol hides them.
 enum LookdevPose { PATROL, CHASE }
 
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
+
 
 ## Safe Node3D from a stored ref. Freed objects are not null — never `as` before this.
 static func live_node3d(node: Variant) -> Node3D:
@@ -409,14 +411,14 @@ static func apply_move(body: CharacterBody3D, delta: float) -> void:
 	if is_lookdev_live(body):
 		body.velocity.y = 0.0
 		var before := body.global_position
-		body.move_and_slide()
+		NetClockScript.move_character(body)
 		var moved := Vector3(
 			body.global_position.x - before.x, 0.0, body.global_position.z - before.z
 		)
 		if moved.length() < 0.0001:
 			_lookdev_translate(body, delta)
 		return
-	body.move_and_slide()
+	NetClockScript.move_character(body)
 
 
 static func _lookdev_translate(body: CharacterBody3D, delta: float) -> void:

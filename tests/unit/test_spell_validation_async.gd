@@ -141,9 +141,11 @@ func _test_fireball_validation_completes_on_worker(tree: SceneTree) -> int:
 
 
 func _test_worker_stt_logging_avoids_scene_tree(tree: SceneTree) -> int:
-	## Validation with no transcript runs STT + SpellLog on the worker thread.
+	## Validation with no transcript runs the STT path + SpellLog on the worker.
+	## Skip Kaldi: constructing VoskModel in --script then quit() crashes gdvosk.
 	SpellLogScript.last_used_scene_tree = false
 	WorkerScript.test_delay_sec = 0.0
+	GdvoskAdapter.skip_native_engine = true
 	WorkerScript.force_stt_in_tests = true
 	var runner := _make_runner(tree)
 	if not runner.start(
@@ -155,11 +157,13 @@ func _test_worker_stt_logging_avoids_scene_tree(tree: SceneTree) -> int:
 		PackedStringArray(),
 		PackedFloat32Array()
 	):
+		GdvoskAdapter.skip_native_engine = false
 		WorkerScript.force_stt_in_tests = false
 		runner.queue_free()
 		push_error("Expected STT logging runner to start")
 		return 1
 	_wait_for_runner(runner, 5000)
+	GdvoskAdapter.skip_native_engine = false
 	WorkerScript.force_stt_in_tests = false
 	runner.queue_free()
 	if WorkerScript.last_ran_on_main_thread:

@@ -6,6 +6,7 @@ extends Area3D
 const SegmentScript := preload("res://scripts/monsters/abilities/ember_dash_trail_segment.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const GROUND_Y := 0.045
 
@@ -46,6 +47,7 @@ static func spawn(
 	seg.monitorable = false
 	MonsterSpellHitScript.apply_mask(seg)
 	seg.set_physics_process(true)
+	NetLivenessScript.after_spawn(seg)
 	return seg
 
 
@@ -76,11 +78,30 @@ func _build_visual(width: float, length: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_motion(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_tick_motion(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+	_age = 0.0
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_motion(delta: float) -> void:
 	if _caster != null and not is_instance_valid(_caster):
 		_caster = null
 	_age += delta
 	if _age >= _lifetime_sec:
-		queue_free()
+		NetLivenessScript.despawn_or_free(self)
 		return
 	for body in get_overlapping_bodies():
 		_apply_burn(body)

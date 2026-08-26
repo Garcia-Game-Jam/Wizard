@@ -111,14 +111,20 @@ static func apply_ground_move(
 	delta: float,
 	boost: float,
 	preserve_horizontal: bool = false,
-	block_crouch_slide: bool = false
+	block_crouch_slide: bool = false,
+	net_input: Object = null
 ) -> void:
 	var on_slide := prepare(player)
 	PlayerAirControlScript.tick_air_time(player, delta, player.is_on_floor() or on_slide)
 	if not player.is_on_floor() or on_slide:
 		player.velocity.y -= gravity * delta
+	var jump_pressed := false
+	if net_input != null and "jump" in net_input:
+		jump_pressed = bool(net_input.get("jump"))
+	else:
+		jump_pressed = Input.is_action_just_pressed("jump")
 	if (
-		Input.is_action_just_pressed("jump")
+		jump_pressed
 		and player.is_on_floor()
 		and not on_slide
 		and not PlayerCrouchScript.is_crouching(player)
@@ -126,12 +132,12 @@ static func apply_ground_move(
 		player.velocity.y = PlayableCharacter.JUMP_VELOCITY
 	if on_slide or preserve_horizontal:
 		if not block_crouch_slide and PlayerCrouchScript.is_coasting(player):
-			PlayerCrouchScript.apply_coast_physics(player, head, delta, boost)
+			PlayerCrouchScript.apply_coast_physics(player, head, delta, boost, net_input)
 		return
 	if not player.is_on_floor():
-		PlayerAirControlScript.apply(player, head, delta, boost)
+		PlayerAirControlScript.apply(player, head, delta, boost, net_input)
 		return
-	var direction := camera_relative_move_direction(head)
+	var direction := camera_relative_move_direction(head, net_input)
 	var speed := PlayerCrouchScript.ground_move_speed(player, boost)
 	if direction:
 		player.velocity.x = direction.x * speed
@@ -142,10 +148,16 @@ static func apply_ground_move(
 		player.velocity.z = move_toward(player.velocity.z, 0.0, friction_step)
 
 
-static func camera_relative_move_direction(head: Node3D) -> Vector3:
-	var input_dir := Input.get_vector(
-		"move_left", "move_right", "move_forward", "move_back"
-	)
+static func camera_relative_move_direction(
+	head: Node3D, net_input: Object = null
+) -> Vector3:
+	var input_dir := Vector2.ZERO
+	if net_input != null and "movement" in net_input:
+		input_dir = net_input.get("movement") as Vector2
+	else:
+		input_dir = Input.get_vector(
+			"move_left", "move_right", "move_forward", "move_back"
+		)
 	if input_dir.length_squared() < 0.0001:
 		return Vector3.ZERO
 	var local := Vector3(input_dir.x, 0.0, input_dir.y)

@@ -10,6 +10,8 @@ enum AggroMode { BOUND, HOST_MIRROR, COMMAND_HUNT, COMMAND_INVESTIGATE, RECALL }
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 const MonsterInterestScript := preload("res://scripts/monsters/monster_interest.gd")
 const MonsterCorpseScript := preload("res://scripts/monsters/monster_corpse.gd")
+const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const FORCED_HUNT_SOURCE := &"forced_hunt"
 const FORCED_INVESTIGATE_SOURCE := &"forced_investigate"
@@ -91,6 +93,16 @@ func _ready() -> void:
 	_senses_root = get_node_or_null("Senses")
 	_refresh_appearance()
 	_enter_idle()
+
+
+func _net_rewind_profile() -> String:
+	return Profiles.WORLD_PROP
+
+
+func _bind_rewindable() -> void:
+	if Engine.is_editor_hint():
+		return
+	NetLivenessScript.attach(self, _net_rewind_profile())
 
 
 func bind_to_host(p_host: Node, p_leash_radius: float = 10.0) -> void:

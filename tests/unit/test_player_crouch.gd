@@ -19,7 +19,7 @@ func run() -> int:
 
 func _test_default_crouch_walk_speed() -> int:
 	var player := PlayableCharacterScript.new()
-	player.set_meta(PlayerCrouchScript.META_CROUCHING, true)
+	player.net_crouching = true
 	var speed := PlayerCrouchScript.ground_move_speed(player, 1.0)
 	player.free()
 	if not is_equal_approx(speed, PlayerCrouchScript.DEFAULT_CROUCH_SPEED):

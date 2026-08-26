@@ -196,7 +196,12 @@ func _open_monster_book() -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var player := get_parent() as Node
-	if player == null or not player.is_multiplayer_authority():
+	if player == null:
+		return
+	if player.has_method("is_local_owner"):
+		if not bool(player.call("is_local_owner")):
+			return
+	elif not player.is_multiplayer_authority():
 		return
 	if _is_menu_blocking():
 		return

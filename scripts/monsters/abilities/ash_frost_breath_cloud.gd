@@ -11,6 +11,7 @@ const CloudMeshBuilderScript := preload("res://scripts/environment/cloud_mesh_bu
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const PlayerFrostBreathScript := preload("res://scripts/characters/player_frost_breath.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 @export_range(0.0, 200.0, 1.0) var hit_damage: float = AshFrostBreathFlightScript.HIT_DAMAGE
 
@@ -42,6 +43,7 @@ static func spawn(
 	parent.add_child(cloud)
 	cloud.process_mode = Node.PROCESS_MODE_ALWAYS
 	cloud.setup(origin, toward, caster)
+	NetLivenessScript.after_spawn(cloud)
 	return cloud
 
 
@@ -91,6 +93,24 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_motion(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_tick_motion(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_motion(delta: float) -> void:
 	if _finished:
 		return
 	if _caster != null and not is_instance_valid(_caster):
@@ -180,4 +200,4 @@ func _finish() -> void:
 		return
 	_finished = true
 	set_physics_process(false)
-	queue_free()
+	NetLivenessScript.despawn_or_free(self)

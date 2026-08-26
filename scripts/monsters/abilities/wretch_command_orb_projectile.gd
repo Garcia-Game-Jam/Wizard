@@ -8,6 +8,7 @@ signal hit_target(target: Node3D)
 
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const GLOW := Color(0.35, 1.0, 0.4, 1.0)
 const DEFAULT_SPEED := 28.0
@@ -24,6 +25,7 @@ var _summon_host: Node = null
 var _speed: float = DEFAULT_SPEED
 var _age: float = 0.0
 var _finished: bool = false
+var _tick_fresh: bool = true
 
 
 static func spawn(
@@ -45,6 +47,7 @@ static func spawn(
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = origin
 	proj._setup(target, aim, true, caster, summon_host, speed, scale_mult)
+	NetLivenessScript.after_spawn(proj)
 	return proj
 
 
@@ -63,6 +66,7 @@ static func spawn_toward_point(
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = origin
 	proj._setup(null, aim_position, true, caster, summon_host, speed, scale_mult)
+	NetLivenessScript.after_spawn(proj)
 	return proj
 
 
@@ -124,6 +128,25 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_motion(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	_tick_fresh = is_fresh
+	_tick_motion(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_motion(delta: float) -> void:
 	if _finished:
 		return
 	if _caster != null and not is_instance_valid(_caster):
@@ -187,7 +210,7 @@ func _vanish() -> void:
 		return
 	_finished = true
 	set_physics_process(false)
-	queue_free()
+	NetLivenessScript.despawn_or_free(self)
 
 
 func _finish_at_aim() -> void:
@@ -195,11 +218,11 @@ func _finish_at_aim() -> void:
 		return
 	_finished = true
 	set_physics_process(false)
-	if _summon_host != null and is_instance_valid(_summon_host):
+	if _tick_fresh and _summon_host != null and is_instance_valid(_summon_host):
 		var pos := _aim_position if _has_aim_position else global_position
 		if _summon_host.has_method("command_investigate"):
 			_summon_host.call("command_investigate", pos)
-	queue_free()
+	NetLivenessScript.despawn_or_free(self)
 
 
 func _finish(hit: Node3D) -> void:
@@ -213,10 +236,10 @@ func _finish(hit: Node3D) -> void:
 		if _intended_target != null and is_instance_valid(_intended_target):
 			chase_target = _intended_target
 		_apply_hit_effects(hit, chase_target)
-		if _summon_host != null and is_instance_valid(_summon_host):
+		if _tick_fresh and _summon_host != null and is_instance_valid(_summon_host):
 			if _summon_host.has_method("command_attack"):
 				_summon_host.call("command_attack", chase_target)
-	queue_free()
+	NetLivenessScript.despawn_or_free(self)
 
 
 func _apply_hit_effects(hit: Node3D, chase_target: Node3D) -> void:

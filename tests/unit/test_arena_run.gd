@@ -30,6 +30,9 @@ func _test_three_fights_grant_once() -> int:
 	if arena.fights_into_cycle() != 0:
 		push_error("Cycle should reset after a grant")
 		return 1
+	if arena.cycle_index() != 1:
+		push_error("First grant is the start of cycle 1")
+		return 1
 	return 0
 
 

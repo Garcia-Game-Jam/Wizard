@@ -14,6 +14,8 @@ const MonsterCombatSpacingScript := preload("res://scripts/monsters/monster_comb
 const MonsterCasterCombatScript := preload("res://scripts/monsters/monster_caster_combat.gd")
 const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_gizmos.gd")
 const MonsterPatrolScript := preload("res://scripts/monsters/monster_patrol.gd")
+const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const DEFAULT_TINT := Color(0.72, 0.28, 0.22, 1.0)
 const DEFAULT_PLAYER_SOURCE := &"player"
@@ -144,6 +146,19 @@ func _ready() -> void:
 		return
 	_enter_idle()
 	set_physics_process(true)
+
+
+func _net_rewind_profile() -> String:
+	# Telegraph+ram pose interpolates Head/Body; other monsters are root pose only.
+	if ":net_phase" in _net_state_extra():
+		return Profiles.CHARGE
+	return Profiles.WORLD_PROP
+
+
+func _bind_rewindable() -> void:
+	if Engine.is_editor_hint():
+		return
+	NetLivenessScript.attach(self, _net_rewind_profile())
 
 
 func _process(delta: float) -> void:
@@ -375,6 +390,30 @@ func _prefer_interest(candidates: Array) -> MonsterInterest:
 	return MonsterAIScript.prefer_highest_urgency(candidates) as MonsterInterest
 
 func _physics_process(delta: float) -> void:
+	if NetClockScript.is_ticking():
+		return
+	_simulate_monster(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		return
+	if is_fresh:
+		_simulate_monster(delta)
+		return
+	## Resim restores pose/velocity; do not re-run senses or RNG.
+	_replay_restored_motion(delta)
+
+
+func _replay_restored_motion(delta: float) -> void:
+	if not is_alive():
+		return
+	MonsterAIScript.apply_gravity(self, delta, gravity)
+	_apply_knockback_bleed(delta)
+	MonsterAIScript.apply_move(self, delta)
+
+
+func _simulate_monster(delta: float) -> void:
 	if not is_alive():
 		return
 	if Engine.is_editor_hint() and not bool(get_meta("lookdev_live_ai", false)):

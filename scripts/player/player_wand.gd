@@ -107,10 +107,6 @@ func ensure_preview_ready() -> void:
 	_refresh_process_enabled()
 
 
-func is_raised() -> bool:
-	return _raised
-
-
 func set_raised(raised: bool, instant: bool = false) -> void:
 	if raised == _raised and not instant:
 		return
@@ -135,6 +131,14 @@ func set_raised(raised: bool, instant: bool = false) -> void:
 	_pose_tween.tween_property(self, "transform", target, raise_tween_sec)
 	if not raised:
 		_pose_tween.tween_callback(_restore_default_held_pose)
+
+
+func set_replicated_cast_tell(raised: bool, charge_factor: float) -> void:
+	## Remote pose only: wand raised + growing tip. Not STT / local charge state.
+	if raised != _raised:
+		set_raised(raised, true)
+	if _listen_fx != null and _listen_fx.has_method("set_replicated_charge_progress"):
+		_listen_fx.call("set_replicated_charge_progress", charge_factor if raised else 0.0)
 
 
 func cache_idle_transform() -> void:
@@ -691,7 +695,8 @@ func _resolve_aim_direction() -> Vector3:
 	var player := _owner_playable()
 	if (
 		player != null
-		and player.is_multiplayer_authority()
+		and player.has_method("is_local_owner")
+		and bool(player.call("is_local_owner"))
 		and player.has_method("get_wand_cast_direction")
 	):
 		return player.call("get_wand_cast_direction") as Vector3

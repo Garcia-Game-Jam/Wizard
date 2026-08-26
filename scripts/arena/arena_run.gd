@@ -22,7 +22,7 @@ func fights_into_cycle() -> int:
 
 
 func cycle_index() -> int:
-	return int(completed_fights / FIGHTS_PER_SPELL)
+	return int(float(completed_fights) / float(FIGHTS_PER_SPELL))
 
 
 func encounter_index() -> int:

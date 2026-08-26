@@ -7,6 +7,7 @@ extends Area3D
 const AshIceFlightScript := preload("res://scripts/monsters/abilities/ash_ice_flight.gd")
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const HIT_DAMAGE := 14.0
 const MAX_LIFE_SEC := 3.5
@@ -39,6 +40,7 @@ static func spawn_toward_point(
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = origin
 	proj.setup_toward_point(aim_position, caster, side_sign)
+	NetLivenessScript.after_spawn(proj)
 	return proj
 
 
@@ -137,6 +139,24 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_motion(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_tick_motion(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_motion(delta: float) -> void:
 	if _finished:
 		return
 	if _caster != null and not is_instance_valid(_caster):
@@ -211,4 +231,4 @@ func _finish() -> void:
 		return
 	_finished = true
 	set_physics_process(false)
-	queue_free()
+	NetLivenessScript.despawn_or_free(self)

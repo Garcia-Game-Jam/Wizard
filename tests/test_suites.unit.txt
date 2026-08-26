@@ -40,6 +40,7 @@ res://tests/unit/test_ui_palette_pipeline.gd
 res://tests/unit/test_spell_effect_sync.gd
 res://tests/unit/test_spell_world_sync.gd
 res://tests/unit/test_spell_sync_lane.gd
+res://tests/unit/test_netfox_contract.gd
 res://tests/unit/test_character_spell_loadout.gd
 res://tests/unit/test_force_field.gd
 res://tests/unit/test_spell_ward_block.gd

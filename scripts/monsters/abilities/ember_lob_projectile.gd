@@ -10,6 +10,7 @@ const FireballExplosionEffectScript := preload(
 )
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const HIT_DAMAGE := 20.0
 const MAX_LIFE_SEC := 4.0
 
@@ -22,6 +23,7 @@ var _diving: bool = false
 var _dive_point: Vector3 = Vector3.ZERO
 var _age: float = 0.0
 var _finished: bool = false
+var _tick_fresh: bool = true
 
 
 static func spawn(
@@ -38,6 +40,7 @@ static func spawn(
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = origin
 	proj.setup(target, caster)
+	NetLivenessScript.after_spawn(proj)
 	return proj
 
 
@@ -107,6 +110,27 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_fresh = true
+	_tick_motion(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	_tick_fresh = is_fresh
+	_tick_motion(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+	_age = 0.0
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_motion(delta: float) -> void:
 	if _finished:
 		return
 	if _caster != null and not is_instance_valid(_caster):
@@ -196,9 +220,9 @@ func _finish(spawn_impact: bool = false) -> void:
 		return
 	_finished = true
 	set_physics_process(false)
-	if spawn_impact and is_inside_tree():
+	if spawn_impact and _tick_fresh and is_inside_tree():
 		var world_parent := get_parent()
 		var impact_pos := global_position
 		if world_parent != null:
 			FireballExplosionEffectScript.spawn(world_parent, impact_pos)
-	queue_free()
+	NetLivenessScript.despawn_or_free(self)

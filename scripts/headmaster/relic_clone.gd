@@ -8,6 +8,7 @@ const SpellWorldSyncScript := preload("res://scripts/spells/spell_world_sync.gd"
 const HoveringOrbMotionScript := preload("res://scripts/spells/hovering_orb_motion.gd")
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const PlaceholderPingAudioScript := preload("res://scripts/objectives/placeholder_ping_audio.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const GROUP_NAME := SpellWorldSyncScript.KIND_RELIC_CLONE
 const PLACE_HEIGHT := HoveringOrbMotionScript.HEIGHT_RELIC
@@ -36,6 +37,7 @@ static func spawn(
 	var decoy = new()
 	decoy.spawn_id = clone_spawn_id
 	parent.add_child(decoy)
+	NetLivenessScript.attach(decoy)
 	var snapped_pos := snap_to_ground(decoy.get_world_3d(), world_position)
 	decoy._hover_base = snapped_pos
 	decoy.global_position = snapped_pos
