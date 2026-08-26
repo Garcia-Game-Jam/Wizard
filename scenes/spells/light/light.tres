@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://dqc3frk775rdr"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "light"
+display_name = "Light"
+incantation_words = PackedStringArray("light")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 0.35
+effect_id = "flashlight_toggle"
+color = Color(1, 0.9, 0.5, 1)
+cast_mode = 1
+charge_time_sec = 0.0

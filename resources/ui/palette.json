@@ -1,0 +1,99 @@
+{
+  "name": "friend-slop-ui",
+  "scope": ["overlays", "menus", "hud", "settings", "lobby"],
+  "colors": [
+	{
+	  "id": "ink_black",
+	  "name": "Ink Black",
+	  "hex": "06080f",
+	  "rgb": [6, 8, 15],
+	  "cmyk": [60, 47, 0, 94],
+	  "hsb": [227, 60, 6],
+	  "hsl": [227, 43, 4],
+	  "lab": [2, 1, -3]
+	},
+	{
+	  "id": "dark_amethyst",
+	  "name": "Dark Amethyst",
+	  "hex": "261342",
+	  "rgb": [38, 19, 66],
+	  "cmyk": [42, 71, 0, 74],
+	  "hsb": [264, 71, 26],
+	  "hsl": [264, 55, 17],
+	  "lab": [11, 22, -26]
+	},
+	{
+	  "id": "prussian_blue",
+	  "name": "Prussian Blue",
+	  "hex": "14213d",
+	  "rgb": [20, 33, 61],
+	  "cmyk": [67, 46, 0, 76],
+	  "hsb": [221, 67, 24],
+	  "hsl": [221, 51, 16],
+	  "lab": [13, 5, -20]
+	},
+	{
+	  "id": "hunter_green",
+	  "name": "Hunter Green",
+	  "hex": "355e3b",
+	  "rgb": [53, 94, 59],
+	  "cmyk": [44, 0, 37, 63],
+	  "hsb": [129, 44, 37],
+	  "hsl": [129, 28, 29],
+	  "lab": [36, -23, 16]
+	},
+	{
+	  "id": "honey_bronze",
+	  "name": "Honey Bronze",
+	  "hex": "e2ab43",
+	  "rgb": [226, 171, 67],
+	  "cmyk": [0, 24, 70, 11],
+	  "hsb": [39, 70, 89],
+	  "hsl": [39, 73, 57],
+	  "lab": [73, 10, 59]
+	},
+	{
+	  "id": "snow",
+	  "name": "Snow",
+	  "hex": "f6efee",
+	  "rgb": [246, 239, 238],
+	  "cmyk": [0, 3, 3, 4],
+	  "hsb": [7, 3, 96],
+	  "hsl": [7, 31, 95],
+	  "lab": [95, 2, 1]
+	},
+	{
+	  "id": "health_crimson",
+	  "name": "Health Crimson",
+	  "hex": "9b2c2c",
+	  "rgb": [155, 44, 44],
+	  "cmyk": [0, 72, 72, 39],
+	  "hsb": [0, 72, 61],
+	  "hsl": [0, 56, 39],
+	  "lab": [36, 45, 26]
+	},
+	{
+	  "id": "mist",
+	  "name": "Mist",
+	  "hex": "9699a2",
+	  "rgb": [150, 153, 162],
+	  "cmyk": [7, 6, 0, 36],
+	  "hsb": [225, 7, 64],
+	  "hsl": [225, 6, 61],
+	  "lab": [62, 1, -5]
+	}
+  ],
+  "semantic": {
+	"background_deep": "ink_black",
+	"background_primary": "dark_amethyst",
+	"background_elevated": "prussian_blue",
+	"button_fill": "1e3054",
+	"button_hover": "2a4068",
+	"accent_primary": "honey_bronze",
+	"accent_success": "hunter_green",
+	"text_primary": "snow",
+	"border_default": "honey_bronze",
+	"health_fill": "health_crimson",
+	"toggle_on": "mist"
+  }
+}

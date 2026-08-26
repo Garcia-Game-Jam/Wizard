@@ -1,0 +1,335 @@
+extends Node3D
+
+## Greybox pit match: spawn players, dump encounters, grant a spell every third fight.
+
+const ArenaRunScript := preload("res://scripts/arena/arena_run.gd")
+const ArenaEncountersScript := preload("res://scripts/arena/arena_encounters.gd")
+
+const FIRST_FIGHT_DELAY_SEC := 2.5
+const BETWEEN_FIGHTS_SEC := 3.5
+const RESPAWN_SEC := 2.0
+const PATROL_SIZE := Vector2(40.0, 28.0)
+
+var _run: ArenaRun
+var _local_player: CharacterBody3D
+var _wave_live := false
+var _between_timer := 0.0
+var _pending_respawns: Dictionary = {}
+
+@onready var players_root: Node3D = $Players
+@onready var monsters_root: Node3D = $Monsters
+@onready var pads_root: Node3D = $Pads
+@onready var cover_root: Node3D = $Cover
+@onready var spell_registry: SpellRegistry = $SpellRegistry
+@onready var game_hud: CanvasLayer = $GameHUD
+@onready var voice_validator: VoiceSpellValidator = $VoiceSpellValidator
+@onready var pause_menu: PauseMenu = $PauseMenu
+
+
+func _ready() -> void:
+	if Engine.is_editor_hint():
+		return
+
+	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
+	pause_menu.quit_to_menu_requested.connect(_on_quit_to_menu)
+	if voice_validator != null:
+		voice_validator.apply_settings_from_manager()
+	SettingsManager.settings_applied.connect(_on_voice_settings_applied)
+
+	TrailRegistry.reset()
+	await voice_validator.prepare_for_match()
+	SteamProximityVoiceHub.set_mode(SteamProximityVoiceHub.Mode.GAME)
+
+	NetworkManager.spawn_players(players_root, _configure_local_player)
+	await NetworkManager.players_spawned
+	_place_players_at_spawns()
+	_bind_player_deaths()
+	_refresh_hud_prompt()
+
+	if GameState.is_multiplayer:
+		multiplayer.peer_connected.connect(_on_peer_connected)
+		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+		NetworkManager.sync_match_phase(MatchState.Phase.ACTIVE)
+
+	if _is_run_host():
+		_between_timer = FIRST_FIGHT_DELAY_SEC
+
+
+func _process(delta: float) -> void:
+	if Engine.is_editor_hint() or not _is_run_host():
+		return
+	if _between_timer > 0.0:
+		_between_timer -= delta
+		if _between_timer <= 0.0:
+			_host_begin_fight()
+		return
+	if _wave_live and _live_monster_count() == 0:
+		_host_resolve_fight()
+
+
+func _is_run_host() -> bool:
+	if not GameState.is_multiplayer:
+		return true
+	return multiplayer.is_server()
+
+
+func _on_voice_settings_applied() -> void:
+	if voice_validator != null:
+		voice_validator.apply_settings_from_manager()
+
+
+func _configure_local_player(player: CharacterBody3D) -> void:
+	_local_player = player
+	var loadout: Node = player.get_spell_loadout()
+	var casting_session: SpellCastingSession = player.get_casting_session()
+	var effect_applier: Node = player.get_effect_applier()
+	loadout.configure(spell_registry.get_all_spells())
+	loadout.apply_starting_spells(ArenaEncountersScript.STARTER_SPELL_IDS)
+	var spell_hotbar := player.get_node_or_null("%SpellHotbar")
+	if spell_hotbar == null:
+		spell_hotbar = player.get_node_or_null("SpellHotbar")
+	_fill_starter_hotbar(spell_hotbar)
+	var health := player.get_node_or_null("Health") as Health
+	game_hud.configure(loadout, casting_session, spell_hotbar, health)
+	var inventory := player.get_node_or_null("%PlayerInventory")
+	if inventory == null:
+		inventory = player.get_node_or_null("PlayerInventory")
+	if inventory != null and game_hud.has_method("configure_inventory"):
+		game_hud.configure_inventory(inventory)
+	casting_session.configure(voice_validator, loadout)
+	casting_session.add_to_group("casting_session")
+	player.configure_interaction(loadout, casting_session, game_hud, effect_applier)
+
+
+func _fill_starter_hotbar(hotbar: Node) -> void:
+	if hotbar == null or not hotbar.has_method("set_slot"):
+		return
+	var index := 0
+	for spell_id in ArenaEncountersScript.STARTER_SPELL_IDS:
+		if index >= 3:
+			break
+		hotbar.call("set_slot", index, spell_id)
+		index += 1
+
+
+func _on_peer_connected(peer_id: int) -> void:
+	NetworkManager.spawn_player_for_peer(peer_id, players_root, _configure_local_player)
+	call_deferred("_place_players_at_spawns")
+	call_deferred("_bind_player_deaths")
+
+
+func _on_peer_disconnected(peer_id: int) -> void:
+	NetworkManager.despawn_player_for_peer(peer_id, players_root)
+
+
+func _place_players_at_spawns() -> void:
+	for child in players_root.get_children():
+		if not (child is CharacterBody3D):
+			continue
+		var player := child as CharacterBody3D
+		var peer_id := 1
+		if player.name.is_valid_int():
+			peer_id = int(player.name)
+		SteamProximityVoiceHub.set_peer_anchor(peer_id, player)
+		if GameState.is_multiplayer and not player.is_multiplayer_authority():
+			continue
+		player.global_position = _spawn_for_player(player)
+
+
+func _spawn_for_player(player: Node3D) -> Vector3:
+	var index := 0
+	if "player_index" in player:
+		index = int(player.get("player_index"))
+	var marker := players_root.get_node_or_null("PlayerSpawn_%d" % index)
+	if marker is Node3D:
+		return (marker as Node3D).global_position
+	var fallback := players_root.get_child(0)
+	if fallback is Node3D and not (fallback is CharacterBody3D):
+		return (fallback as Node3D).global_position
+	return Vector3(0.0, 1.0, 8.0)
+
+
+func _bind_player_deaths() -> void:
+	for child in players_root.get_children():
+		if not (child is PlayableCharacter):
+			continue
+		var player := child as PlayableCharacter
+		var pool := player.get_node_or_null("Health") as Health
+		if pool == null:
+			continue
+		if not pool.died.is_connected(_on_player_died):
+			pool.died.connect(_on_player_died.bind(player))
+
+
+func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
+	var id := player.get_instance_id()
+	if _pending_respawns.has(id):
+		return
+	_pending_respawns[id] = true
+	var tree := get_tree()
+	if tree == null:
+		return
+	tree.create_timer(RESPAWN_SEC).timeout.connect(_respawn_player.bind(player, id))
+
+
+func _respawn_player(player: PlayableCharacter, id: int) -> void:
+	_pending_respawns.erase(id)
+	if not is_instance_valid(player):
+		return
+	_revive_at(player, _spawn_for_player(player))
+
+
+func _host_begin_fight() -> void:
+	rpc_begin_fight.rpc(_run.encounter_index())
+
+
+func _host_resolve_fight() -> void:
+	_wave_live = false
+	var granted := _run.complete_fight()
+	rpc_fight_resolved.rpc(_run.to_snapshot(), granted)
+	_between_timer = BETWEEN_FIGHTS_SEC
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_begin_fight(encounter_index: int) -> void:
+	_clear_monsters()
+	_apply_cover(encounter_index)
+	_spawn_dump(ArenaEncountersScript.dump_for(encounter_index))
+	_reset_players_for_fight()
+	_wave_live = true
+	_refresh_hud_prompt()
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_fight_resolved(snapshot: Dictionary, granted_spell_id: String) -> void:
+	_wave_live = false
+	_run = ArenaRunScript.from_snapshot(snapshot)
+	_clear_monsters()
+	if not granted_spell_id.is_empty():
+		_grant_spell_to_local(granted_spell_id)
+	_refresh_hud_prompt()
+
+
+func _grant_spell_to_local(spell_id: String) -> void:
+	if _local_player == null or not is_instance_valid(_local_player):
+		return
+	var loadout: Node = _local_player.get_spell_loadout()
+	if loadout != null and loadout.has_method("learn_spell"):
+		loadout.learn_spell(spell_id, "arena_grant")
+	var def := spell_registry.get_spell(spell_id)
+	var hotbar := _local_player.get_node_or_null("%SpellHotbar")
+	if hotbar == null:
+		hotbar = _local_player.get_node_or_null("SpellHotbar")
+	if def != null and hotbar != null and hotbar.has_method("begin_pending"):
+		hotbar.call("begin_pending", def)
+
+
+func _reset_players_for_fight() -> void:
+	for child in players_root.get_children():
+		if child is PlayableCharacter:
+			_revive_at(child as PlayableCharacter, _spawn_for_player(child))
+
+
+func _revive_at(player: PlayableCharacter, world_pos: Vector3) -> void:
+	if player.health != null:
+		player.health.revive()
+	player.restore_after_revive()
+	player.global_position = world_pos
+	player.velocity = Vector3.ZERO
+
+
+func _apply_cover(encounter_index: int) -> void:
+	var positions := ArenaEncountersScript.cover_positions(encounter_index)
+	var i := 0
+	for child in cover_root.get_children():
+		if i >= positions.size():
+			break
+		if child is Node3D:
+			(child as Node3D).position = positions[i]
+		i += 1
+
+
+func _spawn_dump(dump: Array[Dictionary]) -> void:
+	for entry in dump:
+		var kind := str(entry.get("kind", ""))
+		var pad := int(entry.get("pad", 0))
+		var path := ArenaEncountersScript.scene_path_for(kind)
+		if path.is_empty() or not ResourceLoader.exists(path):
+			push_warning("Arena: missing monster scene for %s" % kind)
+			continue
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var monster := packed.instantiate() as Node3D
+		if monster == null:
+			continue
+		var spawn := _pad_position(pad)
+		monster.set_meta("lookdev_live_ai", true)
+		monster.set_meta("patrol_home", spawn)
+		monster.set_meta("patrol_size", PATROL_SIZE)
+		if "lookdev_override" in monster:
+			monster.set("lookdev_override", false)
+		if "patrol_radius" in monster:
+			monster.set("patrol_radius", 12.0)
+		monsters_root.add_child(monster)
+		monster.global_position = spawn
+
+
+func _pad_position(pad: int) -> Vector3:
+	var marker := pads_root.get_node_or_null("Pad%d" % pad)
+	if marker is Node3D:
+		return (marker as Node3D).global_position
+	var count := pads_root.get_child_count()
+	if count > 0:
+		var child := pads_root.get_child(pad % count)
+		if child is Node3D:
+			return (child as Node3D).global_position
+	return Vector3(0.0, 0.05, 0.0)
+
+
+func _clear_monsters() -> void:
+	for child in monsters_root.get_children():
+		child.queue_free()
+
+
+func _live_monster_count() -> int:
+	var n := 0
+	for child in monsters_root.get_children():
+		if not is_instance_valid(child) or child.is_queued_for_deletion():
+			continue
+		if child is MonsterCorpse:
+			continue
+		if not (child is Character):
+			continue
+		if not (child as Character).is_alive():
+			continue
+		n += 1
+	return n
+
+
+func _refresh_hud_prompt() -> void:
+	if game_hud == null or not game_hud.has_method("set_interaction_prompt"):
+		return
+	var fight_no := _run.completed_fights + 1
+	var into := _run.fights_into_cycle()
+	var until_grant := ArenaRun.FIGHTS_PER_SPELL - into
+	if _run.completed_fights > 0 and into == 0:
+		until_grant = ArenaRun.FIGHTS_PER_SPELL
+	var grant_name := _run.next_grant_spell_id()
+	if grant_name.is_empty():
+		grant_name = "nothing queued"
+	var line := "Fight %d  ·  %d until %s" % [fight_no, until_grant, grant_name]
+	if not _run.granted_spell_ids.is_empty():
+		line += "  ·  learned %s" % ", ".join(_run.granted_spell_ids)
+	game_hud.call("set_interaction_prompt", line)
+
+
+func _on_quit_to_menu() -> void:
+	SettingsManager.stop_mic_test()
+	NetworkManager.disconnect_session()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var app := get_tree().get_first_node_in_group("game_app")
+	if app != null and app.has_method("return_to_main_menu"):
+		app.call_deferred("return_to_main_menu")
+	else:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/game_app.tscn")

@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://bvcnmgl8ahrc7"]
+
+[ext_resource type="PackedScene" uid="uid://cswbhudslot001" path="res://scenes/ui/scaffolding/hud_slot.tscn" id="1_slot"]
+
+[node name="HudSlotRow" type="HBoxContainer"]
+theme_override_constants/separation = 4
+mouse_filter = 2
+
+[node name="Slot1" parent="." instance=ExtResource("1_slot")]
+layout_mode = 2
+
+[node name="Slot2" parent="." instance=ExtResource("1_slot")]
+layout_mode = 2
+
+[node name="Slot3" parent="." instance=ExtResource("1_slot")]
+layout_mode = 2
+
+[node name="Slot4" parent="." instance=ExtResource("1_slot")]
+layout_mode = 2

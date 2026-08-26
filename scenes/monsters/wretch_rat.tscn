@@ -1,0 +1,56 @@
+[gd_scene load_steps=6 format=3 uid="uid://bwretchrat01"]
+
+[ext_resource type="PackedScene" path="res://scenes/summons/summon.tscn" id="1_summon"]
+[ext_resource type="Script" path="res://scripts/monsters/wretch_rat.gd" id="2_rat"]
+[ext_resource type="Script" path="res://scripts/monsters/monster_sight_sense.gd" id="3_sight"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_rat"]
+radius = 0.12
+height = 0.24
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rat"]
+radius = 0.12
+height = 0.28
+
+[node name="WretchRat" instance=ExtResource("1_summon")]
+script = ExtResource("2_rat")
+editor_description = "Queen's Rat Summon. Explodes on player touch while chasing; green charge light under Body."
+body_tint = Color(0.35, 0.55, 0.32, 1)
+eye_glow_color = Color(0.25, 1, 0.35, 1)
+move_speed = 4.4
+chase_range = 10.0
+attack_range = 0.85
+touch_damage = 0.0
+leash_radius = 10.0
+leash_enabled = true
+
+[node name="CollisionShape3D" parent="." index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
+shape = SubResource("CapsuleShape3D_rat")
+
+[node name="Health" parent="."]
+max_health = 10.0
+
+[node name="Body" parent="." index="1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
+mesh = SubResource("SphereMesh_rat")
+
+[node name="ExplodeLight" type="OmniLight3D" parent="Body" index="0"]
+light_color = Color(0.25, 1, 0.35, 1)
+light_energy = 0.0
+omni_range = 0.15
+shadow_enabled = false
+
+[node name="Head" parent="." index="2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, -0.04)
+
+[node name="HeadMesh" parent="Head" index="0"]
+visible = false
+
+[node name="Sight" type="Node" parent="Senses" index="0"]
+script = ExtResource("3_sight")
+editor_description = "Rat omnidirectional sight (green disc gizmo). Tune Sight Range and Eye Height."
+sight_range = 10.0
+require_line_of_sight = true
+eye_height = 0.2
+sight_urgency = 1.4

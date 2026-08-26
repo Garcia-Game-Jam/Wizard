@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://eb8241rydp2b"]
+
+[ext_resource type="Script" uid="uid://bkq8n2f4hxpwr" path="res://scripts/fx/force_field.gd" id="1_field"]
+[ext_resource type="Shader" uid="uid://cm3w7r9t2vqdk" path="res://shaders/fx/force_field.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_field"]
+render_priority = 0
+shader = ExtResource("2_shader")
+shader_parameter/rim_color = Color(0.42, 0.78, 1, 1)
+shader_parameter/energy_color = Color(0.95, 0.98, 1, 1)
+shader_parameter/fresnel_power = 2.8
+shader_parameter/base_alpha = 0.05
+shader_parameter/rim_strength = 0.92
+shader_parameter/energy_amount = 1.15
+shader_parameter/pattern_scale = 0.28
+shader_parameter/scroll_speed = 0.11
+shader_parameter/proximity_fade = 1.2
+shader_parameter/opacity = 1.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_field"]
+radius = 2.0
+height = 4.0
+radial_segments = 48
+rings = 24
+
+[node name="ForceField" type="Node3D"]
+editor_description = "Reusable magical force field. Default mesh is a sphere; call fit_wall or fit_sphere to reshape. Inspector colors feed the shader."
+script = ExtResource("1_field")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+layers = 1
+cast_shadow = 0
+gi_mode = 0
+material_override = SubResource("ShaderMaterial_field")
+mesh = SubResource("SphereMesh_field")

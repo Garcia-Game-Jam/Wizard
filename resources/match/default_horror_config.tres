@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="HorrorMatchConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/match/horror_match_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+anchor_count = 3
+match_time_limit_seconds = 1200

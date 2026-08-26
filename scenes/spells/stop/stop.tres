@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://uuo4bgv3b66"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "stop"
+display_name = "Stop"
+incantation_words = PackedStringArray("stop")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 1.0
+effect_id = "stop"
+color = Color(0.75, 0.45, 0.95, 1)

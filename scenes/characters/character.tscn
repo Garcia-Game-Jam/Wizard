@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://bcharacter01"]
+
+[ext_resource type="Script" uid="uid://bolwxtj4omh65" path="res://scripts/characters/character.gd" id="1_character"]
+[ext_resource type="Script" uid="uid://bhealthpool001" path="res://scripts/combat/health.gd" id="2_health"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_character"]
+radius = 0.27
+height = 0.7
+
+[sub_resource type="SphereMesh" id="SphereMesh_body"]
+radius = 0.2
+height = 0.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
+resource_local_to_scene = true
+albedo_color = Color(0.25, 0.65, 0.95, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+radius = 0.16
+height = 0.32
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
+resource_local_to_scene = true
+albedo_color = Color(0.32, 0.7, 0.97, 1)
+metallic = 0.05
+roughness = 0.62
+
+[node name="Character" type="CharacterBody3D" unique_id=1969475288]
+editor_description = "3D character shell: Body + Head. Edit here; use apprentice_workspace for lit preview."
+script = ExtResource("1_character")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=294740946]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0)
+shape = SubResource("CapsuleShape3D_character")
+
+[node name="Body" type="MeshInstance3D" parent="." unique_id=73058391]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+layers = 2
+mesh = SubResource("SphereMesh_body")
+surface_material_override/0 = SubResource("StandardMaterial3D_body")
+
+[node name="Head" type="Node3D" parent="." unique_id=1186111743]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 0)
+
+[node name="HeadMesh" type="MeshInstance3D" parent="Head" unique_id=1294118041]
+unique_name_in_owner = true
+layers = 2
+mesh = SubResource("SphereMesh_head")
+surface_material_override/0 = SubResource("StandardMaterial3D_head")
+
+[node name="Health" type="Node" parent="." unique_id=1969475289]
+editor_description = "HP pool for this character. Every player, monster, and summon inherits its own. Set Max Health per type scene; damage, healing, and death all run through it."
+script = ExtResource("2_health")

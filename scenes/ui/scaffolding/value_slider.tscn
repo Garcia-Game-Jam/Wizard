@@ -1,0 +1,56 @@
+[gd_scene load_steps=4 format=3 uid="uid://0l63liurp0rs"]
+
+[ext_resource type="Theme" path="res://resources/ui/serious_wiz_biz_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/scaffolding/value_slider.gd" id="2_script"]
+[ext_resource type="Script" path="res://scripts/ui/scaffolding/value_slider_ticks.gd" id="3_ticks"]
+
+[node name="ValueSlider" type="HBoxContainer"]
+custom_minimum_size = Vector2(200, 36)
+theme = ExtResource("1_theme")
+theme_override_constants/separation = 8
+script = ExtResource("2_script")
+tick_divisions = 4
+show_tick_labels = true
+show_as_percent = true
+
+[node name="TrackArea" type="Control" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+custom_minimum_size = Vector2(0, 36)
+
+[node name="Slider" type="HSlider" parent="TrackArea"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 22.0
+grow_horizontal = 2
+mouse_default_cursor_shape = 2
+max_value = 1.0
+step = 0.01
+value = 1.0
+tick_count = 0
+
+[node name="TickMarks" type="Control" parent="TrackArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_ticks")
+
+[node name="ValueEdit" type="LineEdit" parent="."]
+custom_minimum_size = Vector2(56, 36)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_default_cursor_shape = 1
+alignment = 2
+max_length = 12
+expand_to_text_length = false
+context_menu_enabled = false
+caret_blink = true
+text = "100%"
+placeholder_text = "0"
+select_all_on_focus = true

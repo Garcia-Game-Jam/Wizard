@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://brgthi7wc4ws1"]
+
+[ext_resource type="Script" path="res://scripts/monsters/gnome_den.gd" id="1"]
+
+[node name="GnomeDen" type="Node3D"]
+script = ExtResource("1")
+hole_depth = 5.0
+hole_width = 2.5
+hole_length = 3.5
+corner_radius = 0.5

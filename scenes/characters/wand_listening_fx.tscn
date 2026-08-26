@@ -1,0 +1,240 @@
+[gd_scene format=3 uid="uid://csxotiwjg1mii"]
+
+[ext_resource type="Script" uid="uid://bl1lphofjy2wh" path="res://scripts/player/wand_listening_fx.gd" id="1_fx"]
+
+[sub_resource type="Gradient" id="Gradient_ljjah"]
+offsets = PackedFloat32Array(0, 0.32, 0.55, 0.78, 1)
+colors = PackedColorArray(0.34355983, 0.3243916, 0.4649311, 0.07695, 0.43725798, 0.41286203, 0.5917305, 0.513, 0.5309561, 0.50133246, 0.7185299, 0.4962, 0.62465423, 0.5898029, 0.8453293, 0.9, 0.46849066, 0.44235218, 0.63399696, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_vcwfk"]
+frequency = 0.04375
+fractal_octaves = 2
+fractal_lacunarity = 2.1
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_d0yb1"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_vcwfk")
+color_ramp = SubResource("Gradient_ljjah")
+seamless = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vcwfk"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.62465423, 0.5898029, 0.8453293, 1)
+albedo_texture = SubResource("NoiseTexture2D_d0yb1")
+uv1_scale = Vector3(1.205, 1.205, 1.205)
+
+[sub_resource type="SphereMesh" id="SphereMesh_d0yb1"]
+radius = 0.04
+height = 0.08
+radial_segments = 24
+rings = 12
+
+[sub_resource type="Gradient" id="Gradient_3lsds"]
+offsets = PackedFloat32Array(0, 0.9016, 0.9316, 1)
+colors = PackedColorArray(0.96, 0.62912, 0.057600003, 1, 0.96, 0.62912, 0.057600003, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_jiisk"]
+noise_type = 2
+frequency = 0.3256
+fractal_type = 0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_2sucg"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_jiisk")
+color_ramp = SubResource("Gradient_3lsds")
+seamless = true
+
+[sub_resource type="Gradient" id="Gradient_7xlhq"]
+offsets = PackedFloat32Array(0, 0.9016, 0.9316, 1)
+colors = PackedColorArray(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_dipa2"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_jiisk")
+color_ramp = SubResource("Gradient_7xlhq")
+seamless = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jiisk"]
+albedo_texture = SubResource("NoiseTexture2D_2sucg")
+metallic = 0.92
+roughness = 0.28
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 1.976
+emission_texture = SubResource("NoiseTexture2D_dipa2")
+uv1_scale = Vector3(2.976, 2.976, 2.976)
+
+[sub_resource type="SphereMesh" id="SphereMesh_2sucg"]
+radius = 0.014
+height = 0.028
+radial_segments = 24
+rings = 12
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lphwp"]
+transparency = 1
+cull_mode = 2
+depth_draw_mode = 2
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_qn6ip"]
+size = Vector2(0.006, 0.006)
+
+[sub_resource type="Gradient" id="Gradient_b63be"]
+offsets = PackedFloat32Array(0, 0.2, 0.7, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.65, 1, 1, 1, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_443j1"]
+transparency = 1
+cull_mode = 2
+depth_draw_mode = 2
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5aiht"]
+transparency = 1
+cull_mode = 2
+depth_draw_mode = 2
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[node name="WandListeningFx" type="Node3D" unique_id=1822051926]
+editor_description = "Prebaked E-listen tip FX. Keep Preview In Editor on to tune live. Use the EditorCamera to frame the orb."
+transform = Transform3D(0.38, 0, 0, 0, 0.38, 0, 0, 0, 0.38, 0, 0, 0)
+script = ExtResource("1_fx")
+overall_size = 0.38
+sparks_per_second = 35.0
+outer_size = 0.04
+outer_color = Color(0.62465423, 0.5898029, 0.8453293, 1)
+outer_transparency = 0.54
+outer_veining = 0.07
+middle_size = 0.032
+middle_color = Color(0.4653288, 0.1161182, 0.7621164, 1)
+middle_transparency = 0.05
+middle_veining = 0.28
+middle_spin_deg_per_sec = Vector3(-28, -28, 95)
+inner_color = Color(0.96, 0.62912, 0.057600003, 1)
+inner_spot_color = Color(0, 0, 0, 1)
+inner_spot_amount = 0.32
+pulse_amount = 1.0
+pulse_hz = 0.75
+spark_color_c = Color(0.05, 0.03, 0.08, 1)
+spark_velocity = 3.0
+spark_travel_distance = 0.12
+spark_size = 0.006
+
+[node name="EditorCamera" type="Camera3D" parent="." unique_id=2100000099]
+editor_description = "Framing camera for this lookdev scene only — ignored in-game under the wand."
+transform = Transform3D(1.4705882, 0, 0, 0, 1.3819009, 0.5029709, 0, -0.5029708, 1.3819009, 0.029747533, 0.025431363, 0.06927585)
+current = true
+fov = 35.0
+
+[node name="Outer" type="MeshInstance3D" parent="." unique_id=1211159420]
+transform = Transform3D(0.8913608, -0.16035952, 0.42082044, 0.26266992, 0.94499195, -0.19186266, -0.3665867, 0.28187522, 0.8844716, 0, 0, 0)
+layers = 3
+material_override = SubResource("StandardMaterial3D_vcwfk")
+cast_shadow = 0
+mesh = SubResource("SphereMesh_d0yb1")
+
+[node name="Inner" type="MeshInstance3D" parent="." unique_id=998370696]
+transform = Transform3D(0.7546044, 0.13993211, 0.3840918, 0.011370344, 0.79887223, -0.31338337, -0.40862966, 0.28063753, 0.70057094, 0, 0, 0)
+layers = 3
+material_override = SubResource("StandardMaterial3D_jiisk")
+cast_shadow = 0
+mesh = SubResource("SphereMesh_2sucg")
+
+[node name="SparksA" type="CPUParticles3D" parent="." unique_id=1852109204]
+layers = 3
+material_override = SubResource("StandardMaterial3D_lphwp")
+cast_shadow = 0
+amount = 3
+lifetime = 0.25
+randomness = 0.7
+visibility_aabb = AABB(-1.5, -1.5, -1.5, 3, 3, 3)
+local_coords = true
+mesh = SubResource("QuadMesh_qn6ip")
+emission_shape = 1
+emission_sphere_radius = 0.018
+direction = Vector3(0, 1, 0)
+spread = 180.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 2.25
+initial_velocity_max = 3.75
+damping_min = 13.5
+damping_max = 19.8
+scale_amount_min = 0.75
+scale_amount_max = 1.25
+color = Color(0.25, 0.95, 0.92, 1)
+color_ramp = SubResource("Gradient_b63be")
+
+[node name="SparksB" type="CPUParticles3D" parent="." unique_id=1698149035]
+layers = 3
+material_override = SubResource("StandardMaterial3D_443j1")
+cast_shadow = 0
+amount = 3
+lifetime = 0.25
+randomness = 0.7
+visibility_aabb = AABB(-1.5, -1.5, -1.5, 3, 3, 3)
+local_coords = true
+mesh = SubResource("QuadMesh_qn6ip")
+emission_shape = 1
+emission_sphere_radius = 0.018
+direction = Vector3(0, 1, 0)
+spread = 180.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 2.25
+initial_velocity_max = 3.75
+damping_min = 13.5
+damping_max = 19.8
+scale_amount_min = 0.75
+scale_amount_max = 1.25
+color = Color(1, 0.85, 0.28, 1)
+color_ramp = SubResource("Gradient_b63be")
+
+[node name="SparksC" type="CPUParticles3D" parent="." unique_id=1057658184]
+layers = 3
+material_override = SubResource("StandardMaterial3D_5aiht")
+cast_shadow = 0
+amount = 3
+lifetime = 0.25
+randomness = 0.7
+visibility_aabb = AABB(-1.5, -1.5, -1.5, 3, 3, 3)
+local_coords = true
+mesh = SubResource("QuadMesh_qn6ip")
+emission_shape = 1
+emission_sphere_radius = 0.018
+direction = Vector3(0, 1, 0)
+spread = 180.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 2.25
+initial_velocity_max = 3.75
+damping_min = 13.5
+damping_max = 19.8
+scale_amount_min = 0.75
+scale_amount_max = 1.25
+color = Color(0.05, 0.03, 0.08, 1)
+color_ramp = SubResource("Gradient_b63be")
+
+[node name="CastChargeHost" type="Node3D" parent="."]
+editor_description = "Per-spell wand-tip charge animation is instanced here from SpellDefinition.cast_charge_scene."
+

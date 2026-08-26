@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/spell/spell_page_leaf.tscn" id="1_leaf"]
+[ext_resource type="Script" path="res://scripts/ui/book/spell/spell_page.gd" id="2_page"]
+
+[node name="HastePage" instance=ExtResource("1_leaf")]
+script = ExtResource("2_page")
+spell_id = "haste"
+
+[node name="SpellName" parent="Margin/VBox" index="0"]
+text = "Haste"
+
+[node name="Pronunciation" parent="Margin/VBox" index="1"]
+text = "\"speed up\""
+
+[node name="Details" parent="Margin/VBox" index="3"]
+text = "Increases movement speed for several seconds."

@@ -1,0 +1,103 @@
+[gd_scene format=3 uid="uid://fi2kwmua24d3"]
+
+[ext_resource type="Script" uid="uid://bl5c66i6ahsnr" path="res://scripts/spells/fireball_workspace.gd" id="1_workspace"]
+[ext_resource type="PackedScene" uid="uid://cfireball001" path="res://scenes/spells/fireball/fireball.tscn" id="2_fireball"]
+
+[sub_resource type="Environment" id="Environment_studio"]
+background_mode = 1
+background_color = Color(0.04, 0.045, 0.07, 1)
+ambient_light_color = Color(0.35, 0.38, 0.48, 1)
+ambient_light_energy = 0.4
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(4, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.12, 0.13, 0.16, 1)
+roughness = 0.92
+
+[sub_resource type="Gradient" id="Gradient_fire"]
+offsets = PackedFloat32Array(0, 0.22, 0.55, 0.82, 1)
+colors = PackedColorArray(1, 0.97, 0.55, 1, 1, 0.62, 0.12, 1, 1, 0.28, 0.04, 1, 0.55, 0.08, 0.02, 1, 0.12, 0.02, 0.01, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fire"]
+noise_type = 2
+frequency = 0.09
+fractal_type = 2
+fractal_lacunarity = 2.2
+fractal_gain = 0.55
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fire"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_fire")
+color_ramp = SubResource("Gradient_fire")
+seamless = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3cj45"]
+shading_mode = 0
+albedo_color = Color(1, 0.72, 0.28, 1)
+albedo_texture = SubResource("NoiseTexture2D_fire")
+uv1_scale = Vector3(2.4, 2.4, 2.4)
+uv1_offset = Vector3(0.12353569, 0.55380243, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ya1te"]
+transparency = 1
+blend_mode = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.35, 0.05, 0.16265474)
+
+[node name="FireballWorkspace" type="Node3D" unique_id=270085506]
+editor_description = "Fireball look-dev studio. Select Fireball for Orb shape / Editor preview / Smoke. Edit Core material (NoiseTexture2D + Gradient) for fire look."
+script = ExtResource("1_workspace")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=384738730]
+environment = SubResource("Environment_studio")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1900742028]
+transform = Transform3D(0.866025, -0.176777, 0.469846, 0, 0.935914, 0.352211, -0.5, -0.305, 0.810536, 0.95, 0.55, 1.45)
+current = true
+fov = 40.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1451997143]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 3, 0)
+light_energy = 0.85
+shadow_enabled = true
+
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=24197511]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0.9, 0.8)
+light_color = Color(0.55, 0.65, 0.9, 1)
+light_energy = 0.35
+omni_range = 6.0
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=795598423]
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="Fireball" parent="." unique_id=1119933257 instance=ExtResource("2_fireball")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+fire_scroll_x = 2.0
+fire_scroll_y = 2.0
+shell_visible = false
+animate_shell = false
+shell_alpha_min = 0.11
+smoke_amount = 50
+smoke_scale_min = 0.12000000000000001
+smoke_scale_max = 0.64
+ember_amount = 20
+ember_lifetime = 0.4
+ember_scale_min = 0.08
+ember_scale_max = 0.1
+
+[node name="Core" parent="Fireball" index="1" unique_id=1136994094]
+material_override = SubResource("StandardMaterial3D_3cj45")
+
+[node name="FlameShell" parent="Fireball" index="2" unique_id=1924173579]
+visible = false
+material_override = SubResource("StandardMaterial3D_ya1te")
+
+[node name="TravelCastLight" parent="Fireball" index="3" unique_id=1375562628]
+light_energy = 1.4509465
+
+[editable path="Fireball"]

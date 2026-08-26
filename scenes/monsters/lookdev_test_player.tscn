@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://blookdevplyr1"]
+
+[ext_resource type="Script" uid="uid://clookdevplyr01" path="res://scripts/monsters/lookdev_test_player.gd" id="1_dummy"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_dummy"]
+radius = 0.27
+height = 0.7
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_dummy"]
+radius = 0.27
+height = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dummy"]
+albedo_color = Color(0.25, 0.65, 0.95, 1)
+roughness = 0.62
+
+[node name="TestPlayer" type="CharacterBody3D"]
+visible = false
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_dummy")
+editor_description = "Dummy playable stand-in in the player group. Use Monster Workspace → Lookdev Targets → Place Test Player In View. Leave Is Alive on so Sight/Hearing can lock on."
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0)
+shape = SubResource("CapsuleShape3D_dummy")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0)
+mesh = SubResource("CapsuleMesh_dummy")
+surface_material_override/0 = SubResource("StandardMaterial3D_dummy")
+
+[node name="Label" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+pixel_size = 0.008
+text = "Test Player"
+modulate = Color(0.85, 0.95, 1, 1)
+outline_size = 8

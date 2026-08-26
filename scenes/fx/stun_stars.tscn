@@ -1,0 +1,47 @@
+[gd_scene load_steps=4 format=3 uid="uid://7shalb8dn4r4"]
+
+[ext_resource type="Script" uid="uid://c0hnbxcgp5m5w" path="res://scripts/fx/stun_stars.gd" id="1_stars"]
+[ext_resource type="ArrayMesh" path="res://assets/fx/stun_star.res" id="2_mesh"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_star"]
+resource_local_to_scene = true
+shading_mode = 0
+albedo_color = Color(1, 0.92, 0.25, 1)
+emission_enabled = true
+emission = Color(1, 0.92, 0.25, 1)
+emission_energy_multiplier = 3.4
+transparency = 1
+cull_mode = 2
+billboard_mode = 1
+billboard_keep_scale = true
+
+[node name="StunStars" type="Node3D" unique_id=50988472]
+process_mode = 3
+editor_description = "Orbiting 5-point stun stars. Authored Star0–Star4; script only transforms them. Inspector Play/Stop previews the orbit; gameplay uses set_active()."
+visible = false
+script = ExtResource("1_stars")
+
+[node name="Star0" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = ExtResource("2_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_star")
+
+[node name="Star1" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = ExtResource("2_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_star")
+
+[node name="Star2" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = ExtResource("2_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_star")
+
+[node name="Star3" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = ExtResource("2_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_star")
+
+[node name="Star4" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = ExtResource("2_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_star")

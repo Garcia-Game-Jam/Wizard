@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://dud80ue7p23rt"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "fireball"
+display_name = "Fireball"
+incantation_words = PackedStringArray("fireball")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 0.0
+effect_id = "fireball"
+damage = 20.0
+color = Color(1, 0.45, 0.12, 1)
+category = 0
+require_full_charge = true

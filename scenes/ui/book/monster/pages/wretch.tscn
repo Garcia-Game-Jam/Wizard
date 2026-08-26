@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://dxrg1ivsclvpy"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/page_leaf.tscn" id="1_leaf"]
+[ext_resource type="Script" uid="uid://dp5yyh4og8nv2" path="res://scripts/ui/book/monster/monster_page.gd" id="2_page"]
+[ext_resource type="Resource" uid="uid://bj0vyt4uvwla8" path="res://resources/monsters/wretch.tres" id="3_entry"]
+
+[node name="WretchPage" unique_id=1244409976 instance=ExtResource("1_leaf")]
+script = ExtResource("2_page")
+summon_entry = ExtResource("3_entry")
+
+[node name="TitleLabel" parent="Margin/VBox" index="0"]
+text = "Rat Queen"
+
+[node name="SubtitleLabel" parent="Margin/VBox" index="1"]
+text = "Summon"
+
+[node name="BodyLabel" parent="Margin/VBox" index="2"]
+text = "A powerful, defensive summoner. Like the pied piper, his rats chase on command and explode on contact."
+
+[node name="HintLabel" parent="Margin/VBox" index="4"]
+text = "[Q] / [E] turn pages. Select to place."
+
+[node name="SelectButton" type="Button" parent="Margin/VBox" index="5" unique_id=943505481]
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 14
+text = "Select — Left Click"

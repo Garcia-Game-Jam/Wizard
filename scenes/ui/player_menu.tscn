@@ -1,0 +1,169 @@
+[gd_scene load_steps=6 format=3 uid="uid://cplayermenu001"]
+
+[ext_resource type="Theme" path="res://resources/ui/serious_wiz_biz_theme.tres" id="1_theme"]
+[ext_resource type="Script" uid="uid://c1k8vrfvkuyln" path="res://scripts/ui/player_menu.gd" id="1_menu"]
+[ext_resource type="PackedScene" uid="uid://cswbflare001" path="res://scenes/ui/scaffolding/title_flare.tscn" id="2_flare"]
+[ext_resource type="PackedScene" uid="uid://cswbinvslot001" path="res://scenes/ui/scaffolding/inventory_slot.tscn" id="3_inv_slot"]
+[ext_resource type="PackedScene" uid="uid://cswbspellslot001" path="res://scenes/ui/scaffolding/spell_menu_slot.tscn" id="4_spell_slot"]
+
+[node name="PlayerMenu" type="PanelContainer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -210.0
+offset_right = 320.0
+offset_bottom = 210.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("1_menu")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="VBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBox/Header"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 22
+text = "Guide"
+
+[node name="SubtitleLabel" type="Label" parent="MarginContainer/VBox/Header"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 13
+text = "Press [Tab] to hide"
+
+[node name="TitleFlare" parent="MarginContainer/VBox" instance=ExtResource("2_flare")]
+layout_mode = 2
+
+[node name="TabBar" type="TabBar" parent="MarginContainer/VBox"]
+layout_mode = 2
+tab_count = 3
+tab_0/title = "Inventory"
+tab_1/title = "Spells"
+tab_2/title = "Guide"
+current_tab = 2
+
+[node name="InventoryPage" type="VBoxContainer" parent="MarginContainer/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="InventoryHint" type="Label" parent="MarginContainer/VBox/InventoryPage"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 13
+text = "Drag items between slots. Slots 1–4 are the hotbar (keys 1–4)."
+autowrap_mode = 3
+
+[node name="InventoryGrid" type="GridContainer" parent="MarginContainer/VBox/InventoryPage"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 5
+
+[node name="Slot1" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot2" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot3" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot4" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot5" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot6" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot7" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot8" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot9" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="Slot10" parent="MarginContainer/VBox/InventoryPage/InventoryGrid" instance=ExtResource("3_inv_slot")]
+layout_mode = 2
+
+[node name="SpellsPage" type="VBoxContainer" parent="MarginContainer/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SpellsHint" type="Label" parent="MarginContainer/VBox/SpellsPage"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 13
+text = "Drag spells to swap slots. After a voice confirm, press LMB / RMB / Q / E to assign."
+autowrap_mode = 3
+
+[node name="SpellsGrid" type="GridContainer" parent="MarginContainer/VBox/SpellsPage"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 4
+
+[node name="SlotLMB" parent="MarginContainer/VBox/SpellsPage/SpellsGrid" instance=ExtResource("4_spell_slot")]
+layout_mode = 2
+
+[node name="SlotRMB" parent="MarginContainer/VBox/SpellsPage/SpellsGrid" instance=ExtResource("4_spell_slot")]
+layout_mode = 2
+
+[node name="SlotQ" parent="MarginContainer/VBox/SpellsPage/SpellsGrid" instance=ExtResource("4_spell_slot")]
+layout_mode = 2
+
+[node name="SlotE" parent="MarginContainer/VBox/SpellsPage/SpellsGrid" instance=ExtResource("4_spell_slot")]
+layout_mode = 2
+
+[node name="GuidePage" type="VBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HintsLabel" type="Label" parent="MarginContainer/VBox/GuidePage"]
+layout_mode = 2
+custom_minimum_size = Vector2(560, 0)
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 13
+text = "Move — WASD
+Dash — Shift · Jump — Space · Crouch — C
+Interact — F
+Cast — MMB raise wand & speak · LMB/RMB/Q/E assign or hold to fire
+Spellbook — [2] or B · Guide — Tab · Spells tab rearranges slots
+Broom — [1] · WASD fly · Space up · C down · Shift boost
+Summoning Book — [3] · Q/E turn pages · LMB select · Esc cancel"
+autowrap_mode = 3
+
+[node name="ObjectiveHeading" type="Label" parent="MarginContainer/VBox/GuidePage"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 17
+text = "Objectives"
+
+[node name="ObjectiveLabel" type="Label" parent="MarginContainer/VBox/GuidePage"]
+layout_mode = 2
+custom_minimum_size = Vector2(560, 0)
+theme_override_font_sizes/font_size = 14
+text = "No active objectives."
+autowrap_mode = 3

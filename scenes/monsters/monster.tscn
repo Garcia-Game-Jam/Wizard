@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://bmonster001"]
+
+[ext_resource type="PackedScene" uid="uid://bcharacter01" path="res://scenes/characters/character.tscn" id="1_character"]
+[ext_resource type="Script" uid="uid://cmonster001gd" path="res://scripts/monsters/monster.gd" id="2_monster"]
+[ext_resource type="Script" uid="uid://csensegizmo01" path="res://scripts/monsters/monster_sense_gizmos.gd" id="3_sensegizmo"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_monster"]
+radius = 0.2
+height = 0.7
+
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+radius = 0.035
+height = 0.07
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eye"]
+resource_local_to_scene = true
+shading_mode = 0
+albedo_color = Color(0.15, 0.45, 1, 1)
+emission_enabled = true
+emission = Color(0.2, 0.55, 1, 1)
+emission_energy_multiplier = 4.5
+
+[node name="Monster" unique_id=910001001 instance=ExtResource("1_character")]
+editor_description = "Shared monster shell. Prefer type scenes (Rat Queen / Ice Caster / Ember Caster) for lookdev and summoning."
+script = ExtResource("2_monster")
+body_tint = Color(0.72, 0.28, 0.22, 1)
+eye_glow_color = Color(0.2, 0.55, 1, 1)
+lookdev_pose = 0
+move_speed = 3.2
+chase_range = 12.0
+attack_range = 1.4
+touch_damage = 8.0
+gravity = 18.0
+
+[node name="CollisionShape3D" parent="." index="0" unique_id=294740946]
+shape = SubResource("CapsuleShape3D_monster")
+
+[node name="Health" parent="."]
+max_health = 50.0
+
+[node name="Eyes" type="Node3D" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="1" unique_id=910001010]
+unique_name_in_owner = true
+visible = false
+editor_description = "Chase indicator. Hidden unless AI is in CHASE. Color set from summon entry eye_glow_color."
+
+[node name="LeftEye" type="MeshInstance3D" parent="Head/Eyes" index="0" unique_id=910001011]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.055, 0.02, -0.135)
+layers = 2
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_eye")
+cast_shadow = 0
+
+[node name="RightEye" type="MeshInstance3D" parent="Head/Eyes" index="1" unique_id=910001012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.055, 0.02, -0.135)
+layers = 2
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_eye")
+cast_shadow = 0
+
+[node name="Glow" type="OmniLight3D" parent="Head/Eyes" index="2" unique_id=910001013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.12)
+light_color = Color(0.25, 0.55, 1, 1)
+light_energy = 2.4
+light_size = 0.05
+omni_range = 1.8
+shadow_enabled = false
+
+[node name="Senses" type="Node" parent="." index="3" unique_id=1569456525]
+editor_description = "Optional MonsterSense children (Sight, Hearing, LightAwareness). Add per type; SenseGizmos reads them when show_sense_ranges is on."
+
+[node name="SenseGizmos" type="Node3D" parent="." index="4" unique_id=1569456526]
+unique_name_in_owner = true
+editor_description = "Debug overlay: cyan hearing disc, green sight cone/disc, yellow light disc, LOS ray. Toggle Gizmos → Show Sense Ranges on this monster (or on Monster Workspace for the whole gallery)."
+script = ExtResource("3_sensegizmo")

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://dex1n2eif1prk"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "target"
+display_name = "Target"
+incantation_words = PackedStringArray("target")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 6.0
+effect_id = "target"
+color = Color(0.55, 0.85, 0.65, 1)

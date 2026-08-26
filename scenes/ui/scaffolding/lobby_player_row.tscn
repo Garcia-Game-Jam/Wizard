@@ -1,0 +1,71 @@
+[gd_scene load_steps=3 format=3 uid="uid://cswblobbyrow001"]
+
+[ext_resource type="Theme" path="res://resources/ui/serious_wiz_biz_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/scaffolding/lobby_player_row.gd" id="2_script"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_voice"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+
+[node name="LobbyPlayerRow" type="VBoxContainer"]
+theme = ExtResource("1_theme")
+theme_override_constants/separation = 4
+script = ExtResource("2_script")
+
+[node name="IdentityRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameColumn" type="VBoxContainer" parent="IdentityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="NameLabel" type="Label" parent="IdentityRow/NameColumn"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 16
+text = "You"
+
+[node name="DetailLabel" type="Label" parent="IdentityRow/NameColumn"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 12
+
+[node name="MixRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="VoiceButton" type="Button" parent="MixRow"]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+focus_mode = 0
+theme_override_constants/h_separation = 0
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxEmpty_voice")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_voice")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_voice")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_voice")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_voice")
+text = "🎤"
+flat = true
+alignment = 1
+tooltip_text = "Mute or unmute your microphone."
+
+[node name="VolumeSlider" type="HSlider" parent="MixRow"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_default_cursor_shape = 2
+max_value = 2.0
+step = 0.01
+value = 1.0
+tick_count = 0
+tooltip_text = "How loud others hear you. Same dial as Audio settings."

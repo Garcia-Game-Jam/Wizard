@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://kmv47qonq4rj"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/spell/spell_page_leaf.tscn" id="1_leaf"]
+[ext_resource type="Script" uid="uid://c6pnkwtncfbx0" path="res://scripts/ui/book/spell/spell_page.gd" id="2_page"]
+
+[node name="WardPage" unique_id=1021613805 instance=ExtResource("1_leaf")]
+script = ExtResource("2_page")
+spell_id = "ward"
+
+[node name="SpellName" parent="Margin/VBox" index="0"]
+text = "Ward"
+
+[node name="Pronunciation" parent="Margin/VBox" index="1"]
+text = "\"ward\""
+
+[node name="Details" parent="Margin/VBox" index="3"]
+text = "A brief shield that can block one spell."

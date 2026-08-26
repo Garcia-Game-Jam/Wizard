@@ -1,0 +1,6 @@
+[gd_resource type="PackedScene" format=3 uid="uid://dee602qfnf4uy"]
+
+[ext_resource type="PackedScene" path="res://scenes/monsters/gnome_den.tscn" id="1"]
+
+[resource]
+resource_name = "Gnome Den"

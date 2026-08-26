@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MonsterSummonEntry" format=3 uid="uid://bolw4vh4k0v55"]
+
+[ext_resource type="Script" uid="uid://byba5sgpdlik8" path="res://scripts/ui/book/monster/monster_summon_entry.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bcharger001" path="res://scenes/monsters/charger.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = "charger"
+display_name = "Charger"
+description = "A stocky, horned rammer. Nearly deaf, but it sees a long way in front of itself. If it spots you it winds up, raises a ward, and rams in a locked line."
+monster_scene = ExtResource("2")
+tint = Color(0.22, 0.72, 0.28, 1)
+eye_glow_color = Color(0.95, 0.08, 0.05, 1)

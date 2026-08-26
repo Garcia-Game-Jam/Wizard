@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://bsynwwje1gvsy"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "clone"
+display_name = "Clone"
+incantation_words = PackedStringArray("clone")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 12.0
+effect_id = "clone"
+color = Color(0.65, 0.75, 0.95, 1)

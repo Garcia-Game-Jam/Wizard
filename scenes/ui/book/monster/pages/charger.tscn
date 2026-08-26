@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/page_leaf.tscn" id="1_leaf"]
+[ext_resource type="Script" path="res://scripts/ui/book/monster/monster_page.gd" id="2_page"]
+[ext_resource type="Resource" uid="uid://bchargerentry1" path="res://resources/monsters/charger.tres" id="3_entry"]
+
+[node name="ChargerPage" instance=ExtResource("1_leaf")]
+script = ExtResource("2_page")
+summon_entry = ExtResource("3_entry")
+
+[node name="TitleLabel" parent="Margin/VBox" index="0"]
+text = "Charger"
+
+[node name="SubtitleLabel" parent="Margin/VBox" index="1"]
+text = "Summon"
+
+[node name="BodyLabel" parent="Margin/VBox" index="2"]
+text = "A stocky, horned rammer. Nearly deaf, but it sees a long way in front of itself. If it spots you it winds up, raises a ward, and rams in a locked line."
+
+[node name="HintLabel" parent="Margin/VBox" index="4"]
+text = "[Q] / [E] turn pages. Select to place."
+
+[node name="SelectButton" type="Button" parent="Margin/VBox" index="5"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Select — Left Click"
+focus_mode = 0

@@ -1,0 +1,372 @@
+[gd_scene format=3 uid="uid://carenapit001"]
+
+[ext_resource type="Script" uid="uid://carenascn001" path="res://scripts/arena/arena_scene.gd" id="1_arena"]
+[ext_resource type="Script" uid="uid://bkvka4fuy7rl2" path="res://scripts/spells/spell_registry.gd" id="6_registry"]
+[ext_resource type="Resource" uid="uid://cyg7o8wvlijw5" path="res://scenes/spells/show_me/show_me.tres" id="7_show_me"]
+[ext_resource type="Resource" uid="uid://678bsder6qrs" path="res://scenes/spells/haste/haste.tres" id="8_haste"]
+[ext_resource type="Script" uid="uid://bfnrfxnwjg02y" path="res://scripts/ui/aim_cursor.gd" id="9_aim"]
+[ext_resource type="Script" uid="uid://crdov1cq8kly5" path="res://scripts/ui/game_hud.gd" id="9_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/player_menu.tscn" id="9_player_menu"]
+[ext_resource type="Script" uid="uid://c3khbmmmkw14b" path="res://scripts/ui/spell_word_banner.gd" id="9_spell_word"]
+[ext_resource type="Script" uid="uid://yf2yi73fbs6o" path="res://scripts/spells/voice_spell_validator.gd" id="10_validator"]
+[ext_resource type="Script" uid="uid://cgo2lkhlxtcky" path="res://scripts/spells/spell_validation_runner.gd" id="11_runner"]
+[ext_resource type="PackedScene" uid="uid://cpausemenu001" path="res://scenes/ui/pause_menu.tscn" id="14_pause"]
+[ext_resource type="PackedScene" uid="uid://cswbhealth001" path="res://scenes/ui/scaffolding/health_bar.tscn" id="14_health"]
+[ext_resource type="Resource" uid="uid://dud80ue7p23rt" path="res://scenes/spells/fireball/fireball.tres" id="15_fireball"]
+[ext_resource type="Resource" uid="uid://dqc3frk775rdr" path="res://scenes/spells/light/light.tres" id="25_light"]
+[ext_resource type="Resource" uid="uid://yhkf2aamt6r7" path="res://scenes/spells/light_ball/light_ball.tres" id="26_light_ball"]
+[ext_resource type="Resource" uid="uid://dex1n2eif1prk" path="res://scenes/spells/target/target.tres" id="27_target"]
+[ext_resource type="Resource" uid="uid://cnbmfykshgjy" path="res://scenes/spells/pull/pull.tres" id="29_pull"]
+[ext_resource type="Resource" uid="uid://b2tj23aicq5ks" path="res://scenes/spells/follow/follow.tres" id="30_follow"]
+[ext_resource type="Resource" uid="uid://dm0b3twvh1yuv" path="res://scenes/spells/dispell/dispell.tres" id="31_dispell"]
+[ext_resource type="Resource" uid="uid://c300xtr2mgchs" path="res://scenes/spells/flare/flare.tres" id="33_flare"]
+[ext_resource type="Resource" uid="uid://uuo4bgv3b66" path="res://scenes/spells/stop/stop.tres" id="34_stop"]
+[ext_resource type="Resource" uid="uid://djudlmjak0msk" path="res://scenes/spells/ward/ward.tres" id="35_ward"]
+
+[sub_resource type="Environment" id="Environment_arena"]
+background_mode = 1
+background_color = Color(0.08, 0.09, 0.12, 1)
+ambient_light_source = 1
+ambient_light_color = Color(0.72, 0.74, 0.8, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.32, 0.3, 0.26, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.2, 0.18, 0.16, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_seat"]
+albedo_color = Color(0.26, 0.24, 0.22, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_lip"]
+albedo_color = Color(0.16, 0.15, 0.14, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_cover"]
+albedo_color = Color(0.42, 0.36, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_cover"]
+material = SubResource("Mat_cover")
+size = Vector3(2.4, 2, 2.4)
+
+[sub_resource type="BoxShape3D" id="Shape_cover"]
+size = Vector3(2.4, 2, 2.4)
+
+[node name="Arena" type="Node3D"]
+script = ExtResource("1_arena")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_arena")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 28, 0)
+shadow_enabled = true
+light_energy = 1.2
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14, 0)
+light_energy = 1.6
+omni_range = 70.0
+
+[node name="Pit" type="Node3D" parent="."]
+
+[node name="ArenaBowl" type="CSGCombiner3D" parent="Pit"]
+use_collision = true
+
+[node name="Outer" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 22, 0, 12, 0)
+radius = 1.0
+height = 24.0
+sides = 48
+smooth_faces = true
+material = SubResource("Mat_wall")
+
+[node name="InnerCut" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+operation = 2
+transform = Transform3D(26, 0, 0, 0, 1, 0, 0, 0, 19, 0, 11, 0)
+radius = 1.0
+height = 22.0
+sides = 48
+smooth_faces = true
+
+[node name="Sand" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+transform = Transform3D(26.2, 0, 0, 0, 1, 0, 0, 0, 19.2, 0, -0.5, 0)
+radius = 1.0
+height = 1.0
+sides = 48
+smooth_faces = true
+material = SubResource("Mat_floor")
+
+[node name="Ceiling" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+transform = Transform3D(26.5, 0, 0, 0, 1, 0, 0, 0, 19.5, 0, 23, 0)
+radius = 1.0
+height = 2.0
+sides = 48
+smooth_faces = true
+material = SubResource("Mat_lip")
+
+[node name="Lip" type="CSGCombiner3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 23, 0)
+use_collision = true
+
+[node name="LipOuter" type="CSGCylinder3D" parent="Pit/Lip"]
+transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 22, 0, 0, 0)
+radius = 1.0
+height = 3.0
+sides = 48
+smooth_faces = true
+material = SubResource("Mat_lip")
+
+[node name="LipInner" type="CSGCylinder3D" parent="Pit/Lip"]
+operation = 2
+transform = Transform3D(23.5, 0, 0, 0, 1, 0, 0, 0, 17, 0, 0, 0)
+radius = 1.0
+height = 4.0
+sides = 48
+smooth_faces = true
+
+[node name="Seating" type="Node3D" parent="Pit"]
+
+[node name="Tier1" type="CSGCombiner3D" parent="Pit/Seating"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+use_collision = false
+
+[node name="Tier1Outer" type="CSGCylinder3D" parent="Pit/Seating/Tier1"]
+transform = Transform3D(38, 0, 0, 0, 1, 0, 0, 0, 28, 0, 0, 0)
+radius = 1.0
+height = 5.0
+sides = 48
+smooth_faces = true
+material = SubResource("Mat_seat")
+
+[node name="Tier1Inner" type="CSGCylinder3D" parent="Pit/Seating/Tier1"]
+operation = 2
+transform = Transform3D(30.2, 0, 0, 0, 1, 0, 0, 0, 22.2, 0, 0, 0)
+radius = 1.0
+height = 6.0
+sides = 48
+smooth_faces = true
+
+[node name="Tier2" type="CSGCombiner3D" parent="Pit/Seating"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.5, 0)
+use_collision = false
+
+[node name="Tier2Outer" type="CSGCylinder3D" parent="Pit/Seating/Tier2"]
+transform = Transform3D(44, 0, 0, 0, 1, 0, 0, 0, 33, 0, 0, 0)
+radius = 1.0
+height = 5.0
+sides = 48
+smooth_faces = true
+material = SubResource("Mat_seat")
+
+[node name="Tier2Inner" type="CSGCylinder3D" parent="Pit/Seating/Tier2"]
+operation = 2
+transform = Transform3D(38.2, 0, 0, 0, 1, 0, 0, 0, 28.2, 0, 0, 0)
+radius = 1.0
+height = 6.0
+sides = 48
+smooth_faces = true
+
+[node name="Cover" type="Node3D" parent="."]
+
+[node name="Block0" type="StaticBody3D" parent="Cover"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1, -4)
+
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block0"]
+mesh = SubResource("Mesh_cover")
+
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block0"]
+shape = SubResource("Shape_cover")
+
+[node name="Block1" type="StaticBody3D" parent="Cover"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 3)
+
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block1"]
+mesh = SubResource("Mesh_cover")
+
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block1"]
+shape = SubResource("Shape_cover")
+
+[node name="Block2" type="StaticBody3D" parent="Cover"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 8)
+
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block2"]
+mesh = SubResource("Mesh_cover")
+
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block2"]
+shape = SubResource("Shape_cover")
+
+[node name="Pads" type="Node3D" parent="."]
+
+[node name="Pad0" type="Marker3D" parent="Pads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.05, -10)
+
+[node name="Pad1" type="Marker3D" parent="Pads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.05, -10)
+
+[node name="Pad2" type="Marker3D" parent="Pads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.05, 10)
+
+[node name="Pad3" type="Marker3D" parent="Pads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.05, 10)
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="PlayerSpawn_0" type="Marker3D" parent="Players"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, 14)
+
+[node name="PlayerSpawn_1" type="Marker3D" parent="Players"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 14)
+
+[node name="PlayerSpawn_2" type="Marker3D" parent="Players"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, 16)
+
+[node name="PlayerSpawn_3" type="Marker3D" parent="Players"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
+
+[node name="Monsters" type="Node3D" parent="."]
+
+[node name="SpellRegistry" type="Node" parent="."]
+script = ExtResource("6_registry")
+spells = Array[Resource]([ExtResource("7_show_me"), ExtResource("8_haste"), ExtResource("15_fireball"), ExtResource("33_flare"), ExtResource("35_ward"), ExtResource("25_light"), ExtResource("26_light_ball"), ExtResource("27_target"), ExtResource("29_pull"), ExtResource("30_follow"), ExtResource("34_stop"), ExtResource("31_dispell")])
+
+[node name="VoiceSpellValidator" type="Node" parent="."]
+script = ExtResource("10_validator")
+
+[node name="SpellValidationRunner" type="Node" parent="VoiceSpellValidator"]
+script = ExtResource("11_runner")
+
+[node name="GameHUD" type="CanvasLayer" parent="."]
+script = ExtResource("9_hud")
+
+[node name="HealthBar" parent="GameHUD" instance=ExtResource("14_health")]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -156.0
+offset_right = 160.0
+offset_bottom = -136.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="AimCursor" type="Control" parent="GameHUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_aim")
+
+[node name="PlayerMenu" parent="GameHUD" instance=ExtResource("9_player_menu")]
+visible = false
+
+[node name="MarginContainer" type="MarginContainer" parent="GameHUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 48.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+
+[node name="PromptLabel" type="Label" parent="GameHUD/MarginContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="SpellWordBanner" type="Control" parent="GameHUD"]
+z_index = 64
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = 136.0
+offset_right = 420.0
+offset_bottom = 224.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_spell_word")
+
+[node name="SpellWordLabel" type="Label" parent="GameHUD/SpellWordBanner"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 68
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CastingPanel" type="PanelContainer" parent="GameHUD"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -346.0
+offset_right = 260.0
+offset_bottom = -120.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="GameHUD/CastingPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="GameHUD/CastingPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Casting"
+
+[node name="WordsLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="GuideLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.82, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 2
+
+[node name="StatusLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="MicLevelBar" type="ProgressBar" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+show_percentage = false
+
+[node name="FeedbackLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.75, 0.45, 1)
+autowrap_mode = 2
+
+[node name="DetailLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.58, 0.78, 1)
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 2
+
+[node name="PauseMenu" parent="." instance=ExtResource("14_pause")]
+visible = false

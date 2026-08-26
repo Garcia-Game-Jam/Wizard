@@ -1,0 +1,608 @@
+[gd_scene format=3 uid="uid://bflxbhshbo6x5"]
+
+[ext_resource type="Theme" uid="uid://b0eursallxwjr" path="res://resources/ui/serious_wiz_biz_theme.tres" id="0_theme"]
+[ext_resource type="Script" uid="uid://clghxkxhs6pxb" path="res://scripts/ui/settings_panel.gd" id="1_settings"]
+[ext_resource type="Script" uid="uid://c7xkid6gjah1x" path="res://scripts/ui/player_voice_list.gd" id="2_player_voice"]
+[ext_resource type="Script" uid="uid://cwq8fil4voixo" path="res://scripts/ui/menu_toggle_switch.gd" id="3_toggle"]
+[ext_resource type="Script" uid="uid://bfnrfxnwjg02y" path="res://scripts/ui/aim_cursor.gd" id="4_aim"]
+[ext_resource type="Script" uid="uid://dlhyaksydqf51" path="res://scripts/ui/keybinds/settings_controls_tab.gd" id="5_controls"]
+[ext_resource type="PackedScene" uid="uid://cswbflare001" path="res://scenes/ui/scaffolding/title_flare.tscn" id="6_flare"]
+[ext_resource type="PackedScene" uid="uid://7yixf6ggt3lc" path="res://scenes/ui/scaffolding/toggle_switch.tscn" id="7_toggle_sw"]
+[ext_resource type="PackedScene" uid="uid://0l63liurp0rs" path="res://scenes/ui/scaffolding/value_slider.tscn" id="10_slider"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_crosshair_preview"]
+bg_color = Color(0.06, 0.05, 0.09, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.36, 0.28, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ncvun"]
+
+[sub_resource type="Image" id="Image_78kub"]
+data = {
+"data": PackedByteArray(0, 0, 0, 0),
+"format": "RGBA8",
+"height": 1,
+"mipmaps": false,
+"width": 1
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_qvygn"]
+image = SubResource("Image_78kub")
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_eua7n"]
+
+[sub_resource type="Image" id="Image_qhkq3"]
+data = {
+"data": PackedByteArray(0, 0, 0, 0),
+"format": "RGBA8",
+"height": 1,
+"mipmaps": false,
+"width": 1
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_u1gvm"]
+image = SubResource("Image_qhkq3")
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7h5ju"]
+
+[sub_resource type="Image" id="Image_jeoeo"]
+data = {
+"data": PackedByteArray(0, 0, 0, 0),
+"format": "RGBA8",
+"height": 1,
+"mipmaps": false,
+"width": 1
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_1oful"]
+image = SubResource("Image_jeoeo")
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_tglx8"]
+
+[sub_resource type="Image" id="Image_ss6yk"]
+data = {
+"data": PackedByteArray(0, 0, 0, 0),
+"format": "RGBA8",
+"height": 1,
+"mipmaps": false,
+"width": 1
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_pvhr1"]
+image = SubResource("Image_ss6yk")
+
+[node name="SettingsPanel" type="Control" unique_id=597611379]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("0_theme")
+script = ExtResource("1_settings")
+
+[node name="Dimmer" type="ColorRect" parent="." unique_id=1441723527]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.024, 0.031, 0.059, 0.62)
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=786599226]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -360.0
+offset_right = 360.0
+offset_bottom = 360.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=151919021]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=476842162]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBox" unique_id=1797468903]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 28
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="TitleFlare" parent="Panel/MarginContainer/VBox" unique_id=2057286473 instance=ExtResource("6_flare")]
+
+[node name="TabContainer" type="TabContainer" parent="Panel/MarginContainer/VBox" unique_id=1973437201]
+custom_minimum_size = Vector2(0, 460)
+layout_mode = 2
+size_flags_vertical = 3
+current_tab = 2
+
+[node name="General" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer" unique_id=930245604]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/TabContainer/General" unique_id=1734559557]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer" unique_id=365859348]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="GeneralVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer" unique_id=1807011474]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="CrosshairHeaderLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=1196142263]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Crosshair"
+
+[node name="CrosshairPreviewFrame" type="PanelContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=1101245085]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_crosshair_preview")
+
+[node name="CrosshairPreview" type="Control" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairPreviewFrame" unique_id=1289040969]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+script = ExtResource("4_aim")
+fill_parent = false
+
+[node name="CrosshairOpacityRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=357853749]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CrosshairOpacityCaption" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairOpacityRow" unique_id=234600030]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+text = "Opacity"
+
+[node name="CrosshairOpacitySlider" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairOpacityRow" unique_id=1150360654 instance=ExtResource("10_slider")]
+layout_mode = 2
+size_flags_horizontal = 3
+value = 0.9
+tick_divisions = 0
+
+[node name="CrosshairThicknessRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=1307815040]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CrosshairThicknessCaption" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairThicknessRow" unique_id=1370020964]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+text = "Thickness"
+
+[node name="CrosshairThicknessSlider" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairThicknessRow" unique_id=788629697 instance=ExtResource("10_slider")]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 5.0
+value = 1.8
+tick_divisions = 0
+show_as_percent = false
+step_size = 0.05
+
+[node name="CrosshairColorRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=191053862]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CrosshairColorCaption" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairColorRow" unique_id=1870677056]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+text = "Color"
+
+[node name="CrosshairColorPicker" type="ColorPickerButton" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairColorRow" unique_id=1458804286]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+text = ""
+edit_alpha = false
+
+[node name="CrosshairOuterRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=738797345]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CrosshairOuterLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairOuterRow" unique_id=1535494135]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Outer circle"
+
+[node name="CrosshairOuterSwitch" type="CheckButton" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairOuterRow" unique_id=2045973239]
+custom_minimum_size = Vector2(40, 20)
+layout_mode = 2
+theme_override_constants/h_separation = 0
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ncvun")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_ncvun")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_ncvun")
+theme_override_styles/hover_pressed = SubResource("StyleBoxEmpty_ncvun")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_ncvun")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_ncvun")
+theme_override_icons/checked = SubResource("ImageTexture_qvygn")
+theme_override_icons/unchecked = SubResource("ImageTexture_qvygn")
+theme_override_icons/checked_disabled = SubResource("ImageTexture_qvygn")
+theme_override_icons/unchecked_disabled = SubResource("ImageTexture_qvygn")
+button_pressed = true
+flat = true
+script = ExtResource("3_toggle")
+
+[node name="CrosshairDotRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox" unique_id=513137618]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CrosshairDotLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairDotRow" unique_id=193262870]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Center dot"
+
+[node name="CrosshairDotSwitch" type="CheckButton" parent="Panel/MarginContainer/VBox/TabContainer/General/MarginContainer/ScrollContainer/GeneralVBox/CrosshairDotRow" unique_id=1829284376]
+custom_minimum_size = Vector2(40, 20)
+layout_mode = 2
+theme_override_constants/h_separation = 0
+theme_override_styles/normal = SubResource("StyleBoxEmpty_eua7n")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_eua7n")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_eua7n")
+theme_override_styles/hover_pressed = SubResource("StyleBoxEmpty_eua7n")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_eua7n")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_eua7n")
+theme_override_icons/checked = SubResource("ImageTexture_u1gvm")
+theme_override_icons/unchecked = SubResource("ImageTexture_u1gvm")
+theme_override_icons/checked_disabled = SubResource("ImageTexture_u1gvm")
+theme_override_icons/unchecked_disabled = SubResource("ImageTexture_u1gvm")
+button_pressed = true
+flat = true
+script = ExtResource("3_toggle")
+
+[node name="Graphics" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer" unique_id=631093943]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/TabContainer/Graphics" unique_id=163634880]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer" unique_id=230025179]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="GraphicsVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer/ScrollContainer" unique_id=1008904539]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="DisplayModeLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer/ScrollContainer/GraphicsVBox" unique_id=1548533360]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Display Mode"
+
+[node name="DisplayModeOption" type="OptionButton" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer/ScrollContainer/GraphicsVBox" unique_id=325756326]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="ResolutionLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer/ScrollContainer/GraphicsVBox" unique_id=471918950]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Resolution"
+
+[node name="ResolutionOption" type="OptionButton" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer/ScrollContainer/GraphicsVBox" unique_id=1887530496]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="ResolutionHintLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Graphics/MarginContainer/ScrollContainer/GraphicsVBox" unique_id=1951227201]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.5, 0.42, 1)
+theme_override_font_sizes/font_size = 13
+text = "In fullscreen, resolution sets render scale while filling your monitor. In windowed mode, it sets the window size."
+autowrap_mode = 2
+
+[node name="Audio" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer" unique_id=415453743]
+layout_mode = 2
+metadata/_tab_index = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio" unique_id=540417034]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer" unique_id=763765834]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="AudioVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer" unique_id=1262551805]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="GeneralHeaderLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=1911874043]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 18
+text = "General"
+
+[node name="OutputDeviceLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=1664853230]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Output Device"
+
+[node name="OutputDeviceOption" type="OptionButton" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=2093203747]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="InputDeviceLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=582069175]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Input Device (Microphone)"
+
+[node name="InputDeviceOption" type="OptionButton" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=99568607]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="MasterVolumeRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=110494703]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="MasterVolumeCaption" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/MasterVolumeRow" unique_id=1028851935]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Master Volume"
+
+[node name="MasterVolumeSlider" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/MasterVolumeRow" unique_id=915611237 instance=ExtResource("10_slider")]
+layout_mode = 2
+size_flags_horizontal = 3
+tick_divisions = 0
+
+[node name="MicVolumeRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=1993390626]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="MicVolumeCaption" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/MicVolumeRow" unique_id=1318436931]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Mic Volume"
+
+[node name="MicVolumeSlider" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/MicVolumeRow" unique_id=1510014840 instance=ExtResource("10_slider")]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2.0
+tick_divisions = 1
+
+[node name="HearMyselfRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=888117720]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HearMyselfLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/HearMyselfRow" unique_id=1314806158]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Hear Myself"
+
+[node name="HearMyselfSwitch" type="CheckButton" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/HearMyselfRow" unique_id=1838882108]
+custom_minimum_size = Vector2(40, 20)
+layout_mode = 2
+tooltip_text = "Play your own mic in your headset during voice chat (software sidetone). Does not change what others hear."
+theme_override_constants/h_separation = 0
+theme_override_styles/normal = SubResource("StyleBoxEmpty_7h5ju")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_7h5ju")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_7h5ju")
+theme_override_styles/hover_pressed = SubResource("StyleBoxEmpty_7h5ju")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_7h5ju")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_7h5ju")
+theme_override_icons/checked = SubResource("ImageTexture_1oful")
+theme_override_icons/unchecked = SubResource("ImageTexture_1oful")
+theme_override_icons/checked_disabled = SubResource("ImageTexture_1oful")
+theme_override_icons/unchecked_disabled = SubResource("ImageTexture_1oful")
+flat = true
+script = ExtResource("3_toggle")
+
+[node name="MicTestLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=1911067021]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Microphone Test"
+
+[node name="MicTestButton" type="Button" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=314934609]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Test Microphone"
+
+[node name="MicLevelBar" type="ProgressBar" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=1881580505]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+show_percentage = false
+
+[node name="MicStatusLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=332886184]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.74, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+text = "Press Test Microphone to check input."
+autowrap_mode = 2
+
+[node name="AudioSectionSeparator" type="HSeparator" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=813882270]
+layout_mode = 2
+
+[node name="GameHeaderLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=628354809]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 18
+text = "Game"
+
+[node name="LobbyVoiceRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=57004922]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LobbyVoiceLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/LobbyVoiceRow" unique_id=2013884301]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Lobby Voice Chat"
+
+[node name="LobbyVoiceSwitch" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox/LobbyVoiceRow" unique_id=1917625048 instance=ExtResource("7_toggle_sw")]
+layout_mode = 2
+tooltip_text = "Talk with others in this lobby before the match."
+theme_override_styles/normal = SubResource("StyleBoxEmpty_tglx8")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_tglx8")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_tglx8")
+theme_override_styles/hover_pressed = SubResource("StyleBoxEmpty_tglx8")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_tglx8")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_tglx8")
+theme_override_icons/checked = SubResource("ImageTexture_pvhr1")
+theme_override_icons/unchecked = SubResource("ImageTexture_pvhr1")
+theme_override_icons/checked_disabled = SubResource("ImageTexture_pvhr1")
+theme_override_icons/unchecked_disabled = SubResource("ImageTexture_pvhr1")
+
+[node name="LobbyVoiceHint" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=839405714]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.74, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+text = "When you are hosting a lobby, this matches the lobby menu switch. Otherwise it sets your default for the next lobby."
+autowrap_mode = 2
+
+[node name="PlayerVoiceList" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Audio/MarginContainer/ScrollContainer/AudioVBox" unique_id=505114144]
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_player_voice")
+
+[node name="Controls" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer" unique_id=561192420]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 3
+
+[node name="SettingsControlsTab" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Controls" unique_id=1686644341]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+script = ExtResource("5_controls")
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab" unique_id=1342906612]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 4
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab/MarginContainer" unique_id=1259973357]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="List" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab/MarginContainer/ScrollContainer" unique_id=1194128653]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="FooterRow" type="HBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab" unique_id=682504496]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HintLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab/FooterRow" unique_id=1115224454]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.78, 0.74, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+text = "Click a bind to remap it."
+autowrap_mode = 2
+
+[node name="RestoreDefaultsButton" type="Button" parent="Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab/FooterRow" unique_id=467426768]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Restore Defaults"
+
+[node name="Developer" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer" unique_id=676452537]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 4
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/TabContainer/Developer" unique_id=1019625680]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="DevVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Developer/MarginContainer" unique_id=915284546]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="DevHeaderLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Developer/MarginContainer/DevVBox" unique_id=205329937]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Developer Options"
+
+[node name="DevAllowAnyLobbySizeCheckBox" type="CheckBox" parent="Panel/MarginContainer/VBox/TabContainer/Developer/MarginContainer/DevVBox" unique_id=2056457425]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 1)
+text = "Allow any lobby size in multiplayer (testing)"
+
+[node name="DevHintLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Developer/MarginContainer/DevVBox" unique_id=819156244]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.5, 0.42, 1)
+theme_override_font_sizes/font_size = 13
+text = "Saved locally. Lobby size override lets you start with any player count."
+autowrap_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=416638249]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RevertButton" type="Button" parent="Panel/MarginContainer/VBox/Footer" unique_id=1421109864]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Revert"
+
+[node name="SaveButton" type="Button" parent="Panel/MarginContainer/VBox/Footer" unique_id=624161032]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"PrimaryButton"
+text = "Save"
+
+[node name="ExitButton" type="Button" parent="Panel/MarginContainer/VBox/Footer" unique_id=1904651510]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Exit"
+clip_text = true

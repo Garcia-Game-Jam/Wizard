@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://11l5o582e21n"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/spell/spell_page_leaf.tscn" id="1_leaf"]
+[ext_resource type="Script" uid="uid://c6pnkwtncfbx0" path="res://scripts/ui/book/spell/spell_page.gd" id="2_page"]
+
+[node name="PullPage" unique_id=685209518 instance=ExtResource("1_leaf")]
+script = ExtResource("2_page")
+spell_id = "pull"
+
+[node name="SpellName" parent="Margin/VBox" index="0"]
+text = "Pull"
+
+[node name="Pronunciation" parent="Margin/VBox" index="1"]
+text = "\"pull\""
+
+[node name="Details" parent="Margin/VBox" index="3"]
+text = "Pull a targetd object towards you."

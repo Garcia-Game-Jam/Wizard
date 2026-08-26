@@ -1,0 +1,73 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://bcharacter01" path="res://scenes/characters/character.tscn" id="1_character"]
+[ext_resource type="Script" path="res://scripts/monsters/summon.gd" id="2_summon"]
+[ext_resource type="Script" uid="uid://csensegizmo01" path="res://scripts/monsters/monster_sense_gizmos.gd" id="3_sensegizmo"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_summon"]
+radius = 0.2
+height = 0.7
+
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+radius = 0.035
+height = 0.07
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eye"]
+resource_local_to_scene = true
+shading_mode = 0
+albedo_color = Color(0.2, 0.85, 0.35, 1)
+emission_enabled = true
+emission = Color(0.25, 1, 0.35, 1)
+emission_energy_multiplier = 4.5
+
+[node name="Summon" unique_id=920001001 instance=ExtResource("1_character")]
+editor_description = "Shared summon shell (Character → Summon). Prefer concrete scenes (Queen's Rat Summon / wretch_rat) for gameplay."
+script = ExtResource("2_summon")
+body_tint = Color(0.55, 0.45, 0.35, 1)
+eye_glow_color = Color(0.25, 1, 0.35, 1)
+move_speed = 4.0
+chase_range = 10.0
+attack_range = 0.85
+touch_damage = 0.0
+gravity = 18.0
+
+[node name="CollisionShape3D" parent="." index="0"]
+shape = SubResource("CapsuleShape3D_summon")
+
+[node name="Health" parent="."]
+max_health = 10.0
+
+[node name="Eyes" type="Node3D" parent="Head" index="1"]
+unique_name_in_owner = true
+visible = false
+editor_description = "Chase indicator. Hidden unless AI is in CHASE/ALERT."
+
+[node name="LeftEye" type="MeshInstance3D" parent="Head/Eyes" index="0"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.055, 0.02, -0.135)
+layers = 2
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_eye")
+cast_shadow = 0
+
+[node name="RightEye" type="MeshInstance3D" parent="Head/Eyes" index="1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.055, 0.02, -0.135)
+layers = 2
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_eye")
+cast_shadow = 0
+
+[node name="Glow" type="OmniLight3D" parent="Head/Eyes" index="2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.12)
+light_color = Color(0.25, 1, 0.35, 1)
+light_energy = 2.4
+light_size = 0.05
+omni_range = 1.8
+shadow_enabled = false
+
+[node name="Senses" type="Node" parent="." index="3"]
+editor_description = "Optional Sight / Hearing / LightAwareness children. SenseGizmos draws them when Gizmos → Show Sense Ranges is on."
+
+[node name="SenseGizmos" type="Node3D" parent="." index="4"]
+unique_name_in_owner = true
+editor_description = "Debug overlay: cyan hearing, green sight, yellow light, LOS ray. Toggle Gizmos → Show Sense Ranges on this summon."
+script = ExtResource("3_sensegizmo")

@@ -1,0 +1,120 @@
+[gd_scene format=3 uid="uid://bmonsterws01"]
+
+[ext_resource type="Script" uid="uid://cmonsterws001" path="res://scripts/monsters/monster_workspace.gd" id="1_workspace"]
+[ext_resource type="Script" uid="uid://cxsvnh4gmmroa" path="res://scripts/monsters/lookdev_patrol_area.gd" id="3_patrol"]
+[ext_resource type="Script" uid="uid://cknockupgizmo01" path="res://scripts/monsters/charger_knockup_gizmo.gd" id="4_knockup"]
+
+[sub_resource type="Environment" id="Environment_studio"]
+background_mode = 1
+background_color = Color(0.02, 0.03, 0.05, 1)
+ambient_light_color = Color(0.28, 0.3, 0.38, 1)
+ambient_light_energy = 0.45
+
+[sub_resource type="StandardMaterial3D" id="Mat_patrol"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.25, 1, 0.45, 0.22)
+
+[sub_resource type="BoxMesh" id="Box_patrol"]
+size = Vector3(1, 0.06, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_knockup_ring"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.55, 0.2, 0.85)
+
+[sub_resource type="TorusMesh" id="Torus_knockup_ring"]
+inner_radius = 0.985
+outer_radius = 1.0
+rings = 8
+ring_segments = 48
+
+[sub_resource type="StandardMaterial3D" id="Mat_knockup_arc"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.82, 0.2, 0.95)
+
+[sub_resource type="ImmediateMesh" id="Im_knockup_arc"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_knockup_land"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.35, 0.85, 0.4)
+
+[sub_resource type="CylinderMesh" id="Cyl_knockup_land"]
+top_radius = 0.7
+bottom_radius = 0.7
+height = 0.1
+radial_segments = 24
+
+[node name="MonsterWorkspace" type="Node3D" unique_id=1618986655]
+process_mode = 3
+editor_description = "Lookdev floor. Patrol size/origin on this node."
+script = ExtResource("1_workspace")
+patrol_origin_x = 14.728146
+patrol_origin_z = 13.520149
+patrol_width = 46.0
+patrol_height = 46.0
+monster_type = 3
+player_spawn = 4
+show_knockup_preview = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=772191922]
+environment = SubResource("Environment_studio")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=160264217]
+transform = Transform3D(0.8762156, -0.24968334, 0.4121877, 0, 0.85528654, 0.5181139, -0.48191854, -0.4539697, 0.7494322, 25.41, 32.34, 46.2)
+current = true
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1080691881]
+transform = Transform3D(0.86601907, -0.3535631, 0.3535593, 0, 0.70710295, 0.7071106, -0.500011, -0.61237127, 0.61236465, 0, 40, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="PatrolArea" type="MeshInstance3D" parent="." unique_id=2059492574]
+editor_description = "2D patrol rect. Select this, move on XZ, scale X and Z. Independent of Spawn Monster so you can test return-to-patrol."
+transform = Transform3D(46, 0, 0, 0, 1, 0, 0, 0, 46, 14.728146, 0.04, 13.520149)
+material_override = SubResource("Mat_patrol")
+cast_shadow = 0
+mesh = SubResource("Box_patrol")
+script = ExtResource("3_patrol")
+width = 46.0
+depth = 46.0
+
+[node name="SpawnRoot" type="Node3D" parent="." unique_id=856043268]
+editor_description = "Spawned monsters. Not saved into the scene."
+
+[node name="PlayerRoot" type="Node3D" parent="." unique_id=856043269]
+editor_description = "Spawned player. Not saved into the scene."
+
+[node name="KnockupGizmo" type="Node3D" parent="."]
+editor_description = "Charger hop preview. Authored meshes; the script only moves them and redraws the arc vertices."
+script = ExtResource("4_knockup")
+
+[node name="RangeRing" type="MeshInstance3D" parent="KnockupGizmo"]
+visible = false
+cast_shadow = 0
+mesh = SubResource("Torus_knockup_ring")
+material_override = SubResource("Mat_knockup_ring")
+
+[node name="Arc" type="MeshInstance3D" parent="KnockupGizmo"]
+visible = false
+cast_shadow = 0
+mesh = SubResource("Im_knockup_arc")
+material_override = SubResource("Mat_knockup_arc")
+
+[node name="Landing" type="MeshInstance3D" parent="KnockupGizmo"]
+visible = false
+cast_shadow = 0
+mesh = SubResource("Cyl_knockup_land")
+material_override = SubResource("Mat_knockup_land")
+
+[node name="KnockupLabel" type="Label3D" parent="KnockupGizmo"]
+visible = false
+billboard = 1
+modulate = Color(1, 0.9, 0.75, 1)
+font_size = 32

@@ -1,0 +1,90 @@
+[gd_scene format=3 uid="uid://bplayerwand1"]
+
+[ext_resource type="Script" uid="uid://co3lwxyvgag6i" path="res://scripts/player/player_wand.gd" id="1_wand"]
+[ext_resource type="PackedScene" uid="uid://csxotiwjg1mii" path="res://scenes/characters/wand_listening_fx.tscn" id="2_listen_fx"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shaft"]
+albedo_color = Color(0.18, 0.12, 0.1, 1)
+metallic = 0.35
+roughness = 0.55
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_shaft"]
+top_radius = 0.008
+bottom_radius = 0.008
+height = 0.28
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tip"]
+albedo_color = Color(0.85, 0.88, 0.95, 1)
+metallic = 0.2
+roughness = 0.15
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 0.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_tip"]
+radius = 0.012
+height = 0.024
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hand"]
+albedo_color = Color(0.94, 0.72, 0.58, 1)
+roughness = 0.72
+
+[sub_resource type="SphereMesh" id="SphereMesh_hand"]
+radius = 0.034
+height = 0.068
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sleeve"]
+albedo_color = Color(0.2, 0.08, 0.28, 1)
+roughness = 0.85
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_sleeve"]
+top_radius = 0.03
+bottom_radius = 0.034
+height = 0.13
+
+[node name="Wand" type="Node3D" unique_id=463812716]
+editor_description = "Canonical wand mesh for every playable. Edit Tip/Shaft here. Held pose lives on playable_character.tscn → Head/CameraPivot/Wand transform (instance root only — never Make Editable)."
+script = ExtResource("1_wand")
+
+[node name="Model" type="Node3D" parent="." unique_id=100243204]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+
+[node name="Shaft" type="MeshInstance3D" parent="Model" unique_id=968697797]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -0.14)
+material_override = SubResource("StandardMaterial3D_shaft")
+mesh = SubResource("CylinderMesh_shaft")
+
+[node name="Tip" type="MeshInstance3D" parent="Model" unique_id=1597332967]
+transform = Transform3D(0.65, 0, 0, 0, 0.65, 0, 0, 0, 0.65, 0, 0, -0.28076172)
+material_override = SubResource("StandardMaterial3D_tip")
+mesh = SubResource("SphereMesh_tip")
+
+[node name="Hand" type="MeshInstance3D" parent="Model" unique_id=2100000001]
+editor_description = "Placeholder fist gripping the wand butt (lower end near z=0)."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.01)
+material_override = SubResource("StandardMaterial3D_hand")
+mesh = SubResource("SphereMesh_hand")
+
+[node name="Sleeve" type="MeshInstance3D" parent="Model" unique_id=2100000002]
+editor_description = "Placeholder sleeve behind the hand, away from the tip."
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0.085)
+material_override = SubResource("StandardMaterial3D_sleeve")
+mesh = SubResource("CylinderMesh_sleeve")
+
+[node name="WandListeningFx" parent="Model" unique_id=2100000010 instance=ExtResource("2_listen_fx")]
+editor_description = "E-listen tip FX instance. Open wand_listening_fx.tscn to tune with Preview In Editor."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.33)
+preview_in_editor = false
+
+[node name="CastOrigin" type="Marker3D" parent="Model" unique_id=2091642123]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.305)
+
+[node name="FlashlightBeam" type="SpotLight3D" parent="Model/CastOrigin" unique_id=1794838673]
+visible = false
+light_color = Color(1, 0.86, 0.56, 1)
+light_energy = 0.0
+light_volumetric_fog_energy = 8.0
+light_size = 0.35
+spot_range = 14.0
+spot_attenuation = 1.05
+spot_angle = 28.0

@@ -1,0 +1,22 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+build/
+
+# Large voice recognition assets (~500 MB; one-time setup via make setup-voice)
+.cache/
+addons/gdvosk/
+
+# GodotSteam natives — do not install locally (GodotSteam editor). CI release only.
+addons/godotsteam/*
+!addons/godotsteam/README.txt
+models/vosk/
+
+# Cursor hook debug log and local editor settings
+.cursor/hooks/last-run.log
+.cursor/settings.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/

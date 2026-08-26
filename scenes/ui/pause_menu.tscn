@@ -1,0 +1,79 @@
+[gd_scene load_steps=5 format=3 uid="uid://cpausemenu001"]
+
+[ext_resource type="Theme" path="res://resources/ui/serious_wiz_biz_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="2_pause"]
+[ext_resource type="PackedScene" uid="uid://csettingspanel001" path="res://scenes/ui/settings_panel.tscn" id="3_settings"]
+[ext_resource type="PackedScene" uid="uid://cswbflare001" path="res://scenes/ui/scaffolding/title_flare.tscn" id="4_flare"]
+[ext_resource type="PackedScene" uid="uid://cswbmenubtn001" path="res://scenes/ui/scaffolding/menu_button.tscn" id="5_menu_button"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+layer = 20
+process_mode = 3
+script = ExtResource("2_pause")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0235294, 0.0313726, 0.0588235, 0.62)
+
+[node name="MenuPanel" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+
+[node name="CenterContainer" type="CenterContainer" parent="MenuPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="MenuPanel/CenterContainer"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MenuPanel/CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="MenuPanel/CenterContainer/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="MenuPanel/CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 36
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="TitleFlare" parent="MenuPanel/CenterContainer/Panel/Margin/VBox" instance=ExtResource("4_flare")]
+layout_mode = 2
+
+[node name="ResumeButton" parent="MenuPanel/CenterContainer/Panel/Margin/VBox" instance=ExtResource("5_menu_button")]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Resume"
+
+[node name="SettingsButton" parent="MenuPanel/CenterContainer/Panel/Margin/VBox" instance=ExtResource("5_menu_button")]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings"
+
+[node name="EndGameButton" parent="MenuPanel/CenterContainer/Panel/Margin/VBox" instance=ExtResource("5_menu_button")]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Leave"
+
+[node name="SettingsPanel" parent="." instance=ExtResource("3_settings")]
+visible = false

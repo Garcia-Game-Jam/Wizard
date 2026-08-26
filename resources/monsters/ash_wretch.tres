@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MonsterSummonEntry" format=3 uid="uid://c5cyiflve6xob"]
+
+[ext_resource type="Script" uid="uid://byba5sgpdlik8" path="res://scripts/ui/book/monster/monster_summon_entry.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bashwretch01" path="res://scenes/monsters/ash_wretch.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = "ash_wretch"
+display_name = "Ice Caster"
+description = "Pale and patient. The same hunger in cooler flesh."
+monster_scene = ExtResource("2")
+tint = Color(0.42, 0.4, 0.48, 1)
+eye_glow_color = Color(0.55, 0.55, 0.58, 1)

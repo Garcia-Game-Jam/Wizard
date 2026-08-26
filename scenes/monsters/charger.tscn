@@ -1,0 +1,317 @@
+[gd_scene format=3 uid="uid://bcharger001"]
+
+[ext_resource type="PackedScene" uid="uid://bmonster001" path="res://scenes/monsters/monster.tscn" id="1_monster"]
+[ext_resource type="Script" uid="uid://dvthvnhstalrg" path="res://scripts/monsters/charger.gd" id="2_charger"]
+[ext_resource type="Script" uid="uid://cl0fh41mu3si4" path="res://scripts/monsters/monster_sight_sense.gd" id="3_sight"]
+[ext_resource type="Script" uid="uid://cmonhear001" path="res://scripts/monsters/monster_hearing_sense.gd" id="4_hear"]
+[ext_resource type="Script" uid="uid://c351okyuslg8j" path="res://scripts/monsters/abilities/charger_ward_ability.gd" id="5_ward"]
+[ext_resource type="PackedScene" uid="uid://7shalb8dn4r4" path="res://scenes/fx/stun_stars.tscn" id="6_stars"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_body"]
+radius = 0.34
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_mid"]
+radius = 0.36
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_neck"]
+radius = 0.18
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_head"]
+radius = 0.21
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_snout"]
+radius = 0.1
+height = 0.34
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_leg"]
+radius = 0.04
+height = 0.34
+
+[sub_resource type="SphereMesh" id="SphereMesh_body"]
+radius = 0.34
+height = 0.68
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t1nia"]
+resource_local_to_scene = true
+albedo_color = Color(0.22, 0.72, 0.28, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_leg"]
+top_radius = 0.062
+bottom_radius = 0.028
+height = 0.36
+radial_segments = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+radius = 0.22
+height = 0.44
+
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+radius = 0.042
+height = 0.084
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wnooq"]
+resource_local_to_scene = true
+shading_mode = 0
+albedo_color = Color(0.96, 0.96, 0.94, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_snout"]
+radius = 0.13
+height = 0.26
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_horn"]
+top_radius = 0.01
+bottom_radius = 0.048
+height = 0.32
+radial_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_horn"]
+albedo_color = Color(0.92, 0.86, 0.7, 1)
+metallic = 0.05
+roughness = 0.42
+
+[sub_resource type="SphereMesh" id="SphereMesh_shoulder"]
+radius = 0.36
+height = 0.72
+
+[sub_resource type="SphereMesh" id="SphereMesh_neck"]
+radius = 0.18
+height = 0.36
+
+[node name="Charger" unique_id=473758256 instance=ExtResource("1_monster")]
+editor_description = "Bull-like rammer: lock-on telegraph, locked ram, wall stun, frantic search."
+transform = Transform3D(0.5010317, 0, 0.8654289, 0, 1, 0, -0.8654289, 0, 0.5010317, 0, 0, 0)
+script = ExtResource("2_charger")
+telegraph_sec = 1.3
+lock_on_turn_speed_rad = 2.2
+patrol_turn_speed_rad = 1.4
+search_turn_speed_rad = 2.0
+charge_speed_mult = 3.6
+self_stun_sec = 3.0
+search_sec = 3.2
+charge_head_plunge_deg = 330.0
+charge_head_toss_deg = 60.0
+head_return_speed_rad = 2.4
+rest_tint = Color(0.22, 0.72, 0.28, 1)
+charge_tint = Color(0.88, 0.12, 0.1, 1)
+knockup_cells = 6
+knockup_over_wall_m = 3.5
+body_tint = Color(0.22, 0.72, 0.28, 1)
+eye_glow_color = Color(0.96, 0.96, 0.94, 1)
+lookdev_override = false
+show_combat_ranges = false
+show_sense_ranges = false
+move_speed = 4.0
+chase_range = 3.0
+attack_range = 1.2
+touch_damage = 0.0
+idle_duration_sec = 1.2
+patrol_speed = 2.4000000000000004
+patrol_radius = 8.0
+lost_chase_to_alert_sec = 4.0
+alert_duration_sec = 6.0
+death_linger_sec = 30.0
+death_fade_sec = 3.0
+chase_style = 0
+keep_away_range = 20.0
+face_turn_speed_rad = 4.0
+chase_wait_min_sec = 1.0
+chase_wait_max_sec = 3.0
+chase_strafe_min_sec = 1.2
+chase_strafe_max_sec = 2.0
+chase_retreat_min_sec = 1.2
+chase_retreat_max_sec = 3.2
+chase_optimal_eps = 0.55
+
+[node name="CollisionShape3D" parent="." index="0" unique_id=294740946]
+editor_description = "Haunch sphere. Direct child of Charger so CharacterBody3D owns it."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0.3)
+shape = SubResource("SphereShape3D_body")
+
+[node name="Health" parent="."]
+max_health = 60.0
+
+[node name="MidBodyCollision" type="CollisionShape3D" parent="." index="1" unique_id=910002001]
+editor_description = "Shoulder sphere. Direct child of Charger; snapped to MidBody."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, -0.22)
+shape = SubResource("SphereShape3D_mid")
+
+[node name="NeckCollision" type="CollisionShape3D" parent="." index="2" unique_id=910002002]
+editor_description = "Neck sphere. Direct child of Charger; snapped to Neck."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48000002, -0.47999996)
+shape = SubResource("SphereShape3D_neck")
+
+[node name="HeadCollision" type="CollisionShape3D" parent="." index="3" unique_id=910002010]
+editor_description = "Head sphere. Direct child of Charger; follows Head pitch during windup."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.52, -0.62)
+shape = SubResource("SphereShape3D_head")
+
+[node name="SnoutCollision" type="CollisionShape3D" parent="." index="4" unique_id=910002011]
+editor_description = "Muzzle capsule. Direct child of Charger; follows Snout without inheriting non-uniform scale."
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0.46999997, -0.84000003)
+shape = SubResource("CapsuleShape3D_snout")
+
+[node name="LeftHindlegCollision" type="CollisionShape3D" parent="." index="5" unique_id=910002003]
+editor_description = "Left hindleg capsule. Direct child of Charger."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21, 0.18, 0.38)
+shape = SubResource("CapsuleShape3D_leg")
+
+[node name="RightHindlegCollision" type="CollisionShape3D" parent="." index="6" unique_id=910002004]
+editor_description = "Right hindleg capsule. Direct child of Charger."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.21, 0.18, 0.38)
+shape = SubResource("CapsuleShape3D_leg")
+
+[node name="LeftForelegCollision" type="CollisionShape3D" parent="." index="7" unique_id=910002005]
+editor_description = "Left foreleg capsule. Direct child of Charger."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21999997, 0.18, -0.19999999)
+shape = SubResource("CapsuleShape3D_leg")
+
+[node name="RightForelegCollision" type="CollisionShape3D" parent="." index="8" unique_id=910002006]
+editor_description = "Right foreleg capsule. Direct child of Charger."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 0.18, -0.2)
+shape = SubResource("CapsuleShape3D_leg")
+
+[node name="Body" parent="." index="9" unique_id=73058391]
+editor_description = "Rear haunch. Larger than the shared shell so the Charger reads as a long animal."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0.3)
+layers = 2
+mesh = SubResource("SphereMesh_body")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="LeftHindleg" type="MeshInstance3D" parent="Body" index="0" unique_id=482822764]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21, -0.18, 0.08)
+layers = 2
+mesh = SubResource("CylinderMesh_leg")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="RightHindleg" type="MeshInstance3D" parent="Body" index="1" unique_id=279618066]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.21, -0.18, 0.08)
+layers = 2
+mesh = SubResource("CylinderMesh_leg")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="Head" parent="." index="10" unique_id=1186111743]
+editor_description = "Low, forward head. Horns and snout make the ram read as a bull."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.52, -0.62)
+
+[node name="HeadMesh" parent="Head" index="0" unique_id=1294118041]
+layers = 2
+mesh = SubResource("SphereMesh_head")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="Eyes" parent="Head" index="1" unique_id=910001010]
+editor_description = "Always visible. White at rest; glow red when this Charger has line of sight."
+visible = true
+
+[node name="LeftEye" parent="Head/Eyes" index="0" unique_id=910001011]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.17, 0.08, -0.1)
+layers = 2
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_wnooq")
+
+[node name="RightEye" parent="Head/Eyes" index="1" unique_id=910001012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.17, 0.08, -0.1)
+layers = 2
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_wnooq")
+
+[node name="Glow" parent="Head/Eyes" index="2" unique_id=910001013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, -0.12)
+light_color = Color(0.96, 0.96, 0.94, 1)
+light_energy = 0.832
+light_cull_mask = 3
+
+[node name="Snout" type="MeshInstance3D" parent="Head" index="2" unique_id=657856431]
+unique_name_in_owner = true
+editor_description = "Elongated muzzle. Tints with the hide during windup."
+transform = Transform3D(1.05, 0, 0, 0, 0.78, 0, 0, 0, 1.25, 0, -0.05, -0.22)
+layers = 2
+mesh = SubResource("SphereMesh_snout")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="LeftHorn" type="MeshInstance3D" parent="Head" index="3" unique_id=1039790584]
+unique_name_in_owner = true
+editor_description = "Ivory horn. Authored bone color — not tinted with the hide."
+transform = Transform3D(0.906, -0.4233, 0, 0.3956, 0.8466, 0.356, -0.1507, -0.3225, 0.9345, -0.14, 0.16, 0.02)
+mesh = SubResource("CylinderMesh_horn")
+surface_material_override/0 = SubResource("StandardMaterial3D_horn")
+
+[node name="RightHorn" type="MeshInstance3D" parent="Head" index="4" unique_id=245992662]
+unique_name_in_owner = true
+editor_description = "Ivory horn. Authored bone color — not tinted with the hide."
+transform = Transform3D(0.906, 0.4233, 0, -0.3956, 0.8466, 0.356, 0.1507, -0.3225, 0.9345, 0.14, 0.16, 0.02)
+mesh = SubResource("CylinderMesh_horn")
+surface_material_override/0 = SubResource("StandardMaterial3D_horn")
+
+[node name="StunStars" parent="Head" index="5" unique_id=618161728 instance=ExtResource("6_stars")]
+editor_description = "Shared stun-star orbit. Visible to every camera while the Charger is dazed."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+orbit_radius = 0.23
+star_size = 0.075
+
+[node name="Sight" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="0" unique_id=1973234455]
+editor_description = "Sharp facing cone (green gizmo). Tune Sight Range, Cone Width At Max Range, and Eye Height here. Works while patrolling."
+script = ExtResource("3_sight")
+sight_range = 40.0
+eye_height = 0.58
+sight_urgency = 1.6
+use_vision_cone = true
+cone_width_at_max_range = 28.0
+
+[node name="Hearing" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="1" unique_id=1767907448]
+editor_description = "Poor hearing (cyan gizmo). Tune Hear Range here — keep it tiny so the Charger is almost deaf."
+script = ExtResource("4_hear")
+hear_range = 2.0
+speech_urgency = 0.7
+heard_linger_sec = 1.0
+
+[node name="MidBody" type="MeshInstance3D" parent="." index="12" unique_id=1182595438]
+unique_name_in_owner = true
+editor_description = "Shoulders / barrel front. Makes the silhouette longer than a two-ball monster."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, -0.22)
+layers = 2
+mesh = SubResource("SphereMesh_shoulder")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="Neck" type="MeshInstance3D" parent="MidBody" index="0" unique_id=962857828]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, -0.26)
+layers = 2
+mesh = SubResource("SphereMesh_neck")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="LeftForeleg" type="MeshInstance3D" parent="MidBody" index="1" unique_id=1234420597]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22, -0.22, 0.02)
+layers = 2
+mesh = SubResource("CylinderMesh_leg")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="RightForeleg" type="MeshInstance3D" parent="MidBody" index="2" unique_id=2132540167]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, -0.22, 0.02)
+layers = 2
+mesh = SubResource("CylinderMesh_leg")
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="ShieldHold" type="Node3D" parent="." index="13" unique_id=730149115]
+editor_description = "Held ward parents here so the shield stays in front of the snout while charging."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.44, -0.98)
+
+[node name="Abilities" type="Node3D" parent="." index="14" unique_id=448541774]
+editor_description = "Charge Ward: held shield spawned at windup. HP = 4 fireballs; tints red as it weakens."
+
+[node name="ChargeWard" type="Node3D" parent="Abilities" index="0" unique_id=822981248]
+script = ExtResource("5_ward")
+ability_id = "charger_ward"
+display_name = "Charge Ward"
+description = "Casts a ward at windup and holds it as a shield. Absorbs four fireballs of damage, then shatters."
+cooldown_sec = 0.5
+windup_sec = 0.15
+telegraph_color = Color(0.95, 0.2, 0.12, 1)
+requires_chase_target = true
+min_cast_range = 0.0
+max_cast_range = 40.0

@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/base_book.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/ui/book/monster/monster_book_panel.gd" id="2_book"]
+
+[node name="MonsterBookPanel" instance=ExtResource("1_base")]
+script = ExtResource("2_book")

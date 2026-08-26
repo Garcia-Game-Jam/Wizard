@@ -1,0 +1,80 @@
+[gd_scene format=3 uid="uid://b5lf5ewebjgfo"]
+
+[ext_resource type="Script" uid="uid://s6juhjqga5hh" path="res://scripts/spells/spell_cast_workshop.gd" id="1_workshop"]
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="2_jt4hp"]
+[ext_resource type="PackedScene" uid="uid://bplayerwand1" path="res://scenes/characters/player_wand.tscn" id="2_wand"]
+[ext_resource type="Resource" path="res://scenes/spells/fireball/fireball.tres" id="3_fireball"]
+[ext_resource type="Resource" uid="uid://c300xtr2mgchs" path="res://scenes/spells/flare/flare.tres" id="4_flare"]
+[ext_resource type="Resource" uid="uid://djudlmjak0msk" path="res://scenes/spells/ward/ward.tres" id="5_ward"]
+[ext_resource type="Resource" path="res://scenes/spells/haste/haste.tres" id="6_haste"]
+[ext_resource type="Resource" path="res://scenes/spells/light/light.tres" id="7_light"]
+[ext_resource type="Resource" path="res://scenes/spells/light_ball/light_ball.tres" id="8_light_ball"]
+[ext_resource type="Resource" path="res://scenes/spells/show_me/show_me.tres" id="9_show_me"]
+[ext_resource type="Resource" path="res://scenes/spells/target/target.tres" id="10_target"]
+[ext_resource type="Resource" path="res://scenes/spells/pull/pull.tres" id="11_pull"]
+[ext_resource type="Resource" path="res://scenes/spells/follow/follow.tres" id="12_follow"]
+[ext_resource type="Resource" uid="uid://uuo4bgv3b66" path="res://scenes/spells/stop/stop.tres" id="13_stop"]
+[ext_resource type="Resource" path="res://scenes/spells/dispell/dispell.tres" id="14_dispell"]
+[ext_resource type="Resource" uid="uid://bsynwwje1gvsy" path="res://scenes/spells/clone/clone.tres" id="16_clone"]
+
+[sub_resource type="Environment" id="Environment_studio"]
+background_mode = 1
+background_color = Color(0.08, 0.09, 0.12, 1)
+ambient_light_color = Color(0.5, 0.55, 0.65, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(6, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.16, 0.17, 0.2, 1)
+roughness = 0.92
+
+[node name="SpellCastWorkshop" type="Node3D" unique_id=497684870]
+process_mode = 3
+editor_description = "Wand-only cast look-dev. Pick a spell, then Play Selection (E-lift recognition), Play Cast (category flourish), or Full Sequence."
+script = ExtResource("1_workshop")
+spells = Array[ExtResource("2_jt4hp")]([ExtResource("3_fireball"), ExtResource("4_flare"), ExtResource("5_ward"), ExtResource("6_haste"), ExtResource("7_light"), ExtResource("8_light_ball"), ExtResource("9_show_me"), ExtResource("10_target"), ExtResource("11_pull"), ExtResource("12_follow"), ExtResource("13_stop"), ExtResource("14_dispell"), ExtResource("16_clone")])
+selected_spell = ExtResource("3_fireball")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1810247479]
+environment = SubResource("Environment_studio")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1685676752]
+transform = Transform3D(0.866025, -0.176777, 0.469846, 0, 0.935914, 0.352211, -0.5, -0.305, 0.810536, 1.55, 1.05, 2.4)
+current = true
+fov = 40.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=623535326]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 3, 0)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=1054867366]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 1.2, 0.9)
+light_color = Color(0.7, 0.85, 1, 1)
+light_energy = 0.65
+omni_range = 8.0
+
+[node name="RimLight" type="OmniLight3D" parent="." unique_id=469733620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.9, -1.4)
+light_color = Color(1, 0.9, 0.75, 1)
+light_energy = 0.45
+omni_range = 7.0
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=162191028]
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="Wand" parent="." unique_id=1239256546 instance=ExtResource("2_wand")]
+process_mode = 3
+editor_description = "Instance of player_wand.tscn. Workshop forces tip visible and runs selection/cast previews."
+transform = Transform3D(1, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, 0.18, 1.015527, 1.2)
+cast_charge_sec = null
+cast_release_arc_sec = null
+cast_release_pause_sec = null
+cast_release_drop_sec = null
+cast_release_apex_position_offset = null
+cast_release_apex_basis_euler_deg = null
+cast_charge_position_offset = null
+cast_charge_basis_euler_deg = null

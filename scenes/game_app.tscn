@@ -1,0 +1,95 @@
+[gd_scene format=3 uid="uid://cgameapp001"]
+
+[ext_resource type="Script" uid="uid://qafqvmarrjat" path="res://scripts/game_app.gd" id="1_app"]
+[ext_resource type="PackedScene" uid="uid://cmenu001" path="res://scenes/menu.tscn" id="2_menu"]
+[ext_resource type="PackedScene" uid="uid://cd4v6kvl3kiuq" path="res://scenes/ui/lobby.tscn" id="3_lobby"]
+[ext_resource type="PackedScene" uid="uid://cjoinmenu001" path="res://scenes/ui/join.tscn" id="3_join"]
+[ext_resource type="PackedScene" uid="uid://bflxbhshbo6x5" path="res://scenes/ui/settings_panel.tscn" id="4_settings"]
+[ext_resource type="Script" uid="uid://b48micr1kctoq" path="res://scripts/voice/simple_voice_chat.gd" id="5_engine"]
+[ext_resource type="Script" uid="uid://cnqsb153q3upq" path="res://scripts/voice/game_voice_session.gd" id="6_voice"]
+[ext_resource type="Script" uid="uid://c8txfu4kejr8w" path="res://scripts/voice/mic_capture_broker.gd" id="8_broker"]
+[ext_resource type="Script" uid="uid://bffigx8blggql" path="res://scripts/voice/mic_capture_listener.gd" id="9_listener"]
+[ext_resource type="Script" uid="uid://03pg4jl6d2w1" path="res://scripts/voice/proximity_chat_settings.gd" id="10_prox"]
+
+[sub_resource type="Resource" id="ProxLobby"]
+script = ExtResource("10_prox")
+
+[sub_resource type="Resource" id="ProxMatch"]
+script = ExtResource("10_prox")
+enabled = true
+
+[sub_resource type="Resource" id="Resource_080rt"]
+script = ExtResource("10_prox")
+
+[node name="GameApp" type="Node" unique_id=1563482038]
+script = ExtResource("1_app")
+
+[node name="MicCaptureBroker" type="Node" parent="." unique_id=1348065192]
+script = ExtResource("8_broker")
+
+[node name="Mic" type="AudioStreamPlayer" parent="MicCaptureBroker" unique_id=219750033]
+
+[node name="VoiceEngine" type="Node" parent="." unique_id=1549359797]
+script = ExtResource("5_engine")
+
+[node name="Peers" type="Node" parent="VoiceEngine" unique_id=936097849]
+
+[node name="States" type="Node" parent="." unique_id=1261381548]
+
+[node name="MainMenu" parent="States" unique_id=1895182478 instance=ExtResource("2_menu")]
+
+[node name="Join" type="Control" parent="States" unique_id=190676453]
+process_mode = 4
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="JoinMenu" parent="States/Join" unique_id=1857263721 instance=ExtResource("3_join")]
+layout_mode = 1
+
+[node name="Lobby" type="Control" parent="States" unique_id=190676452]
+process_mode = 4
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VoiceSession" type="Node" parent="States/Lobby" unique_id=529895972]
+script = ExtResource("6_voice")
+
+[node name="Listeners" type="Node" parent="States/Lobby/VoiceSession" unique_id=2136177842]
+
+[node name="Chat" type="Node" parent="States/Lobby/VoiceSession/Listeners" unique_id=2026027357]
+script = ExtResource("9_listener")
+proximity = SubResource("ProxLobby")
+
+[node name="LobbyPanel" parent="States/Lobby" unique_id=1857263720 instance=ExtResource("3_lobby")]
+visible = false
+layout_mode = 1
+
+[node name="Match" type="Node" parent="States" unique_id=1443072745]
+process_mode = 4
+
+[node name="VoiceSession" type="Node" parent="States/Match" unique_id=1642308888]
+script = ExtResource("6_voice")
+
+[node name="Listeners" type="Node" parent="States/Match/VoiceSession" unique_id=509469830]
+
+[node name="Chat" type="Node" parent="States/Match/VoiceSession/Listeners" unique_id=1831555420]
+script = ExtResource("9_listener")
+proximity = SubResource("ProxMatch")
+
+[node name="Spellcasting" type="Node" parent="States/Match/VoiceSession/Listeners" unique_id=779415820]
+script = ExtResource("9_listener")
+service = 1
+proximity = SubResource("Resource_080rt")
+
+[node name="SettingsPanel" parent="." unique_id=410753542 instance=ExtResource("4_settings")]
+visible = false

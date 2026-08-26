@@ -1,0 +1,166 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/book/base_book.gd" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/ui/book/default_cover.tscn" id="2_cover"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cover_rim"]
+bg_color = Color(0.22, 0.1, 0.06, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.35, 0.18, 0.7)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 8
+content_margin_top = 8
+content_margin_right = 8
+content_margin_bottom = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_page_frame"]
+bg_color = Color(0.12, 0.07, 0.04, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.25, 0.12, 0.5)
+
+[node name="BaseBook" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_base")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.02, 0.01, 0.04, 0.55)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BookRoot" type="Control" parent="Center"]
+custom_minimum_size = Vector2(800, 480)
+layout_mode = 2
+
+[node name="CoverSlot" type="CenterContainer" parent="Center/BookRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ClosedCover" parent="Center/BookRoot/CoverSlot" instance=ExtResource("2_cover")]
+layout_mode = 2
+
+[node name="OpenBook" type="HBoxContainer" parent="Center/BookRoot"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="PrevButton" type="Button" parent="Center/BookRoot/OpenBook"]
+custom_minimum_size = Vector2(52, 72)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 15
+text = "←
+[Q]"
+tooltip_text = "Previous spread — [Q]"
+focus_mode = 0
+
+[node name="BookBody" type="PanelContainer" parent="Center/BookRoot/OpenBook"]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_cover_rim")
+
+[node name="Inner" type="Control" parent="Center/BookRoot/OpenBook/BookBody"]
+custom_minimum_size = Vector2(654, 440)
+layout_mode = 2
+clip_contents = false
+
+[node name="Spread" type="HBoxContainer" parent="Center/BookRoot/OpenBook/BookBody/Inner"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="LeftPage" type="PanelContainer" parent="Center/BookRoot/OpenBook/BookBody/Inner/Spread"]
+custom_minimum_size = Vector2(320, 440)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_page_frame")
+
+[node name="PageHost" type="MarginContainer" parent="Center/BookRoot/OpenBook/BookBody/Inner/Spread/LeftPage"]
+custom_minimum_size = Vector2(320, 440)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+
+[node name="SpineGutter" type="ColorRect" parent="Center/BookRoot/OpenBook/BookBody/Inner/Spread"]
+custom_minimum_size = Vector2(14, 440)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+color = Color(0.08, 0.04, 0.02, 1)
+
+[node name="RightPage" type="PanelContainer" parent="Center/BookRoot/OpenBook/BookBody/Inner/Spread"]
+custom_minimum_size = Vector2(320, 440)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_page_frame")
+
+[node name="PageHost" type="MarginContainer" parent="Center/BookRoot/OpenBook/BookBody/Inner/Spread/RightPage"]
+custom_minimum_size = Vector2(320, 440)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+
+[node name="FlipLayer" type="Control" parent="Center/BookRoot/OpenBook/BookBody/Inner"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="NextButton" type="Button" parent="Center/BookRoot/OpenBook"]
+custom_minimum_size = Vector2(52, 72)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 15
+text = "[E]
+→"
+tooltip_text = "Next spread — [E]"
+focus_mode = 0

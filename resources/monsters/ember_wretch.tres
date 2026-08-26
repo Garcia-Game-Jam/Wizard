@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MonsterSummonEntry" format=3 uid="uid://b2nd6df35608q"]
+
+[ext_resource type="Script" uid="uid://byba5sgpdlik8" path="res://scripts/ui/book/monster/monster_summon_entry.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://dtmkhfh4qil65" path="res://scenes/monsters/ember_wretch.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = "ember_wretch"
+display_name = "Ember Caster"
+description = "Bright-tempered. Drawn hard to fire and flare-light."
+monster_scene = ExtResource("2")
+tint = Color(0.85, 0.38, 0.12, 1)
+eye_glow_color = Color(1, 0.12, 0.08, 1)

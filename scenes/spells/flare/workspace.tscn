@@ -1,0 +1,127 @@
+[gd_scene format=3 uid="uid://cflarews001"]
+
+[ext_resource type="Script" uid="uid://c0xg8tdso30ll" path="res://scripts/spells/flare_workspace.gd" id="1_workspace"]
+[ext_resource type="PackedScene" uid="uid://cflare001" path="res://scenes/spells/flare/flare.tscn" id="2_flare"]
+[ext_resource type="Script" uid="uid://bwfkxaq0pdehv" path="res://scripts/spells/flare_effect.gd" id="4_sd1n6"]
+[ext_resource type="PackedScene" uid="uid://bplayerwand1" path="res://scenes/characters/player_wand.tscn" id="4_wand"]
+
+[sub_resource type="Environment" id="Environment_studio"]
+background_mode = 1
+background_color = Color(0.02, 0.025, 0.045, 1)
+ambient_light_color = Color(0.28, 0.3, 0.4, 1)
+ambient_light_energy = 0.35
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(8, 8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.1, 0.11, 0.14, 1)
+roughness = 0.92
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_6odub"]
+particle_flag_align_y = true
+emission_shape = 1
+emission_sphere_radius = 0.045
+direction = Vector3(0, 0.98101205, 0.19394685)
+spread = 32.0
+initial_velocity_min = 0.6
+initial_velocity_max = 2.2
+gravity = Vector3(0, -0.9, 0)
+scale_min = 0.018
+scale_max = 0.05
+color = Color(1, 0.58, 0.12, 0.95)
+
+[sub_resource type="Gradient" id="Gradient_yk02c"]
+offsets = PackedFloat32Array(0, 0.12, 0.4, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 0.95, 0.75, 0.85, 1, 0.7, 0.25, 0.2, 1, 0.4, 0.05, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_or418"]
+gradient = SubResource("Gradient_yk02c")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vaij7"]
+transparency = 1
+blend_mode = 1
+cull_mode = 2
+depth_draw_mode = 2
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("GradientTexture2D_or418")
+billboard_mode = 3
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_iraxk"]
+material = SubResource("StandardMaterial3D_vaij7")
+size = Vector2(0.035, 0.22)
+
+[node name="FlareWorkspace" type="Node3D" unique_id=1058162536]
+process_mode = 3
+editor_description = "Select FlareWorkspace root: Launch Flare for flight + comet trail. Select Flare child to tune stats."
+script = ExtResource("1_workspace")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=140880010]
+environment = SubResource("Environment_studio")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1540756787]
+transform = Transform3D(0.92, -0.12, 0.37, 0, 0.95, 0.31, -0.39, -0.285, 0.875, 2.4, 2.4, 5)
+current = true
+fov = 48.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=613099754]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 4, 0)
+light_energy = 0.7
+
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=891475988]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 1.4, 1)
+light_color = Color(0.55, 0.65, 0.95, 1)
+light_energy = 0.4
+omni_range = 8.0
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=91847822]
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="Wand" parent="." unique_id=1960301303 instance=ExtResource("4_wand")]
+transform = Transform3D(1, 0, 0, 0, 0.97, -0.24, 0, 0.24, 0.97, 0.18, 1.02, 1.25)
+
+[node name="LaunchPreview" type="Node3D" parent="." unique_id=718042997]
+process_mode = 3
+editor_description = "Runtime launch previews spawn here."
+
+[node name="Flare" type="Area3D" parent="LaunchPreview" unique_id=136047214 instance=ExtResource("2_flare")]
+process_mode = 3
+editor_description = "Select THIS root to tune beacon, flight, and comet sparks. Stays put here — open flare_workspace.tscn to preview launches."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, 15.280067, -31.189154)
+collision_layer = 0
+monitoring = false
+monitorable = false
+script = ExtResource("4_sd1n6")
+light_peak_energy = 45.0
+light_range = 480.0
+duration_sec = 25.0
+core_radius = 0.1
+hit_radius = 0.1
+launch_speed = 16.0
+drag = 0.4
+horizontal_drag = 0.4
+flight_gravity = 0.4
+
+[node name="CometSparks" type="GPUParticles3D" parent="LaunchPreview/Flare" unique_id=2044517775]
+process_mode = 3
+cast_shadow = 0
+amount = 24
+lifetime = 0.38
+randomness = 0.35
+fixed_fps = 60
+visibility_aabb = AABB(-6, -6, -6, 12, 12, 12)
+process_material = SubResource("ParticleProcessMaterial_6odub")
+draw_pass_1 = SubResource("QuadMesh_iraxk")
+
+[node name="Flare" parent="." unique_id=406840540 instance=ExtResource("2_flare")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0.2)
+visible = false
+contact_drag = 1.6

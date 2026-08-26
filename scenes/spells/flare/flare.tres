@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://c300xtr2mgchs"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "flare"
+display_name = "Flare"
+incantation_words = PackedStringArray("flare")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 0.0
+ammo_max = 3
+ammo_refill_sec = 2.0
+effect_id = "flare"
+color = Color(1, 0.72, 0.22, 1)
+category = 0

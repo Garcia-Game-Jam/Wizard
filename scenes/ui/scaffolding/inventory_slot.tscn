@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://cswbinvslot001"]
+
+[ext_resource type="Theme" path="res://resources/ui/serious_wiz_biz_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/inventory_slot_button.gd" id="2_script"]
+
+[node name="InventorySlot" type="Button"]
+custom_minimum_size = Vector2(96, 72)
+theme = ExtResource("1_theme")
+text = "1
+—"
+alignment = 1
+script = ExtResource("2_script")

@@ -1,0 +1,59 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/keybinds/keybind_row.gd" id="1_row"]
+
+[node name="KeybindRow" type="HBoxContainer"]
+theme_override_constants/separation = 10
+script = ExtResource("1_row")
+
+[node name="Label" type="Label" parent="."]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.2
+theme_override_colors/font_color = Color(0.93, 0.9, 0.82, 1)
+text = "Action"
+autowrap_mode = 3
+
+[node name="BindWrap" type="Control" parent="."]
+custom_minimum_size = Vector2(105, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="BindWrap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ListenLabel" type="Label" parent="BindWrap"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 12
+text = "Press a key…"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BindButton" type="Button" parent="BindWrap"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+flat = true
+text = ""

@@ -1,0 +1,164 @@
+[gd_scene format=3 uid="uid://bashwretch01"]
+
+[ext_resource type="PackedScene" uid="uid://bmonster001" path="res://scenes/monsters/monster.tscn" id="1_monster"]
+[ext_resource type="Script" uid="uid://rxpnsswg71kr" path="res://scripts/monsters/ash_wretch.gd" id="2_ash"]
+[ext_resource type="Script" uid="uid://dga8v1maiquyh" path="res://scripts/monsters/abilities/ash_ice_ability.gd" id="4_ice"]
+[ext_resource type="Script" uid="uid://dve1ig5c1dmse" path="res://scripts/monsters/abilities/ash_ward_ability.gd" id="5_ward"]
+[ext_resource type="Script" path="res://scripts/monsters/abilities/ash_frost_breath_ability.gd" id="6_frost"]
+[ext_resource type="Script" path="res://scripts/monsters/monster_caster_combat.gd" id="7_caster"]
+[ext_resource type="Script" path="res://scripts/monsters/abilities/ash_retreat_dash_ability.gd" id="8_dash"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_51b5b"]
+albedo_color = Color(0.42, 0.4, 0.48, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ffyo6"]
+albedo_color = Color(0.42, 0.4, 0.48, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="SphereMesh" id="SphereMesh_hand"]
+radius = 0.06
+height = 0.12
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jxor8"]
+albedo_color = Color(0.42, 0.4, 0.48, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_n4ck0"]
+albedo_color = Color(0.4664, 0.448, 0.5216, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vsvc5"]
+shading_mode = 0
+albedo_color = Color(0.55, 0.55, 0.58, 1)
+
+[node name="AshWretch" unique_id=611691207 instance=ExtResource("1_monster")]
+editor_description = "Ice Caster. Caster combat: charge spells, backdash+strafe, ward-block combo (close ward / far dash-in)."
+script = ExtResource("2_ash")
+body_tint = Color(0.42, 0.4, 0.48, 1)
+eye_glow_color = Color(0.55, 0.55, 0.58, 1)
+lookdev_override = false
+show_combat_ranges = false
+move_speed = 2.8
+chase_range = 11.0
+attack_range = 1.35
+touch_damage = 7.0
+idle_duration_sec = 1.2
+patrol_radius = 4.0
+lost_chase_to_alert_sec = 4.0
+alert_duration_sec = 12.0
+death_linger_sec = 30.0
+death_fade_sec = 3.0
+chase_style = 0
+keep_away_range = 20.0
+face_turn_speed_rad = 10.0
+chase_wait_min_sec = 1.0
+chase_wait_max_sec = 3.0
+chase_strafe_min_sec = 1.2
+chase_strafe_max_sec = 2.0
+chase_retreat_min_sec = 1.2
+chase_retreat_max_sec = 3.2
+chase_optimal_eps = 0.55
+
+[node name="Health" parent="."]
+max_health = 55.0
+
+[node name="Body" parent="." index="1" unique_id=73058391]
+layers = 2
+material_override = SubResource("StandardMaterial3D_51b5b")
+surface_material_override/0 = null
+
+[node name="Hands" type="Node3D" parent="Body" index="0" unique_id=1423862136]
+editor_description = "Cast hands. Right = Ice Bolt, Left = Ward. Frost Breath = combo cloud."
+
+[node name="RightHand" type="MeshInstance3D" parent="Body/Hands" index="0" unique_id=2093616357]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.26, 0.02, 0)
+layers = 2
+material_override = SubResource("StandardMaterial3D_ffyo6")
+mesh = SubResource("SphereMesh_hand")
+
+[node name="LeftHand" type="MeshInstance3D" parent="Body/Hands" index="1" unique_id=530821534]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26, 0.02, 0)
+layers = 2
+material_override = SubResource("StandardMaterial3D_jxor8")
+mesh = SubResource("SphereMesh_hand")
+
+[node name="HeadMesh" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="0" unique_id=1294118041]
+layers = 2
+material_override = SubResource("StandardMaterial3D_n4ck0")
+surface_material_override/0 = null
+
+[node name="LeftEye" parent="Head/Eyes" parent_id_path=PackedInt32Array(910001010) index="0" unique_id=910001011]
+layers = 2
+material_override = SubResource("StandardMaterial3D_vsvc5")
+surface_material_override/0 = null
+
+[node name="RightEye" parent="Head/Eyes" parent_id_path=PackedInt32Array(910001010) index="1" unique_id=910001012]
+layers = 2
+material_override = SubResource("StandardMaterial3D_vsvc5")
+surface_material_override/0 = null
+
+[node name="Glow" parent="Head/Eyes" parent_id_path=PackedInt32Array(910001010) index="2" unique_id=910001013]
+light_color = Color(0.55, 0.55, 0.58, 1)
+light_energy = 2.6
+light_cull_mask = 3
+
+[node name="Abilities" type="Node3D" parent="." index="4" unique_id=973519715]
+editor_description = "Ice Bolt, Ash Ward, Frost Breath (combo cloud), Retreat Dash."
+
+[node name="IceBolt" type="Node3D" parent="Abilities" index="0" unique_id=1516377762]
+script = ExtResource("4_ice")
+ability_id = "ash_ice"
+display_name = "Ice Bolt"
+description = "Two curved ice bolts 0.5s apart, then cooldown. Combo fires that burst twice (four bolts)."
+cooldown_sec = 6.0
+windup_sec = 0.5
+telegraph_color = Color(0.45, 0.8, 1, 1)
+max_cast_range = 14.0
+
+[node name="AshWard" type="Node3D" parent="Abilities" index="1" unique_id=1522677824]
+script = ExtResource("5_ward")
+ability_id = "ash_ward"
+display_name = "Ash Ward"
+description = "Left-hand ward shield lasting 2.5 seconds. Blocks spells for the full duration."
+cooldown_sec = 7.0
+windup_sec = 0.45
+telegraph_color = Color(0.4, 0.7, 1, 1)
+hand_side = 1
+requires_chase_target = true
+min_cast_range = 0.0
+max_cast_range = 20.0
+
+[node name="FrostBreath" type="Node3D" parent="Abilities" index="2"]
+script = ExtResource("6_frost")
+ability_id = "ash_frost_breath"
+display_name = "Frost Breath"
+description = "Combo frost cloud toward the player. Knockback, 50% slow 2.2s, no HP damage, 40 mana drain if spell armed."
+cooldown_sec = 10.0
+windup_sec = 0.25
+telegraph_color = Color(0.55, 0.82, 1, 1)
+requires_chase_target = true
+min_cast_range = 0.0
+max_cast_range = 16.9
+retreat_combo_chance = 0.85
+
+[node name="AshRetreatDash" type="Node3D" parent="Abilities" index="3"]
+script = ExtResource("8_dash")
+ability_id = "ash_retreat_dash"
+display_name = "Ash Retreat Dash"
+description = "Dash backward away from the player, then strafe. Used instead of a slow walk-back."
+cooldown_sec = 5.0
+windup_sec = 0.0
+telegraph_color = Color(0.45, 0.75, 1, 1)
+participates_in_cast_rotation = false
+
+[node name="CasterCombat" type="Node3D" parent="." index="5"]
+script = ExtResource("7_caster")
+combo_trigger_max_range = 16.9
+combo_lockout_sec = 8.0

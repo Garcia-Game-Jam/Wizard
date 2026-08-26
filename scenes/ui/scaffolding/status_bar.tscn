@@ -1,0 +1,134 @@
+[gd_scene load_steps=7 format=3 uid="uid://cswbstatbar001"]
+
+[ext_resource type="Theme" path="res://resources/ui/serious_wiz_biz_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/ui/scaffolding/ui_status_bar.gd" id="2_bar"]
+[ext_resource type="Script" path="res://scripts/ui/scaffolding/ui_status_bar_ticks.gd" id="3_ticks"]
+[ext_resource type="PackedScene" uid="uid://cswbflare001" path="res://scenes/ui/scaffolding/title_flare.tscn" id="4_flare"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_track"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.0235294, 0.0313726, 0.0588235, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.886275, 0.670588, 0.262745, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fill"]
+bg_color = Color(0.607843, 0.172549, 0.172549, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+expand_margin_left = -1.0
+expand_margin_top = -1.0
+expand_margin_right = -1.0
+expand_margin_bottom = -1.0
+
+[node name="StatusBar" type="VBoxContainer"]
+custom_minimum_size = Vector2(240, 36)
+mouse_filter = 2
+theme = ExtResource("1_theme")
+theme_override_constants/separation = 2
+script = ExtResource("2_bar")
+
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 12
+text = "Resource"
+
+[node name="Value" type="Label" parent="Header"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 12
+text = "100 / 100"
+horizontal_alignment = 2
+
+[node name="FlareAbove" parent="." instance=ExtResource("4_flare")]
+visible = false
+layout_mode = 2
+
+[node name="Bar" type="ProgressBar" parent="."]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_track")
+theme_override_styles/fill = SubResource("StyleBoxFlat_fill")
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="Ticks" type="Control" parent="Bar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_ticks")
+
+[node name="FlareLeft" parent="Bar" instance=ExtResource("4_flare")]
+visible = false
+custom_minimum_size = Vector2(12, 14)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = -14.0
+offset_top = -7.0
+offset_right = -2.0
+offset_bottom = 7.0
+grow_vertical = 2
+show_rule = false
+diamond_align = 0
+
+[node name="FlareRight" parent="Bar" instance=ExtResource("4_flare")]
+visible = false
+custom_minimum_size = Vector2(12, 14)
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = 2.0
+offset_top = -7.0
+offset_right = 14.0
+offset_bottom = 7.0
+grow_horizontal = 0
+grow_vertical = 2
+show_rule = false
+diamond_align = 2
+
+[node name="TickLabels" type="Control" parent="."]
+visible = false
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+mouse_filter = 2
+script = ExtResource("3_ticks")
+draw_lines = false
+draw_labels = true
+
+[node name="FlareBelow" parent="." instance=ExtResource("4_flare")]
+visible = false
+layout_mode = 2

@@ -1,0 +1,92 @@
+[gd_scene format=3 uid="uid://cfireball001"]
+
+[ext_resource type="Script" uid="uid://cto1qc80bouyt" path="res://scripts/spells/fireball_projectile.gd" id="1_fireball"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hit"]
+radius = 0.23
+
+[sub_resource type="Gradient" id="Gradient_fire"]
+offsets = PackedFloat32Array(0, 0.22, 0.55, 0.82, 1)
+colors = PackedColorArray(1, 0.97, 0.55, 1, 1, 0.72, 0.2, 1, 1, 0.42, 0.08, 1, 0.95, 0.28, 0.05, 1, 0.75, 0.18, 0.04, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fire"]
+noise_type = 2
+frequency = 0.09
+fractal_type = 2
+fractal_lacunarity = 2.2
+fractal_gain = 0.55
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fire"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_fire")
+color_ramp = SubResource("Gradient_fire")
+seamless = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ql5qc"]
+transparency = 1
+blend_mode = 1
+cull_mode = 2
+depth_draw_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.72, 0.28, 1)
+albedo_texture = SubResource("NoiseTexture2D_fire")
+uv1_scale = Vector3(2.4, 2.4, 2.4)
+uv1_offset = Vector3(0.821243, 0.7191082, 0)
+
+[sub_resource type="SphereMesh" id="SphereMesh_core"]
+radius = 0.22
+height = 0.44
+radial_segments = 24
+rings = 12
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vaqcd"]
+transparency = 1
+blend_mode = 1
+cull_mode = 2
+depth_draw_mode = 2
+shading_mode = 0
+albedo_color = Color(1, 0.35, 0.05, 0.07901956)
+
+[sub_resource type="SphereMesh" id="SphereMesh_shell"]
+radius = 0.25
+height = 0.5
+radial_segments = 20
+rings = 10
+
+[node name="Fireball" type="Area3D" unique_id=1121186740]
+editor_description = "Select THIS Fireball root. Cast timing is charge hold + wand lift. Radii group sizes core/hit/shell/smoke/embers/light. The white pin at the origin is TravelCastLight (editor gizmo only)."
+collision_layer = 0
+monitorable = false
+script = ExtResource("1_fireball")
+charge_time_sec = 0.8
+wand_charge_pose_sec = 0.14
+hit_radius = 0.23
+shell_radius = 0.25
+glow_light_base = 0.55
+glow_light_peak = 1.5
+shell_alpha_min = 0.07
+shell_alpha_max = 0.29
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1978132804]
+shape = SubResource("SphereShape3D_hit")
+
+[node name="Core" type="MeshInstance3D" parent="." unique_id=509525289]
+material_override = SubResource("StandardMaterial3D_ql5qc")
+cast_shadow = 0
+mesh = SubResource("SphereMesh_core")
+
+[node name="FlameShell" type="MeshInstance3D" parent="." unique_id=2044858857]
+material_override = SubResource("StandardMaterial3D_vaqcd")
+cast_shadow = 0
+mesh = SubResource("SphereMesh_shell")
+
+[node name="TravelCastLight" type="OmniLight3D" parent="." unique_id=1141647747]
+editor_description = "Lights the world only. White pin in the editor is this OmniLight gizmo — it does not draw in-game."
+light_color = Color(1, 0.5, 0.14, 1)
+light_energy = 0.5535056
+light_specular = 0.4
+light_cull_mask = 3
+shadow_caster_mask = 1
+omni_range = 4.8
+omni_attenuation = 1.35

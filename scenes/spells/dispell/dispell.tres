@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpellDefinition" format=3 uid="uid://dm0b3twvh1yuv"]
+
+[ext_resource type="Script" uid="uid://dwdwxw8dalcmm" path="res://scripts/spells/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dispell"
+display_name = "Dispell"
+incantation_words = PackedStringArray("dispel")
+syllable_cadence_ms = PackedInt32Array(0)
+pitch_targets_hz = null
+cooldown_sec = 1.0
+effect_id = "dispell"
+color = Color(0.75, 0.45, 0.95, 1)

@@ -1,0 +1,63 @@
+[gd_scene format=3 uid="uid://beec8jpki1vlg"]
+
+[ext_resource type="Script" uid="uid://dk65h8rpt4kwn" path="res://scripts/spells/ward_workspace.gd" id="1_workspace"]
+[ext_resource type="PackedScene" uid="uid://bplayerwand1" path="res://scenes/characters/player_wand.tscn" id="2_wand"]
+
+[sub_resource type="Environment" id="Environment_studio"]
+background_mode = 1
+background_color = Color(0.1, 0.11, 0.14, 1)
+ambient_light_color = Color(0.55, 0.6, 0.7, 1)
+ambient_light_energy = 0.75
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(12, 12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.18, 0.19, 0.22, 1)
+roughness = 0.92
+
+[node name="WardWorkspace" type="Node3D" unique_id=1631453141]
+process_mode = 3
+editor_description = "Empty ward studio. Select this root, then Inspector: Cast Ward, Hold Ward, Fireball, Release Ward."
+script = ExtResource("1_workspace")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1497128023]
+environment = SubResource("Environment_studio")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=427420069]
+transform = Transform3D(0, -0.0995, 0.995, 0, 0.995, 0.0995, -1, 0, 0, 6.2, 1.6, 0)
+current = true
+fov = 42.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=2057290144]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 3, 0)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=790030169]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 1.2, 0.9)
+light_color = Color(0.7, 0.85, 1, 1)
+light_energy = 0.65
+omni_range = 8.0
+
+[node name="RimLight" type="OmniLight3D" parent="." unique_id=1511933453]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.9, -1.4)
+light_color = Color(1, 0.9, 0.75, 1)
+light_energy = 0.45
+omni_range = 7.0
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=259098790]
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")
+
+[node name="Wand" parent="." unique_id=547195608 instance=ExtResource("2_wand")]
+editor_description = "Player wand. Cast Ward and Hold Ward spawn from this tip. Faces the fireball wand along -Z."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.02, 3)
+
+[node name="AttackWand" parent="." unique_id=1731520421 instance=ExtResource("2_wand")]
+editor_description = "Fireball wand. Same axis as Wand, tip toward the ward wand."
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 1.02, -3)
+
+[node name="CastPreview" type="Node3D" parent="." unique_id=100678042]
+process_mode = 3
+editor_description = "Wards and fireballs spawned by the Inspector tool buttons."

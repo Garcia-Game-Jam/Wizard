@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://dvjawghg8i4ra"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/book/spell/spell_page_leaf.tscn" id="1_leaf"]
+[ext_resource type="Script" uid="uid://c6pnkwtncfbx0" path="res://scripts/ui/book/spell/spell_page.gd" id="2_page"]
+
+[node name="StopPage" unique_id=1948220518 instance=ExtResource("1_leaf")]
+script = ExtResource("2_page")
+spell_id = "stop"
+
+[node name="SpellName" parent="Margin/VBox" index="0"]
+text = "Stop"
+
+[node name="Pronunciation" parent="Margin/VBox" index="1"]
+text = "\"stop\""
+
+[node name="Details" parent="Margin/VBox" index="3"]
+text = "Stop an actively channeled spell like target or follow."
