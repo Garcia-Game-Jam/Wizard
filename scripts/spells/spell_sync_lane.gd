@@ -30,7 +30,6 @@ const TARGETED := "targeted"
 const BY_EFFECT := {
 	"haste": PLAYER_BOUND,
 	"flashlight_toggle": PLAYER_BOUND,
-	"light": PLAYER_BOUND,
 	"fireball": EPHEMERAL,
 	"flare": EPHEMERAL,
 	"ward": EPHEMERAL,

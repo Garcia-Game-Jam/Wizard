@@ -16,7 +16,6 @@ const PAGE_SCENES: Array[PackedScene] = [
 	preload("res://scenes/ui/book/spell/pages/light.tscn"),
 	preload("res://scenes/ui/book/spell/pages/light_ball.tscn"),
 	preload("res://scenes/ui/book/spell/pages/pull.tscn"),
-	preload("res://scenes/ui/book/spell/pages/show_me.tscn"),
 	preload("res://scenes/ui/book/spell/pages/stop.tscn"),
 	preload("res://scenes/ui/book/spell/pages/target.tscn"),
 	preload("res://scenes/ui/book/spell/pages/ward.tscn"),

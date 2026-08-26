@@ -27,7 +27,6 @@ const KEY_TARGET_KIND := "target_kind"
 const KEY_CHARGE_FACTOR := "charge_factor"
 
 const EFFECT_HASTE := "haste"
-const EFFECT_LIGHT := "light"
 const EFFECT_FIREBALL := "fireball"
 const EFFECT_FLARE := "flare"
 const EFFECT_WARD := "ward"
@@ -50,7 +49,6 @@ const META_HAS_BEEN_CLONED := "spell_has_been_cloned"
 const META_IS_CLONE := "spell_is_clone"
 const SOURCE_ID_RELIC := "relic"
 
-const DEFAULT_LIGHT_DURATION := 20.0
 const DEFAULT_HASTE_DURATION := 4.0
 const DEFAULT_HASTE_MULTIPLIER := 1.65
 const DEFAULT_WARD_DURATION := 1.0
@@ -62,7 +60,7 @@ const CLONE_OFFSET_DIST := 0.55
 static func get_effect_duration_sec(spell: SpellDefinition, _params: Dictionary = {}) -> float:
 	if spell == null:
 		return 0.0
-	## Durations live on the world effect (ward fade, haste aura, flare, trails).
+	## Durations live on the world effect (ward fade, haste aura, flare).
 	## HUD no longer shows a top-right timeout strip.
 	return 0.0
 
@@ -82,8 +80,6 @@ static func build_params(spell: SpellDefinition, player: CharacterBody3D) -> Dic
 				params[KEY_DURATION] = DEFAULT_WARD_DURATION
 			elif spell.effect_id == EFFECT_FLARE:
 				params[KEY_DURATION] = FlareEffectScript.DEFAULT_DURATION_SEC
-		EFFECT_LIGHT:
-			params[KEY_DURATION] = DEFAULT_LIGHT_DURATION
 		EFFECT_HASTE:
 			params[KEY_DURATION] = DEFAULT_HASTE_DURATION
 			params[KEY_MULTIPLIER] = DEFAULT_HASTE_MULTIPLIER
@@ -318,8 +314,6 @@ static func pack_for_network(params: Dictionary) -> Dictionary:
 		EFFECT_HASTE:
 			wire[KEY_DURATION] = float(local.get(KEY_DURATION, DEFAULT_HASTE_DURATION))
 			wire[KEY_MULTIPLIER] = float(local.get(KEY_MULTIPLIER, DEFAULT_HASTE_MULTIPLIER))
-		EFFECT_LIGHT:
-			wire[KEY_DURATION] = float(local.get(KEY_DURATION, DEFAULT_LIGHT_DURATION))
 		EFFECT_TARGET:
 			wire[KEY_DURATION] = float(local.get(KEY_DURATION, DEFAULT_TARGET_DURATION))
 			wire[KEY_TARGET_KIND] = str(local.get(KEY_TARGET_KIND, ""))
@@ -392,8 +386,6 @@ static func unpack_from_network(wire: Dictionary) -> Dictionary:
 		EFFECT_HASTE:
 			params[KEY_DURATION] = float(wire.get(KEY_DURATION, DEFAULT_HASTE_DURATION))
 			params[KEY_MULTIPLIER] = float(wire.get(KEY_MULTIPLIER, DEFAULT_HASTE_MULTIPLIER))
-		EFFECT_LIGHT:
-			params[KEY_DURATION] = float(wire.get(KEY_DURATION, DEFAULT_LIGHT_DURATION))
 		EFFECT_TARGET:
 			params[KEY_DURATION] = float(wire.get(KEY_DURATION, DEFAULT_TARGET_DURATION))
 			params[KEY_TARGET_KIND] = str(wire.get(KEY_TARGET_KIND, ""))
@@ -552,8 +544,6 @@ static func apply(player: CharacterBody3D, params: Dictionary) -> void:
 				float(params.get(KEY_DURATION, DEFAULT_HASTE_DURATION)),
 				float(params.get(KEY_MULTIPLIER, DEFAULT_HASTE_MULTIPLIER))
 			)
-		EFFECT_LIGHT:
-			_reveal_trails(float(params.get(KEY_DURATION, DEFAULT_LIGHT_DURATION)))
 		EFFECT_FIREBALL:
 			_apply_fireball(player, params)
 		EFFECT_FLARE:
@@ -580,16 +570,6 @@ static func apply(player: CharacterBody3D, params: Dictionary) -> void:
 			push_warning(
 				"SpellEffectSync: unknown effect '%s'" % str(params.get(KEY_EFFECT_ID, ""))
 			)
-
-
-
-static func _reveal_trails(duration_sec: float) -> void:
-	var tree := Engine.get_main_loop()
-	if tree == null:
-		return
-	var registry: Node = tree.root.get_node_or_null("TrailRegistry")
-	if registry != null and registry.has_method("reveal_trails"):
-		registry.reveal_trails(duration_sec)
 
 
 static func _apply_target(player: CharacterBody3D, params: Dictionary) -> void:

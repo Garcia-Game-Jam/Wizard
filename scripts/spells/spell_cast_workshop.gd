@@ -207,7 +207,6 @@ func _ensure_default_spells() -> void:
 		"res://scenes/spells/haste/haste.tres",
 		"res://scenes/spells/light/light.tres",
 		"res://scenes/spells/light_ball/light_ball.tres",
-		"res://scenes/spells/show_me/show_me.tres",
 		"res://scenes/spells/target/target.tres",
 		"res://scenes/spells/pull/pull.tres",
 		"res://scenes/spells/follow/follow.tres",

@@ -236,8 +236,6 @@ func get_learned_confirmation_text() -> String:
 func get_cast_success_text() -> String:
 	var text := "The spell takes effect."
 	match effect_id:
-		"light":
-			text = "Smoke trails glow for several seconds."
 		"haste":
 			text = "You surge forward — movement speed increased!"
 		"fireball":
@@ -271,11 +269,6 @@ func get_cast_success_text() -> String:
 func get_codex_effect_detail() -> String:
 	var text := get_cast_success_text()
 	match effect_id:
-		"light":
-			text = (
-				"Reveals recent player smoke trails for %.0f seconds."
-				% SpellEffectSyncScript.DEFAULT_LIGHT_DURATION
-			)
 		"haste":
 			text = (
 				"Increases movement speed by %.0f%% for %.0f seconds."

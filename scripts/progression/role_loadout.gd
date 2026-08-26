@@ -4,7 +4,6 @@ extends RefCounted
 ## Starter kit for the apprentice caster.
 
 const APPRENTICE_STARTER_SPELLS: Array[String] = [
-	"show_me",
 	"fireball",
 	"flare",
 	"ward",

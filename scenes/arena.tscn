@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://carenascn001" path="res://scripts/arena/arena_scene.gd" id="1_arena"]
 [ext_resource type="Script" uid="uid://bkvka4fuy7rl2" path="res://scripts/spells/spell_registry.gd" id="6_registry"]
-[ext_resource type="Resource" uid="uid://cyg7o8wvlijw5" path="res://scenes/spells/show_me/show_me.tres" id="7_show_me"]
 [ext_resource type="Resource" uid="uid://678bsder6qrs" path="res://scenes/spells/haste/haste.tres" id="8_haste"]
 [ext_resource type="Script" uid="uid://bfnrfxnwjg02y" path="res://scripts/ui/aim_cursor.gd" id="9_aim"]
 [ext_resource type="Script" uid="uid://crdov1cq8kly5" path="res://scripts/ui/game_hud.gd" id="9_hud"]
@@ -229,7 +228,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
 
 [node name="SpellRegistry" type="Node" parent="."]
 script = ExtResource("6_registry")
-spells = Array[Resource]([ExtResource("7_show_me"), ExtResource("8_haste"), ExtResource("15_fireball"), ExtResource("33_flare"), ExtResource("35_ward"), ExtResource("25_light"), ExtResource("26_light_ball"), ExtResource("27_target"), ExtResource("29_pull"), ExtResource("30_follow"), ExtResource("34_stop"), ExtResource("31_dispell")])
+spells = Array[Resource]([ExtResource("8_haste"), ExtResource("15_fireball"), ExtResource("33_flare"), ExtResource("35_ward"), ExtResource("25_light"), ExtResource("26_light_ball"), ExtResource("27_target"), ExtResource("29_pull"), ExtResource("30_follow"), ExtResource("34_stop"), ExtResource("31_dispell")])
 
 [node name="VoiceSpellValidator" type="Node" parent="."]
 script = ExtResource("10_validator")

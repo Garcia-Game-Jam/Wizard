@@ -16,7 +16,6 @@ const PREVIEW_COLORS := {
 	"light": Color(1.0, 0.95, 0.75),
 	"light_ball": Color(1.0, 0.92, 0.55),
 	"pull": Color(0.35, 0.65, 1.0),
-	"show_me": Color(0.55, 0.9, 1.0),
 	"stop": Color(0.95, 0.35, 0.35),
 	"target": Color(0.35, 1.0, 0.45),
 }

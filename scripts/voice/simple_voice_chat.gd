@@ -565,6 +565,8 @@ func _frame_rms(samples: PackedFloat32Array) -> float:
 
 
 func _resolve_local_peer_id() -> int:
+	if not is_inside_tree():
+		return 1
 	var tree := get_tree()
 	if tree != null:
 		var mp := tree.get_multiplayer()
@@ -585,6 +587,8 @@ func _remote_peer_ids() -> Array[int]:
 
 
 func _has_live_multiplayer() -> bool:
+	if not is_inside_tree():
+		return false
 	var tree := get_tree()
 	if tree == null:
 		return false

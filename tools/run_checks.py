@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 from check_gdscript_warnings import run_warning_probe  # noqa: E402
 from restore_extensions import find_godot_binary, sync_extensions  # noqa: E402
-LINT_PATHS = ("scripts",)
+LINT_PATHS = ("scripts", "tests")
 ## Calls that write a theme override, and so re-emit NOTIFICATION_THEME_CHANGED.
 UI_OVERRIDE_WRITE_MARKERS = ("add_theme_", "remove_theme_", "UiPalette.paint_")
 TEST_LOG = ROOT / ".cache" / "godot-tests.log"

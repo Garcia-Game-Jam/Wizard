@@ -24,6 +24,7 @@ PROBE_SCRIPT = "res://tools/probe_gdscript_warnings.gd"
 # Paths we own — ignore addons/vendor noise.
 OWNED_PATH_PREFIXES = (
     "res://scripts/",
+    "res://tests/",
     "res://scenes/",
     "res://tools/",
 )

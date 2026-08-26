@@ -9,7 +9,6 @@
 [ext_resource type="Resource" path="res://scenes/spells/haste/haste.tres" id="6_haste"]
 [ext_resource type="Resource" path="res://scenes/spells/light/light.tres" id="7_light"]
 [ext_resource type="Resource" path="res://scenes/spells/light_ball/light_ball.tres" id="8_light_ball"]
-[ext_resource type="Resource" path="res://scenes/spells/show_me/show_me.tres" id="9_show_me"]
 [ext_resource type="Resource" path="res://scenes/spells/target/target.tres" id="10_target"]
 [ext_resource type="Resource" path="res://scenes/spells/pull/pull.tres" id="11_pull"]
 [ext_resource type="Resource" path="res://scenes/spells/follow/follow.tres" id="12_follow"]
@@ -34,7 +33,7 @@ roughness = 0.92
 process_mode = 3
 editor_description = "Wand-only cast look-dev. Pick a spell, then Play Selection (E-lift recognition), Play Cast (category flourish), or Full Sequence."
 script = ExtResource("1_workshop")
-spells = Array[ExtResource("2_jt4hp")]([ExtResource("3_fireball"), ExtResource("4_flare"), ExtResource("5_ward"), ExtResource("6_haste"), ExtResource("7_light"), ExtResource("8_light_ball"), ExtResource("9_show_me"), ExtResource("10_target"), ExtResource("11_pull"), ExtResource("12_follow"), ExtResource("13_stop"), ExtResource("14_dispell"), ExtResource("16_clone")])
+spells = Array[ExtResource("2_jt4hp")]([ExtResource("3_fireball"), ExtResource("4_flare"), ExtResource("5_ward"), ExtResource("6_haste"), ExtResource("7_light"), ExtResource("8_light_ball"), ExtResource("10_target"), ExtResource("11_pull"), ExtResource("12_follow"), ExtResource("13_stop"), ExtResource("14_dispell"), ExtResource("16_clone")])
 selected_spell = ExtResource("3_fireball")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1810247479]

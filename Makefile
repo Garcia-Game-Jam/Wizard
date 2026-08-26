@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help setup-dev setup-voice lint warnings verify-voice
+.PHONY: help setup-dev setup-voice lint warnings test check verify-pinned-versions verify-voice
 
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
@@ -28,11 +28,14 @@ help:
 	@echo ""
 	@echo "  make setup-dev             pip install -r requirements-dev.txt (uses .venv)"
 	@echo "  make setup-voice           gdvosk + Vosk model (~500 MB first run)"
-	@echo "  make lint                  gdlint"
+	@echo "  make lint                  gdlint + GDScript analyzer warnings"
 	@echo "  make warnings              GDScript analyzer warning probe (requires Godot)"
+	@echo "  make test                  Godot unit tests"
+	@echo "  make check                 lint + test"
+	@echo "  make verify-pinned-versions  CI guard: workflows match tools/versions.env"
 	@echo "  make verify-voice          quick file check for gdvosk install"
 	@echo ""
-	@echo "Override Godot binary: make warnings GODOT=/path/to/godot"
+	@echo "Override Godot binary: make test GODOT=/path/to/godot"
 	@echo "Windows default Godot: tools/versions.env GODOT_EDITOR_WIN"
 	@echo "Pinned versions live in tools/versions.env"
 
@@ -56,6 +59,14 @@ lint:
 
 warnings:
 	$(RUN_PYTHON) tools/run_checks.py --warnings-only --require-godot-warnings
+
+test:
+	GODOT_PATH="$(GODOT)" $(RUN_PYTHON) tools/run_checks.py --tests-only
+
+check: lint test
+
+verify-pinned-versions:
+	$(PYTHON) tools/check_pinned_versions.py
 
 verify-voice:
 ifeq ($(OS),Windows_NT)

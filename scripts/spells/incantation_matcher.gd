@@ -8,7 +8,6 @@ extends RefCounted
 const STT_CONFUSABLES := {
 	"light": ["like", "lite", "lights", "white"],
 	"ball": ["bowl", "bald", "boll"],
-	"show": ["sho", "shaw", "shoe"],
 	"speed": ["speak", "steed"],
 	"fireball": ["firebal", "firball"],
 	"flare": ["flair", "flares", "fair"],

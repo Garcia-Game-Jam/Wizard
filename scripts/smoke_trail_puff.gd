@@ -2,7 +2,7 @@ extends MeshInstance3D
 
 const TrailSampleScript := preload("res://scripts/trails/trail_sample.gd")
 
-## One ground footprint in a player's path. Hidden until Show Me reveals trails.
+## One ground footprint in a player's path.
 
 const MAX_FOOTPRINT_SCALE := 0.62
 const MIN_FOOTPRINT_SCALE := 0.14

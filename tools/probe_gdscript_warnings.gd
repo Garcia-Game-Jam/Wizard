@@ -5,6 +5,7 @@ extends SceneTree
 
 const SCAN_ROOTS := [
 	"res://scripts",
+	"res://tests",
 ]
 
 const EXTRA_SCENES := [
