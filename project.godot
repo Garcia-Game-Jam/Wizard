@@ -207,7 +207,6 @@ logging/netfox_extras_log_level=4
 [physics]
 
 3d/physics_engine="Jolt Physics"
-common/physics_ticks_per_second=30
 
 [rendering]
 
