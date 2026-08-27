@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 from collections import Counter
 from pathlib import Path
@@ -111,13 +112,18 @@ def _pawn_check(rows: list[dict[str, str]]) -> dict[str, float]:
         tag = f"pawn_{name}[{'own' if owner == '1' else 'rem'}]"
         flips = 0
         grounded_vy: list[float] = []
-        airborne = 0
-        small_vy_airborne = 0  # airborne but nearly no vertical speed = stuck, not a jump
+        airborne_vy: list[float] = []
+        steps: list[float] = []  # per-tick position delta magnitude (units/tick) = the "warp"
+        airborne = small_vy_airborne = 0
         prev = None
+        prev_pos: tuple[float, float, float] | None = None
+        prev_tick: int | None = None
         for row in pr:
             try:
                 on_floor = int(row["on_floor"])
                 vy = float(row["vy"])
+                pos = (float(row["px"]), float(row["py"]), float(row["pz"]))
+                tick = int(row["net_tick"])
             except (KeyError, ValueError):
                 continue
             if prev is not None and prev != on_floor:
@@ -127,13 +133,20 @@ def _pawn_check(rows: list[dict[str, str]]) -> dict[str, float]:
                 grounded_vy.append(abs(vy))
             else:
                 airborne += 1
+                airborne_vy.append(abs(vy))
                 if abs(vy) < 1.5:
                     small_vy_airborne += 1
+            if prev_pos is not None and prev_tick is not None and tick - prev_tick == 1:
+                steps.append(math.dist(pos, prev_pos))
+            prev_pos, prev_tick = pos, tick
         n = len(pr)
         out[f"{tag}.airborne_pct"] = 100.0 * airborne / n
         out[f"{tag}.stuck_airborne_pct"] = 100.0 * small_vy_airborne / n
         out[f"{tag}.grounded_vy_abs.p95"] = _pct(grounded_vy, 95)
+        out[f"{tag}.airborne_vy.p95"] = _pct(airborne_vy, 95)
         out[f"{tag}.on_floor_flips"] = float(flips)
+        out[f"{tag}.step.p95"] = _pct(steps, 95)
+        out[f"{tag}.step.max"] = max(steps) if steps else 0.0
     return out
 
 
