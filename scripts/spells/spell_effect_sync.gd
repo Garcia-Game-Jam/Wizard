@@ -567,7 +567,7 @@ static func spawn_predicted(player: CharacterBody3D, params: Dictionary) -> Node
 				direction,
 				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
 					return StoneThrowProjectileScript.spawn(
-						parent, spawn_origin, spawn_dir, player, false, charge
+						parent, spawn_origin, spawn_dir, player, false
 					)
 			)
 		EFFECT_FLARE:

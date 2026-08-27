@@ -58,8 +58,7 @@ static func spawn(
 	origin: Vector3,
 	direction: Vector3,
 	caster: Node3D = null,
-	lookdev_flight: bool = false,
-	charge_factor: float = 1.0
+	lookdev_flight: bool = false
 ) -> Node:
 	## Lazy-load avoids circular preload with stone_throw.tscn.
 	var packed: PackedScene = load(
@@ -73,8 +72,6 @@ static func spawn(
 		var stone := projectile as StoneThrowProjectile
 		stone._direction = direction.normalized()
 		stone._caster = caster
-	## charge_factor accepted for spawn()/apply_net_launch() signature parity, unused —
-	## require_full_charge means this only ever fires near-fully charged.
 	## Place before add_child so `_ready` is not at Match origin.
 	if parent != null and projectile is Node3D:
 		SpellEphemeralFxScript.add_child_at(parent, projectile as Node3D, origin)
