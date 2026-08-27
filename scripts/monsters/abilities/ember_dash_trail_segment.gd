@@ -6,6 +6,7 @@ extends Area3D
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const SCENE := preload("res://scenes/monsters/abilities/ember_dash_trail_segment.tscn")
 
 const GROUND_Y := 0.045
 
@@ -33,10 +34,7 @@ static func spawn(
 ) -> Area3D:
 	if parent == null:
 		return null
-	var packed: PackedScene = load(
-		"res://scenes/monsters/abilities/ember_dash_trail_segment.tscn"
-	) as PackedScene
-	var seg: EmberDashTrailSegment = packed.instantiate() as EmberDashTrailSegment
+	var seg: EmberDashTrailSegment = SCENE.instantiate() as EmberDashTrailSegment
 	seg._lifetime_sec = lifetime_sec
 	seg._burn_dps = burn_dps
 	seg._burn_slow_multiplier = burn_slow_multiplier

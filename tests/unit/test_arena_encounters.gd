@@ -18,6 +18,7 @@ func run() -> int:
 	failures += _test_cover_restage_survives_rewind_restore()
 	failures += _test_telegraph_survives_rewind_restore()
 	failures += _test_dump_slot_names_are_unique()
+	failures += _test_live_kinds_are_preloaded()
 	return failures
 
 
@@ -189,5 +190,24 @@ func _test_dump_slot_names_are_unique() -> int:
 		return 1
 	if ArenaEncountersScript.dump_node_name(5, 0) == ArenaEncountersScript.dump_node_name(5, 1):
 		push_error("Same-kind dump slots must not share a node name")
+		return 1
+	return 0
+
+
+func _test_live_kinds_are_preloaded() -> int:
+	var charger := ArenaEncountersScript.packed_scene_for(ArenaEncountersScript.KIND_CHARGER)
+	var ember := ArenaEncountersScript.packed_scene_for(ArenaEncountersScript.KIND_EMBER)
+	if charger == null or ember == null:
+		push_error("Live dump kinds must resolve to PackedScenes")
+		return 1
+	if not charger.resource_path.ends_with("charger.tscn"):
+		push_error("Charger dump scene should be charger.tscn")
+		return 1
+	if not ember.resource_path.ends_with("ember_wretch.tscn"):
+		push_error("Ember dump scene should be ember_wretch.tscn")
+		return 1
+	var ash_path := ArenaEncountersScript.scene_path_for(ArenaEncountersScript.KIND_ASH)
+	if not ash_path.ends_with("ash_wretch.tscn"):
+		push_error("Evaluating ash should stay a path until it is live")
 		return 1
 	return 0
