@@ -7,6 +7,8 @@ const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const ArenaEncountersScript := preload("res://scripts/arena/arena_encounters.gd")
 
 const DUMP_WAIT_SEC := 25.0
+const DUMP_MOVE_WAIT_SEC := 8.0
+const DUMP_MOVE_MIN_M := 0.5
 const JOIN_WAIT_SEC := 12.0
 const PEER_WAIT_SEC := 12.0
 const MATCH_WAIT_SEC := 20.0
@@ -93,6 +95,8 @@ func _assert_match(role: String) -> void:
 		return
 	if not await _assert_dump(role):
 		return
+	if not await _assert_dump_moved(role):
+		return
 	print("E2E_OK %s" % role)
 	_finish(0)
 
@@ -147,6 +151,32 @@ func _assert_dump(role: String) -> bool:
 		_fail("Dump name collided: %s" % body.name)
 		return false
 	return true
+
+
+func _assert_dump_moved(role: String) -> bool:
+	## Fight-1 charger chase_range is 3 m; players spawn ~26 m away. Motion
+	## here is idle→patrol, not aggro. Guest motion means rewind state arrived.
+	var dump_name := ArenaEncountersScript.dump_node_name(0, 0)
+	var body := _monsters_root().get_node_or_null(dump_name) as Node3D
+	if body == null:
+		_fail("Dump node vanished before motion check")
+		return false
+	var origin := _flat(body.global_position)
+	if not await _wait_until("dump moved", DUMP_MOVE_WAIT_SEC, func() -> bool:
+		var live := _monsters_root().get_node_or_null(dump_name) as Node3D
+		return live != null and _flat(live.global_position).distance_to(origin) >= DUMP_MOVE_MIN_M
+	):
+		return false
+	var moved := _monsters_root().get_node_or_null(dump_name) as Node3D
+	var dist := 0.0
+	if moved != null:
+		dist = _flat(moved.global_position).distance_to(origin)
+	print("E2E_MOVE %s %.2f" % [role, dist])
+	return true
+
+
+func _flat(pos: Vector3) -> Vector2:
+	return Vector2(pos.x, pos.z)
 
 
 func _monsters_root() -> Node:

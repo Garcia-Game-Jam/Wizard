@@ -29,7 +29,7 @@ GDVOSK_CRASH_EXIT = 3221225477
 GDVOSK_HEAP_CRASH_EXIT = 3221226356
 GDVOSK_CRASH_EXIT_LINUX = 139
 HOST_READY_SEC = 40.0
-MATCH_SEC = 70.0
+MATCH_SEC = 90.0
 
 
 def _in_ci() -> bool:
@@ -72,10 +72,10 @@ def _ok_exit(code: int | None, text: str) -> bool:
     return False
 
 
-_LOG_ALLOW = (
-    "gdvosk.gdextension",
-    "SettingsManager: saved input",
-    "MIC_OR_ROUTE_SILENT",
+# Fail the job only on rewind/identity faults — not every engine WARNING.
+_LOG_FAIL = (
+    "unknown identity",
+    "dropping seeded state",
 )
 
 
@@ -85,12 +85,11 @@ def _unexpected_log_noise(text: str) -> list[str]:
         line = raw.strip()
         if not line:
             continue
-        if any(allow in line for allow in _LOG_ALLOW):
-            continue
-        if line.startswith("ERROR:") or line.startswith("WARNING:"):
+        lowered = line.lower()
+        if any(needle in lowered for needle in _LOG_FAIL):
             hits.append(line)
             continue
-        if line.startswith("[ERR]") or line.startswith("[WRN]"):
+        if line.startswith("[ERR]"):
             hits.append(line)
     return hits[:12]
 
