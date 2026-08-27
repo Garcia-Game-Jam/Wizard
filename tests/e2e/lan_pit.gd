@@ -11,6 +11,8 @@ const JOIN_WAIT_SEC := 12.0
 const PEER_WAIT_SEC := 12.0
 const MATCH_WAIT_SEC := 20.0
 
+var _app: Node
+
 
 func _init() -> void:
 	call_deferred("_boot")
@@ -31,8 +33,8 @@ func _boot() -> void:
 	if packed == null:
 		_fail("Could not load game_app.tscn")
 		return
-	var app := packed.instantiate()
-	root.add_child(app)
+	_app = packed.instantiate()
+	root.add_child(_app)
 	await process_frame
 	if role == "host":
 		await _run_host(port)
@@ -87,10 +89,12 @@ func _assert_match(role: String) -> void:
 		return
 	if not await _assert_session(role):
 		return
+	if not _assert_world_props(role):
+		return
 	if not await _assert_dump(role):
 		return
 	print("E2E_OK %s" % role)
-	quit(0)
+	_finish(0)
 
 
 func _assert_session(role: String) -> bool:
@@ -110,6 +114,10 @@ func _assert_session(role: String) -> bool:
 	):
 		return false
 	print("E2E_CLOCK %s" % role)
+	return true
+
+
+func _assert_world_props(role: String) -> bool:
 	var cover := _cover_block()
 	if cover == null or cover.get_node_or_null("RollbackSynchronizer") == null:
 		_fail("Cover/Block0 must be enrolled before rewind")
@@ -190,4 +198,13 @@ func _parse_args() -> Dictionary:
 func _fail(message: String) -> void:
 	push_error("E2E_FAIL %s" % message)
 	print("E2E_FAIL %s" % message)
-	quit(1)
+	_finish(1)
+
+
+func _finish(code: int) -> void:
+	if is_instance_valid(_app):
+		if _app.get_parent() == root:
+			root.remove_child(_app)
+		_app.free()
+		_app = null
+	quit(code)
