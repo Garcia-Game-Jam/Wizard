@@ -76,7 +76,7 @@ Use `UiPalette` constants instead of hard-coded RGB in new UI work:
 
 - **Generic:** `[scenes/ui/scaffolding/status_bar.tscn](../../scenes/ui/scaffolding/status_bar.tscn)` — title, value label, increment ticks, optional tick numbers. Inspector: `tick_divisions`, `show_title`, `show_value_label`, `show_tick_labels`, `bar_theme_variation`, `track_swatch`, `fill_swatch` (palette fill, including Health Crimson), and flare placements + `flare_swatch`. Bronze outline is Theme-constant, not per-instance.
 - **Script API:** `set_value` / `set_maximum` / `set_amount(current, maximum)` snap the fill. `tween_value` / `tween_amount` animate it. `get_value` / `get_maximum` read the current range.
-- **Binding:** Bars do not poll. Call the setters, or pass the local `Health` into `GameHud.configure(...)` so the HUD HP bar follows `Health.changed` (damage and heal).
+- **Binding:** Bars do not poll. Call the setters, or pass the local `Character` into `GameHud.configure(...)` so the HUD HP bar follows `Character.changed` (damage and heal).
 - **Health:** `[health_bar.tscn](../../scenes/ui/scaffolding/health_bar.tscn)` — `HP` label, HealthBar fill, increment lines, no numeric tick row (v11).
 - Ticks redraw on resize / export change only — not every frame.
 - **Flares:** `[title_flare.tscn](../../scenes/ui/scaffolding/title_flare.tscn)` — `show_rule`, `diamond_align` (Left / Center / Right), `diamond_swatch`.

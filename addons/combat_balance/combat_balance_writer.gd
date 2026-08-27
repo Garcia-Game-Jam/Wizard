@@ -65,9 +65,29 @@ static func save_spell_resource(spell: Resource) -> bool:
 	return ResourceSaver.save(spell, path) == OK
 
 
-## Player, monster, and summon scenes all author max_health on their Health child.
+## Player, monster, and summon scenes author max_health on the scene root.
 static func apply_max_health(scene_path: String, value: float) -> bool:
-	return patch_tscn_float(scene_path, "Health", "max_health", value)
+	var root := _tscn_root_node_name(scene_path)
+	if root.is_empty():
+		return false
+	return patch_tscn_float(scene_path, root, "max_health", value)
+
+
+static func _tscn_root_node_name(path: String) -> String:
+	if not FileAccess.file_exists(path):
+		push_error("Combat balance: missing %s" % path)
+		return ""
+	for line in FileAccess.get_file_as_string(path).split("\n"):
+		var trimmed := line.strip_edges()
+		if not trimmed.begins_with("[node name=\""):
+			continue
+		var start := trimmed.find("\"") + 1
+		var end := trimmed.find("\"", start)
+		if end > start:
+			return trimmed.substr(start, end - start)
+		break
+	push_error("Combat balance: no root node in %s" % path)
+	return ""
 
 
 static func apply_monster(path: String, node_name: String, field: String, value: float) -> bool:

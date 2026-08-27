@@ -39,10 +39,11 @@ const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 		_sync_shape()
 
 @export_range(0.0, 200.0, 1.0) var hit_damage: float = DEFAULT_HIT_DAMAGE
-## Damage + knockback radius around the impact point — this, not hit_radius, is what
+## Damage + knock radius around the impact point — this, not hit_radius, is what
 ## actually has to reach a target. Kept well below Fireball's so it still reads as a
 ## targeted throw rather than an AoE burst.
 @export_range(0.25, 4.0, 0.05) var splash_radius: float = 1.0
+@export var payload: CombatPayload
 
 var _direction := Vector3.FORWARD
 var _caster: Node3D
@@ -233,8 +234,8 @@ func _exclude_rids() -> Array:
 	return rids
 
 
-## Precise early-out only — decides when the stone stops flying. Actual damage/
-## knockback comes from the splash-radius group scan in _apply_splash_at(),
+## Precise early-out only — decides when the stone stops flying. Actual damage
+## and knock come from the splash-radius group scan in _apply_splash_at(),
 ## which is forgiving of the flight sphere never quite reaching the target's shape.
 func _overlaps_combat_body() -> bool:
 	if not is_inside_tree() or _hit_shape == null:
@@ -277,44 +278,21 @@ func _finish(apply_splash: bool, is_fresh: bool) -> void:
 
 
 func _apply_splash_at(impact_pos: Vector3) -> void:
-	if hit_damage <= 0.0 or splash_radius <= 0.0:
+	if splash_radius <= 0.0:
 		return
-	var tree := get_tree()
-	if tree == null:
-		return
-	var radius_sq := splash_radius * splash_radius
-	var seen: Dictionary = {}
-	for group_name in ["monster", "combat_target", "player"]:
-		for node in tree.get_nodes_in_group(group_name):
-			if node == null or not is_instance_valid(node) or node == _caster:
-				continue
-			if seen.has(node):
-				continue
-			if not (node is Node3D):
-				continue
-			var body := node as Node3D
-			if body.global_position.distance_squared_to(impact_pos) > radius_sq:
-				continue
-			seen[node] = true
-			_apply_hit_to_body(body, impact_pos)
+	CombatSplash.apply_at(get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster)
 
 
-## Same knockback contract every projectile in this codebase uses — reuse the
-## method name so Character's shared reaction handles it, do not invent a new one.
-func _apply_hit_to_body(body: Node3D, impact_pos: Vector3) -> void:
-	var dir := body.global_position - impact_pos
-	if dir.length_squared() < 0.0001:
-		dir = _direction
-	else:
-		dir = dir.normalized()
-	if body.has_method("apply_fireball_knockback"):
-		var apply_local := not _is_multiplayer_match()
-		if body is Node:
-			apply_local = apply_local or (body as Node).is_multiplayer_authority()
-		if apply_local:
-			body.call("apply_fireball_knockback", dir)
-	if hit_damage > 0.0:
-		Character.apply_hit(body, hit_damage, self)
+func _ensure_payload() -> CombatPayload:
+	if payload != null:
+		return payload
+	payload = CombatPayload.new()
+	payload.effects.append(Damage.with(hit_damage))
+	var knock := Knock.new()
+	knock.from_impact = true
+	knock.impulse = Vector3(Character.KNOCKBACK_HORIZONTAL, Character.KNOCKBACK_UP, 0.0)
+	payload.effects.append(knock)
+	return payload
 
 
 func _clear_projectile_visuals() -> void:
@@ -322,11 +300,3 @@ func _clear_projectile_visuals() -> void:
 		_mesh.visible = false
 	visible = false
 	set_process(false)
-
-
-func _is_multiplayer_match() -> bool:
-	var tree := get_tree()
-	if tree == null:
-		return false
-	var state := tree.root.get_node_or_null("GameState")
-	return state != null and bool(state.get("is_multiplayer"))

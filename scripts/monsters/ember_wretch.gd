@@ -66,12 +66,12 @@ func _uses_continuous_chase_move_timer() -> bool:
 func _on_hurt(amount: float, from: Node3D) -> void:
 	if not is_alive():
 		return
-	var ratio_before := health.ratio_before(amount)
+	var before := ratio_before(amount)
 	var dash := _get_dash_ability()
 	if dash != null:
-		if ratio_before >= LOW_HP_COMBO_RATIO and health_ratio() < LOW_HP_COMBO_RATIO:
+		if before >= LOW_HP_COMBO_RATIO and health_ratio() < LOW_HP_COMBO_RATIO:
 			dash.reset_cooldown()
-	_try_low_hp_combo(from, ratio_before)
+	_try_low_hp_combo(from, before)
 
 
 func on_spell_ward_blocked(blocked_by: Node = null) -> void:
@@ -176,7 +176,7 @@ func _hold_or_close_to_cast_band(target: Node3D, ability: Node) -> void:
 		var radial := to_target.normalized()
 		var approach_goal := target.global_position - radial * ideal
 		var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
-			global_position, approach_goal, move_speed, velocity.y
+			global_position, approach_goal, combat_speed(move_speed), velocity.y
 		)
 		velocity.x = desired.x
 		velocity.z = desired.z

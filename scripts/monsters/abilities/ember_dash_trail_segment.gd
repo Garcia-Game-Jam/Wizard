@@ -16,6 +16,7 @@ var _burn_refresh_sec: float = 0.5
 var _age: float = 0.0
 var _caster: Node3D = null
 var _ward_hit: Dictionary = {}
+var _hit_payload: CombatPayload = null
 
 
 static func spawn(
@@ -145,15 +146,10 @@ func _apply_burn(body: Node3D) -> void:
 		apply_local = (body as Node).is_multiplayer_authority()
 	if not apply_local:
 		return
-	if body.has_method("apply_ember_trail_burn"):
-		body.call(
-			"apply_ember_trail_burn",
-			_burn_dps,
-			_burn_slow_multiplier,
-			_burn_refresh_sec
-		)
+	if not (body is Character):
 		return
-	if _burn_dps > 0.0:
-		Character.apply_hit(body, _burn_dps * get_physics_process_delta_time(), self)
-	if body.has_method("apply_speed_boost"):
-		body.call("apply_speed_boost", _burn_refresh_sec, _burn_slow_multiplier)
+	if _hit_payload == null:
+		_hit_payload = CombatPayload.new()
+		_hit_payload.effects.append(Burn.with(_burn_dps, _burn_refresh_sec))
+		_hit_payload.effects.append(Speed.with(_burn_slow_multiplier, _burn_refresh_sec))
+	(body as Character).apply(self, _hit_payload)

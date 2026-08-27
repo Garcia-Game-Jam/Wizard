@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## The shared HP lifecycle. Players and monsters run the same assertions here:
-## each owns one Health child, spends only its own pool, and dies once.
+## each owns max HP on the character root, spends only its own pool, and dies once.
 
 const PlayerScene := preload("res://scenes/characters/player.tscn")
 const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
@@ -16,6 +16,7 @@ func run() -> int:
 	failures += _test_revive_restores_combat()
 	failures += _test_replicated_health_emits_death()
 	failures += _test_replicated_health_restores_combat()
+	failures += _test_monster_death_stays_in_tree()
 	return failures
 
 
@@ -27,19 +28,18 @@ func _test_shared_lifecycle(scene: PackedScene, label: String) -> int:
 	var character := scene.instantiate() as Character
 	holder.add_child(character)
 	var err := ""
-	var pool := character.health
-	if pool == null or pool.max_health <= 0.0:
-		err = "%s should author its own Health child with max HP" % label
+	if character.max_health <= 0.0:
+		err = "%s should author max HP on the character root" % label
 	else:
-		var max_hp := pool.max_health
+		var max_hp := character.max_health
 		var deaths := [0]
-		pool.died.connect(func(_from: Variant) -> void: deaths[0] += 1)
-		pool.take_damage(max_hp * 0.25)
+		character.died.connect(func(_from: Variant) -> void: deaths[0] += 1)
+		character.take_damage(max_hp * 0.25)
 		if not character.is_alive() or not is_equal_approx(character.health_ratio(), 0.75):
 			err = "%s should sit at 75%% HP after a quarter hit" % label
 		else:
-			pool.heal(max_hp * 10.0)
-			if not is_equal_approx(pool.current_health, max_hp):
+			character.heal(max_hp * 10.0)
+			if not is_equal_approx(character.current_health, max_hp):
 				err = "%s healing should clamp at its own max HP" % label
 			else:
 				err = _assert_death_teardown(character, label, deaths)
@@ -51,19 +51,18 @@ func _test_shared_lifecycle(scene: PackedScene, label: String) -> int:
 
 
 func _assert_death_teardown(character: Character, label: String, deaths: Array) -> String:
-	var pool := character.health
-	pool.take_damage(pool.max_health * 2.0)
-	if character.is_alive() or not is_equal_approx(pool.current_health, 0.0):
+	character.take_damage(character.max_health * 2.0)
+	if character.is_alive() or not is_equal_approx(character.current_health, 0.0):
 		return "%s should be dead once the pool empties" % label
 	if deaths[0] != 1:
 		return "%s should report death once, got %d" % [label, deaths[0]]
-	if character.is_physics_processing():
-		return "%s should stop ticking physics on death" % label
+	if not character.is_death_physics() or not character.is_physics_processing():
+		return "%s should limp on engine physics after death" % label
 	for group in character._combat_groups():
 		if character.is_in_group(group):
 			return "%s should leave the %s group on death" % [label, group]
 	## Overkill after death must not raise a second died.
-	pool.take_damage(pool.max_health)
+	character.take_damage(character.max_health)
 	if deaths[0] != 1:
 		return "%s should not die twice, got %d" % [label, deaths[0]]
 	return ""
@@ -77,11 +76,11 @@ func _test_kill_matches_lethal_damage() -> int:
 	var damaged := WretchScene.instantiate() as Character
 	holder.add_child(killed)
 	holder.add_child(damaged)
-	killed.health.kill()
-	damaged.health.take_damage(damaged.health.max_health)
+	killed.kill()
+	damaged.take_damage(damaged.max_health)
 	var same := (
 		killed.is_alive() == damaged.is_alive()
-		and is_equal_approx(killed.health.current_health, damaged.health.current_health)
+		and is_equal_approx(killed.current_health, damaged.current_health)
 	)
 	holder.queue_free()
 	if killed.is_alive() or not same:
@@ -98,7 +97,7 @@ func _test_pools_are_independent() -> int:
 	var bystander := WretchScene.instantiate() as Character
 	holder.add_child(hurt)
 	holder.add_child(bystander)
-	hurt.health.take_damage(hurt.health.max_health * 0.5)
+	hurt.take_damage(hurt.max_health * 0.5)
 	var isolated := (
 		is_equal_approx(hurt.health_ratio(), 0.5)
 		and is_equal_approx(bystander.health_ratio(), 1.0)
@@ -116,14 +115,15 @@ func _test_revive_restores_combat() -> int:
 		return 1
 	var character := PlayerScene.instantiate() as Player
 	holder.add_child(character)
-	character.health.kill()
-	character.health.revive()
+	character.kill()
+	character.revive()
 	character.restore_after_revive()
 	character.global_position = Vector3(2.0, 1.0, 3.0)
 	var ok := (
 		character.is_alive()
-		and is_equal_approx(character.health.current_health, character.health.max_health)
+		and is_equal_approx(character.current_health, character.max_health)
 		and character.is_physics_processing()
+		and not character.is_death_physics()
 		and character.global_position.is_equal_approx(Vector3(2.0, 1.0, 3.0))
 	)
 	holder.queue_free()
@@ -140,8 +140,8 @@ func _test_replicated_health_emits_death() -> int:
 	var character := PlayerScene.instantiate() as Character
 	holder.add_child(character)
 	var deaths := [0]
-	character.health.died.connect(func(_from: Variant) -> void: deaths[0] += 1)
-	character.health.current_health = 0.0
+	character.died.connect(func(_from: Variant) -> void: deaths[0] += 1)
+	character.current_health = 0.0
 	holder.queue_free()
 	if deaths[0] != 1:
 		push_error("Writing HP to 0 (netfox restore) should emit died once, got %d" % deaths[0])
@@ -155,16 +155,38 @@ func _test_replicated_health_restores_combat() -> int:
 		return 1
 	var character := PlayerScene.instantiate() as Character
 	holder.add_child(character)
-	character.health.current_health = 0.0
-	character.health.current_health = character.health.max_health
+	character.current_health = 0.0
+	character.current_health = character.max_health
 	var ok := (
 		character.is_alive()
 		and character.is_physics_processing()
+		and not character.is_death_physics()
 		and character.is_in_group(&"combat_target")
 	)
 	holder.queue_free()
 	if not ok:
 		push_error("Writing HP back above 0 (rewind) should reverse death teardown")
+		return 1
+	return 0
+
+
+func _test_monster_death_stays_in_tree() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var monster := WretchScene.instantiate() as Character
+	holder.add_child(monster)
+	monster.kill()
+	var ok := (
+		is_instance_valid(monster)
+		and monster.is_inside_tree()
+		and not monster.is_queued_for_deletion()
+		and monster.is_death_physics()
+		and not monster.is_alive()
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Dump monster death must limp in place, not free the node")
 		return 1
 	return 0
 

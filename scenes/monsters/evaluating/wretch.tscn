@@ -60,9 +60,6 @@ shape = SubResource("CapsuleShape3D_tall")
 [node name="Body" parent="." index="1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 
-[node name="Health" parent="."]
-max_health = 50.0
-
 [node name="MidBody" type="MeshInstance3D" parent="."]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -0.02)

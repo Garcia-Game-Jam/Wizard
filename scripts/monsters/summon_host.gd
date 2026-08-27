@@ -57,7 +57,7 @@ func kill_all() -> void:
 		if summon == null or not is_instance_valid(summon):
 			continue
 		if summon is Character:
-			(summon as Character).health.kill()
+			(summon as Character).kill()
 		elif summon.is_inside_tree():
 			summon.queue_free()
 	summons_changed.emit()

@@ -242,13 +242,13 @@ func _tick_alert(_delta: float) -> void:
 	super._tick_alert(_delta)
 
 
-func apply_fireball_knockback(fireball_dir: Vector3) -> void:
-	## Any fireball contact kills the rat.
+func apply_knockback(dir: Vector3, _impulse: Vector3 = Vector3.ZERO) -> void:
+	## Any knock contact kills the rat.
 	if not is_alive() or _exploding or _exploded:
 		return
-	if fireball_dir.length_squared() > 0.0001:
-		_last_hit_dir = fireball_dir.normalized()
-	health.kill()
+	if dir.length_squared() > 0.0001:
+		_last_hit_dir = dir.normalized()
+	kill()
 
 
 func _physics_process(delta: float) -> void:
@@ -380,14 +380,8 @@ func _apply_explode_hits(origin: Vector3) -> void:
 		)
 		if flat.length() > push_radius:
 			continue
-		var dir := flat
-		if dir.length_squared() < 0.0001:
-			dir = Vector3.FORWARD
-		## Prefer the dedicated rat hit; authority is gated inside the player API.
-		if player.has_method("apply_rat_explode_hit"):
-			player.call("apply_rat_explode_hit", dir)
-		elif player.has_method("apply_fireball_knockback"):
-			player.call("apply_fireball_knockback", dir)
+		if player.has_method("apply_speed_boost"):
+			player.call("apply_speed_boost", 0.75, 0.25)
 
 	if explode_monster_damage <= 0.0:
 		return

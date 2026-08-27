@@ -242,12 +242,7 @@ func _finish(hit: Node3D) -> void:
 	NetLivenessScript.despawn_or_free(self)
 
 
-func _apply_hit_effects(hit: Node3D, chase_target: Node3D) -> void:
-	var dir := Vector3.FORWARD
-	if _caster != null and is_instance_valid(_caster):
-		dir = hit.global_position - _caster.global_position
-	elif chase_target != null and is_instance_valid(chase_target):
-		dir = chase_target.global_position - global_position
+func _apply_hit_effects(hit: Node3D, _chase_target: Node3D) -> void:
 	var apply_local := true
 	var tree := get_tree()
 	if tree != null:
@@ -257,10 +252,5 @@ func _apply_hit_effects(hit: Node3D, chase_target: Node3D) -> void:
 			apply_local = (hit as Node).is_multiplayer_authority()
 	if not apply_local:
 		return
-	if hit.has_method("apply_wretch_command_hit"):
-		hit.call("apply_wretch_command_hit", dir)
-	else:
-		if hit.has_method("apply_fireball_knockback"):
-			hit.call("apply_fireball_knockback", dir * 1.75)
-		if hit.has_method("apply_speed_boost"):
-			hit.call("apply_speed_boost", 2.0, 0.1)
+	if hit.has_method("apply_speed_boost"):
+		hit.call("apply_speed_boost", 2.0, 0.1)

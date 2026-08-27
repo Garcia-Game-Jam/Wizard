@@ -26,6 +26,7 @@ Rules
 - No new dependency if it can be avoided.
 - No boilerplate nobody asked for.
 - Deletion over addition. Boring over clever. Fewest files possible.
+- Character HP and status (slow, burn, knock) are exported properties on `character.gd` / `player.gd`. Do not add a node or script per status. Player `Stun` is the exception (launch + stars).
 - Keep diffs small, but dont propose changes until you know you understand the root problem and have the evidence to back that decision. Fix the root problem, dont just hack or patch around it. If the scope changed based on your findings, bubble that up to chat before diving in. Tests that cover changes should validate edge cases, contract, state drift etc. Not syntax. That is what the linter is for.
 - Question complex requests Do you actually need X, or does Y cover it
 - Pick the edge-case-correct option when two stdlib approaches are the same size, lazy means less code, not the flimsier algorithm.

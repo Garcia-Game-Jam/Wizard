@@ -152,7 +152,7 @@ static func spawn_from_monster(
 	_reparent_node(monster.get_node_or_null("%Body"), corpse)
 	_reparent_node(monster.get_node_or_null("%MidBody"), corpse)
 	_reparent_node(monster.get_node_or_null("%Head"), corpse)
-	var impulse: Vector3 = Character._fireball_knockback_impulse(hit_dir) * impulse_scale
+	var impulse: Vector3 = Character._knockback_impulse(hit_dir) * impulse_scale
 	if corpse.has_method("begin_death_sequence"):
 		corpse.call("begin_death_sequence", impulse, linger_sec, fade_sec)
 

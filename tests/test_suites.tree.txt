@@ -4,3 +4,5 @@ res://tests/unit/test_spell_pipeline.gd
 res://tests/unit/test_player_spawn_authority.gd
 res://tests/unit/test_ui_scaffolding_chrome.gd
 res://tests/unit/test_stone_throw_projectile.gd
+res://tests/unit/test_ember_lob_projectile.gd
+res://tests/unit/test_combat_payload.gd

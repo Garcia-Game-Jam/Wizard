@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://bplayable001"]
 
 [ext_resource type="PackedScene" uid="uid://bcharacter01" path="res://scenes/characters/character.tscn" id="1_character"]
-[ext_resource type="Script" uid="uid://bplayablegd001" path="res://scripts/characters/player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://c7ei6mkdnxiwu" path="res://scripts/characters/player.gd" id="2_player"]
 [ext_resource type="Script" uid="uid://bt4qbtqdqq85y" path="res://scripts/spells/character_spell_loadout.gd" id="3_loadout"]
 [ext_resource type="Script" uid="uid://r8capwwuctsd" path="res://scripts/spells/spell_casting_session.gd" id="4_session"]
 [ext_resource type="Script" uid="uid://erbcocqlf043" path="res://scripts/spells/spell_effect_applier.gd" id="5_effects"]
 [ext_resource type="PackedScene" uid="uid://bplayerwand1" path="res://scenes/characters/player_wand.tscn" id="6_wand"]
 [ext_resource type="Script" uid="uid://dd77j25oui52d" path="res://scripts/inventory/player_inventory.gd" id="9_inventory"]
-[ext_resource type="Script" path="res://scripts/characters/player_stun.gd" id="10_stun"]
+[ext_resource type="Script" uid="uid://bcqyf4grpegj6" path="res://scripts/characters/player_stun.gd" id="10_stun"]
 [ext_resource type="PackedScene" uid="uid://7shalb8dn4r4" path="res://scenes/fx/stun_stars.tscn" id="11_stars"]
 [ext_resource type="Script" uid="uid://cg3awqqjxne53" path="res://scripts/spells/spell_hotbar.gd" id="12_hotbar"]
 
@@ -15,13 +15,13 @@
 radius = 0.2368164
 height = 0.72
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jga6s"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7vyk4"]
 resource_local_to_scene = true
 albedo_color = Color(0.25, 0.65, 0.95, 1)
 metallic = 0.05
 roughness = 0.62
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kol7c"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2l4js"]
 resource_local_to_scene = true
 albedo_color = Color(0.32, 0.7, 0.97, 1)
 metallic = 0.05
@@ -31,12 +31,17 @@ roughness = 0.62
 editor_description = "Player pawn. Wand = player_wand.tscn (held pose = Wand transform here)."
 script = ExtResource("2_player")
 player_index = 0
+gravity = null
 move_speed = 4.5
-move_friction = 50.0
-dash_distance = 4.5
-dash_duration = 0.2
-dash_cooldown_sec = 3.0
-dash_speed = 8.5
+move_friction = 52.1
+air_control_start_pct = 60.0
+air_control_min_pct = 40.0
+air_control_decay_pct_per_sec = 7.5
+dash_distance = 5.0
+dash_duration = 0.3
+dash_cooldown_sec = 2.5
+dash_speed = 8.0
+dash_post_speed_pct = 100.0
 crouch_speed = 2.0
 crouch_slide_threshold = 0.5
 crouch_slide_exit_speed = 1.0
@@ -49,10 +54,10 @@ crouch_slide_friction = 35.0
 shape = SubResource("CapsuleShape3D_playable")
 
 [node name="Body" parent="." index="1" unique_id=73058391]
-surface_material_override/0 = SubResource("StandardMaterial3D_jga6s")
+surface_material_override/0 = SubResource("StandardMaterial3D_7vyk4")
 
 [node name="HeadMesh" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="0" unique_id=1294118041]
-surface_material_override/0 = SubResource("StandardMaterial3D_kol7c")
+surface_material_override/0 = SubResource("StandardMaterial3D_2l4js")
 
 [node name="CameraPivot" type="Node3D" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="1" unique_id=1649868741]
 unique_name_in_owner = true
@@ -102,20 +107,17 @@ unique_name_in_owner = true
 script = ExtResource("9_inventory")
 starting_items = Array[String](["book", "spellbook"])
 
-[node name="Health" parent="."]
-editor_description = "Player HP pool. Monster touch, fireballs, and ember burn spend this."
-
-[node name="Stun" type="Node" parent="." index="10" unique_id=796869350]
+[node name="Stun" type="Node" parent="." index="7" unique_id=796869350]
 editor_description = "Charger ram stun: locks move/cast, ballistic launch, shared stun stars + camera 'stunned' word."
 script = ExtResource("10_stun")
 
-[node name="StunStars" parent="." index="11" unique_id=1280587676 instance=ExtResource("11_stars")]
+[node name="StunStars" parent="." index="8" unique_id=1280587676 instance=ExtResource("11_stars")]
 editor_description = "World stun stars around the head. Other players see these while this character is stunned."
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 orbit_radius = 0.22
 star_size = 0.06
 
-[node name="SpellHotbar" type="Node" parent="." index="12" unique_id=2020083901]
+[node name="SpellHotbar" type="Node" parent="." index="9" unique_id=2020083901]
 unique_name_in_owner = true
 editor_description = "Three persistent spell slots. After a voice confirm, press RMB / Q / E to assign."
 script = ExtResource("12_hotbar")

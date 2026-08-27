@@ -28,9 +28,6 @@ leash_enabled = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
 shape = SubResource("CapsuleShape3D_rat")
 
-[node name="Health" parent="."]
-max_health = 10.0
-
 [node name="Body" parent="." index="1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
 mesh = SubResource("SphereMesh_rat")

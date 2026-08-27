@@ -5,6 +5,7 @@ Canonical docs for visual and UX conventions. Linked from [AGENTS.md](../../AGEN
 | Doc | Purpose |
 |-----|---------|
 | [arena.md](arena.md) | Locked session loop: pit combat, rule of 3 |
+| [combat.md](combat.md) | Hit contract: connect (who) then payload list (what) |
 | [ui-aesthetic.md](ui-aesthetic.md) | UI palette, mood, semantic tokens, overlay/menu patterns |
 | [../resources/ui/palette.json](../../resources/ui/palette.json) | Machine-readable palette + semantic role map |
 | [../scripts/ui/ui_palette.gd](../../scripts/ui/ui_palette.gd) | Godot `UiPalette` constants and style helpers |
