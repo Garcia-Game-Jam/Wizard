@@ -54,9 +54,12 @@ static func tick_knockback_bleed(player: PlayableCharacter, delta: float) -> voi
 	if player._knockback_timer <= 0.0:
 		return
 	player._knockback_timer -= delta
-	player.velocity.x += player._knockback_vel.x * 0.35
-	player.velocity.z += player._knockback_vel.z * 0.35
-	player._knockback_vel = player._knockback_vel.move_toward(Vector3.ZERO, 28.0 * delta)
+	var bleed := Character.KNOCKBACK_BLEED_PER_SEC * delta
+	player.velocity.x += player._knockback_vel.x * bleed
+	player.velocity.z += player._knockback_vel.z * bleed
+	player._knockback_vel = player._knockback_vel.move_toward(
+		Vector3.ZERO, Character.KNOCKBACK_DECAY * delta
+	)
 
 
 static func _apply_flat_knockback_hit(
