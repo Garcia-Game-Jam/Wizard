@@ -12,6 +12,11 @@ const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 const TestEnvScript := preload("res://scripts/test/test_env.gd")
+## ponytail: do not preload these from ArenaEncounters. LAN E2E is --script
+## and parses that table before autoloads, so charger.tscn compiled monster.gd
+## without GameState. Arena scene loads after GameState exists.
+const ChargerDumpScene := preload("res://scenes/monsters/charger.tscn")
+const EmberDumpScene := preload("res://scenes/monsters/ember_wretch.tscn")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -414,13 +419,23 @@ func _warn_wide_rollback() -> void:
 		push_warning("Arena: dump resimulated %d ticks (netfox rewind)" % ticks)
 
 
+func _dump_packed_scene(kind: String) -> PackedScene:
+	match kind:
+		ArenaEncountersScript.KIND_CHARGER:
+			return ChargerDumpScene
+		ArenaEncountersScript.KIND_EMBER:
+			return EmberDumpScene
+		_:
+			return ArenaEncountersScript.packed_scene_for(kind)
+
+
 func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 	var slot := 0
 	for entry in dump:
 		var kind := str(entry.get("kind", ""))
 		var pad := int(entry.get("pad", 0))
 		var t_load := Time.get_ticks_usec()
-		var packed := ArenaEncountersScript.packed_scene_for(kind)
+		var packed := _dump_packed_scene(kind)
 		var load_us := Time.get_ticks_usec() - t_load
 		if packed == null:
 			push_warning("Arena: missing monster scene for %s" % kind)
