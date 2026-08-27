@@ -2,16 +2,11 @@ extends Node
 
 ## Shared game context for arena pit runs.
 
-enum PlayerForm {
-	SNAIL,
-	HUMAN,
-}
-
 enum PlayerRole {
 	APPRENTICE,
 }
 
-const SNAIL_COLORS: Array[Color] = [
+const PLAYER_COLORS: Array[Color] = [
 	Color(0.92, 0.28, 0.32), # crimson
 	Color(0.28, 0.55, 0.95), # azure
 	Color(0.35, 0.82, 0.42), # emerald
@@ -22,7 +17,6 @@ const SNAIL_COLORS: Array[Color] = [
 	Color(0.95, 0.42, 0.72), # rose
 ]
 
-var local_player_form: PlayerForm = PlayerForm.SNAIL
 var is_multiplayer: bool = false
 var run_seed: int = -1
 ## Shared epoch for deterministic time-driven effects (e.g. clouds). Set once per run.
@@ -33,7 +27,6 @@ var peer_character_configs: Dictionary = {}
 
 func reset_for_new_game() -> void:
 	is_multiplayer = false
-	local_player_form = PlayerForm.SNAIL
 	run_seed = randi()
 	match_start_time_msec = Time.get_ticks_msec()
 	peer_roles = {}
@@ -46,7 +39,6 @@ func prepare_match(
 	character_configs: Dictionary = {}
 ) -> void:
 	is_multiplayer = true
-	local_player_form = PlayerForm.SNAIL
 	run_seed = match_seed
 	## NetworkManager sets the shared epoch immediately after this call.
 	match_start_time_msec = 0
@@ -104,9 +96,5 @@ func _normalize_peer_configs(configs: Dictionary) -> Dictionary:
 	return normalized
 
 
-func get_snail_color(player_index: int) -> Color:
-	return SNAIL_COLORS[player_index % SNAIL_COLORS.size()]
-
-
-func is_snail() -> bool:
-	return local_player_form == PlayerForm.SNAIL
+func get_player_color(player_index: int) -> Color:
+	return PLAYER_COLORS[player_index % PLAYER_COLORS.size()]

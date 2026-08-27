@@ -86,7 +86,7 @@ var _painted_tint: Color = Color(0, 0, 0, 0)
 
 func _ready() -> void:
 	super._ready()
-	patrol_speed = ChargerLaunchScript.patrol_speed(PlayableCharacter.WALK_SPEED)
+	patrol_speed = ChargerLaunchScript.patrol_speed(Player.WALK_SPEED)
 	_los_eye = eye_glow_color
 	rest_tint = body_tint
 	_body_lean = get_node_or_null("%Body") as Node3D
@@ -169,9 +169,9 @@ func preview_knockup(player: Node3D = null) -> void:
 	if not is_inside_tree() or not is_alive():
 		return
 	var victim := player
-	if not is_playable_charge_target(victim):
+	if not is_player_charge_target(victim):
 		victim = _find_sandbox_player()
-	if not is_playable_charge_target(victim):
+	if not is_player_charge_target(victim):
 		return
 	_charge.locked_dir = _locked_forward()
 	_launch_player(victim as Node3D)
@@ -185,7 +185,7 @@ func preview_charge(target: Node3D) -> void:
 func begin_lock_on(target: Node3D, pose_only: bool = false) -> void:
 	if not is_inside_tree() or not is_alive():
 		return
-	if target != null and not pose_only and not is_playable_charge_target(target):
+	if target != null and not pose_only and not is_player_charge_target(target):
 		return
 	lookdev_override = false
 	_charge.pose_only = pose_only
@@ -210,7 +210,7 @@ func begin_charge_now(pose_only: bool = false, target: Node3D = null) -> void:
 		return
 	lookdev_override = false
 	_charge.pose_only = pose_only
-	if is_playable_charge_target(target):
+	if is_player_charge_target(target):
 		_charge_target = target
 		_snap_yaw(_flat_to_target())
 	_cancel_cast()
@@ -370,7 +370,7 @@ func _tick_chase(delta: float) -> void:
 		return
 	if _interest_source() == SIGHT_SOURCE:
 		var target := get_chase_target()
-		if is_playable_charge_target(target):
+		if is_player_charge_target(target):
 			begin_lock_on(target, false)
 			return
 	super._tick_chase(delta)
@@ -457,7 +457,7 @@ func _tick_charging(delta: float) -> void:
 		velocity.z = 0.0
 		return
 	var speed := ChargerChargeScript.charge_speed(
-		PlayableCharacter.SPRINT_SPEED, charge_speed_mult
+		Player.SPRINT_SPEED, charge_speed_mult
 	)
 	var ram := _charge.charge_velocity(speed)
 	velocity.x = ram.x
@@ -547,7 +547,7 @@ func _try_search_lock() -> bool:
 	if _interest_source() != SIGHT_SOURCE:
 		return false
 	var target := get_chase_target()
-	if not is_playable_charge_target(target):
+	if not is_player_charge_target(target):
 		return false
 	begin_lock_on(target, false)
 	return true
@@ -641,7 +641,7 @@ func _try_ram_proximity_hit() -> void:
 		if not (node is Node3D):
 			continue
 		var body := node as Node3D
-		if not is_playable_charge_target(body):
+		if not is_player_charge_target(body):
 			continue
 		var flat := Vector3(
 			body.global_position.x - global_position.x,
@@ -787,7 +787,7 @@ func _find_sandbox_player() -> Node3D:
 	if not is_inside_tree():
 		return null
 	for node in get_tree().get_nodes_in_group("player"):
-		if is_playable_charge_target(node) and node is Node3D:
+		if is_player_charge_target(node) and node is Node3D:
 			return node as Node3D
 	return null
 
@@ -803,34 +803,34 @@ func _target_is_valid() -> bool:
 	if not is_instance_valid(_charge_target):
 		_charge_target = null
 		return false
-	return is_playable_charge_target(_charge_target)
+	return is_player_charge_target(_charge_target)
 
 
-static func is_playable_charge_target(node: Node) -> bool:
-	## Charge only at living PlayableCharacter (Apprentice / Headmaster / sandbox spawn).
+static func is_player_charge_target(node: Node) -> bool:
+	## Charge only at living Player.
 	if node == null or not is_instance_valid(node):
 		return false
 	if not node.is_in_group("player"):
 		return false
 	if not Character.is_node_alive(node):
 		return false
-	if node is PlayableCharacter:
+	if node is Player:
 		return true
-	return script_extends_playable(node.get_script() as Script)
+	return script_extends_player(node.get_script() as Script)
 
 
 static func resolve_playable_hit_body(node: Node) -> Node:
 	var n := node
 	while n != null:
-		if is_playable_charge_target(n):
+		if is_player_charge_target(n):
 			return n
 		n = n.get_parent()
 	return null
 
 
-static func script_extends_playable(scr: Script) -> bool:
+static func script_extends_player(scr: Script) -> bool:
 	while scr != null:
-		if scr.resource_path.ends_with("playable_character.gd"):
+		if scr.resource_path.ends_with("player.gd"):
 			return true
 		scr = scr.get_base_script()
 	return false

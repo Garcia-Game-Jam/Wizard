@@ -1,14 +1,14 @@
 class_name PlayerCombatReactions
 extends RefCounted
 
-## Spell and monster hit reactions shared by PlayableCharacter.
+## Spell and monster hit reactions shared by Player.
 
 const EmberHaloFlightScript := preload("res://scripts/monsters/abilities/ember_halo_flight.gd")
 const FIREBALL_KNOCKBACK_HORIZONTAL := 9.0
 const FIREBALL_KNOCKBACK_UP := 3.5
 
 
-static func apply_fireball_knockback(player: PlayableCharacter, fireball_dir: Vector3) -> void:
+static func apply_fireball_knockback(player: Player, fireball_dir: Vector3) -> void:
 	if not player.is_multiplayer_authority() and GameState.is_multiplayer:
 		return
 	var impulse := _fireball_knockback_impulse(fireball_dir)
@@ -17,7 +17,7 @@ static func apply_fireball_knockback(player: PlayableCharacter, fireball_dir: Ve
 
 
 static func apply_ember_halo_jump_pad(
-	player: PlayableCharacter,
+	player: Player,
 	strength_mult: float = 1.0
 ) -> void:
 	if not player.is_multiplayer_authority() and GameState.is_multiplayer:
@@ -25,10 +25,10 @@ static func apply_ember_halo_jump_pad(
 	player.velocity.y = EmberHaloFlightScript.jump_pad_velocity(player.gravity, strength_mult)
 
 
-static func apply_ember_halo_hit(player: PlayableCharacter, hit_dir: Vector3) -> void:
+static func apply_ember_halo_hit(player: Player, hit_dir: Vector3) -> void:
 	if not player.is_multiplayer_authority() and GameState.is_multiplayer:
 		return
-	player.velocity.y = maxf(player.velocity.y, PlayableCharacter.JUMP_VELOCITY)
+	player.velocity.y = maxf(player.velocity.y, Player.JUMP_VELOCITY)
 	var flat := Vector3(hit_dir.x, 0.0, hit_dir.z)
 	if flat.length_squared() > 0.0001:
 		flat = flat.normalized()
@@ -42,15 +42,15 @@ static func apply_ember_halo_hit(player: PlayableCharacter, hit_dir: Vector3) ->
 	)
 
 
-static func apply_wretch_command_hit(player: PlayableCharacter, hit_dir: Vector3) -> void:
+static func apply_wretch_command_hit(player: Player, hit_dir: Vector3) -> void:
 	_apply_flat_knockback_hit(player, hit_dir, 6.0, 1.5, 0.28, 2.0, 0.1)
 
 
-static func apply_rat_explode_hit(player: PlayableCharacter, hit_dir: Vector3) -> void:
+static func apply_rat_explode_hit(player: Player, hit_dir: Vector3) -> void:
 	_apply_flat_knockback_hit(player, hit_dir, 14.0, 4.0, 0.5, 0.75, 0.25)
 
 
-static func tick_knockback_bleed(player: PlayableCharacter, delta: float) -> void:
+static func tick_knockback_bleed(player: Player, delta: float) -> void:
 	if player._knockback_timer <= 0.0:
 		return
 	player._knockback_timer -= delta
@@ -63,7 +63,7 @@ static func tick_knockback_bleed(player: PlayableCharacter, delta: float) -> voi
 
 
 static func _apply_flat_knockback_hit(
-	player: PlayableCharacter,
+	player: Player,
 	hit_dir: Vector3,
 	flat_speed: float,
 	up_speed: float,
@@ -95,7 +95,7 @@ static func _fireball_knockback_impulse(fireball_dir: Vector3) -> Vector3:
 	return flat * FIREBALL_KNOCKBACK_HORIZONTAL + Vector3.UP * FIREBALL_KNOCKBACK_UP
 
 
-static func _flat_hit_direction(player: PlayableCharacter, hit_dir: Vector3) -> Vector3:
+static func _flat_hit_direction(player: Player, hit_dir: Vector3) -> Vector3:
 	var dir := hit_dir
 	if dir.length_squared() < 0.0001:
 		dir = -player.global_transform.basis.z
@@ -107,6 +107,6 @@ static func _flat_hit_direction(player: PlayableCharacter, hit_dir: Vector3) -> 
 	return flat.normalized()
 
 
-static func _set_knockback(player: PlayableCharacter, impulse: Vector3, timer: float) -> void:
+static func _set_knockback(player: Player, impulse: Vector3, timer: float) -> void:
 	player._knockback_vel = impulse
 	player._knockback_timer = timer

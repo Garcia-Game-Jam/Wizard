@@ -2,7 +2,7 @@
 class_name WandListeningFx
 extends Node3D
 
-## Prebaked wand E-listen tip FX. Open this scene and keep Preview In Editor on to tune live.
+## Wand E-listen tip FX. Authored under player_wand.tscn → Model/WandListeningFx.
 
 enum ShapeKind { SPHERE, BOX, CAPSULE, PRISM }
 
@@ -16,7 +16,7 @@ const RECOGNITION_GROW_SEC := 0.18
 const RECOGNITION_HOLD_SEC := 0.28
 
 @export_group("Editor Preview")
-@export var preview_in_editor: bool = true:
+@export var preview_in_editor: bool = false:
 	set(value):
 		preview_in_editor = value
 		if Engine.is_editor_hint() and _ready_done:

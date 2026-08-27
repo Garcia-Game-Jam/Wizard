@@ -12,8 +12,7 @@ const EXTRA_SCENES := [
 	"res://scenes/arena.tscn",
 	"res://scenes/menu.tscn",
 	"res://scenes/characters/character.tscn",
-	"res://scenes/characters/playable_character.tscn",
-	"res://scenes/characters/apprentice.tscn",
+	"res://scenes/characters/player.tscn",
 ]
 
 

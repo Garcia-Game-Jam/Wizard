@@ -1,7 +1,7 @@
-class_name PlayableCharacterPreview
+class_name PlayerPreview
 extends RefCounted
 
-## Editor spawn-slot / character preview helpers for PlayableCharacter.
+## Editor spawn-slot / character preview helpers for Player.
 
 
 static func should_use_preview_mode(character: Node) -> bool:

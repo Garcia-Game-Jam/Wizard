@@ -52,7 +52,6 @@ func _ready() -> void:
 		voice_validator.apply_settings_from_manager()
 	SettingsManager.settings_applied.connect(_on_voice_settings_applied)
 
-	TrailRegistry.reset()
 	if voice_validator != null and not TestEnvScript.skip_match_voice():
 		await voice_validator.prepare_for_match()
 	SteamProximityVoiceHub.set_mode(SteamProximityVoiceHub.Mode.GAME)
@@ -214,9 +213,9 @@ func _spawn_for_player(player: Node3D) -> Vector3:
 
 func _bind_player_deaths() -> void:
 	for child in players_root.get_children():
-		if not (child is PlayableCharacter):
+		if not (child is Player):
 			continue
-		var player := child as PlayableCharacter
+		var player := child as Player
 		var pool := player.get_node_or_null("Health") as Health
 		if pool == null:
 			continue
@@ -224,7 +223,7 @@ func _bind_player_deaths() -> void:
 			pool.died.connect(_on_player_died.bind(player))
 
 
-func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
+func _on_player_died(_from: Variant, player: Player) -> void:
 	NetDiag.mark("player_died", player.name)
 	if not _is_run_host():
 		return
@@ -238,7 +237,7 @@ func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
 	tree.create_timer(RESPAWN_SEC).timeout.connect(_respawn_player.bind(player, id))
 
 
-func _respawn_player(player: PlayableCharacter, id: int) -> void:
+func _respawn_player(player: Player, id: int) -> void:
 	_pending_respawns.erase(id)
 	if not _is_run_host():
 		return
@@ -355,16 +354,16 @@ func _grant_spell_to_local(spell_id: String) -> void:
 
 func _revive_dead_players() -> void:
 	for child in players_root.get_children():
-		if not (child is PlayableCharacter):
+		if not (child is Player):
 			continue
-		var player := child as PlayableCharacter
+		var player := child as Player
 		if player.is_alive():
 			continue
 		_pending_respawns.erase(player.get_instance_id())
 		_revive_at(player, _spawn_for_player(player))
 
 
-func _revive_at(player: PlayableCharacter, world_pos: Vector3) -> void:
+func _revive_at(player: Player, world_pos: Vector3) -> void:
 	NetDiag.mark("respawn", player.name)
 	if player.health != null:
 		player.health.revive()

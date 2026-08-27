@@ -18,7 +18,7 @@ const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
 const AshWretchScene := preload("res://scenes/monsters/evaluating/ash_wretch.tscn")
 const EmberWretchScene := preload("res://scenes/monsters/ember_wretch.tscn")
 const ChargerScene := preload("res://scenes/monsters/charger.tscn")
-const PlayableScene := preload("res://scenes/characters/playable_character.tscn")
+const PlayerScene := preload("res://scenes/characters/player.tscn")
 
 @export_tool_button("Rebuild Arena", "Callable")
 var rebuild_arena_action := rebuild_arena
@@ -203,12 +203,12 @@ func spawn_monster() -> void:
 
 func spawn_player() -> void:
 	clear_player()
-	var player := PlayableScene.instantiate() as Node3D
+	var player := PlayerScene.instantiate() as Node3D
 	if player == null:
-		push_error("Monster workspace Spawn Player failed to instance playable_character.tscn")
+		push_error("Monster workspace Spawn Player failed to instance player.tscn")
 		return
 	var playing := _is_playing()
-	player.name = "PlayableCharacter"
+	player.name = "Player"
 	player.process_mode = Node.PROCESS_MODE_ALWAYS
 	var root := _ensure_bucket("PlayerRoot")
 	root.add_child(player)
@@ -264,7 +264,7 @@ func preview_charger_knockup() -> void:
 
 
 func _prepare_sandbox_player(player: Node3D, playing: bool) -> void:
-	## Editor does not run PlayableCharacter._ready (script is not @tool).
+	## Editor does not run Player._ready (script is not @tool).
 	if not player.is_in_group("player"):
 		player.add_to_group("player")
 	if player is CollisionObject3D:

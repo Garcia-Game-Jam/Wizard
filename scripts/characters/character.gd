@@ -2,13 +2,13 @@ class_name Character
 extends CharacterBody3D
 
 ## 3D character shell: body/head meshes, collision, tint, and the shared HP lifecycle.
-## Inherited by PlayableCharacter (Apprentice), Monster, and Summon.
+## Inherited by Player, Monster, and Summon.
 ## Every character scene authors its own Health child, so each one manages an
 ## independent pool. Damage, healing, and death all run through that node: hits
 ## arrive via Character.apply_hit, and this class turns the resulting
 ## damaged / died signals into the shared reaction and teardown sequence.
 ## Subclasses vary only values and outcomes — see _on_hurt / _on_death / _combat_groups.
-## CollisionShape3D is authored per character scene (Apprentice) — not rebuilt here.
+## CollisionShape3D is authored per character scene — not rebuilt here.
 ## Appearance: mutate authored scene materials. Never allocate meshes or materials.
 
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
@@ -64,7 +64,6 @@ var health: HealthScript:
 var net_phase: int = 0
 var net_telegraph: float = 0.0
 var _health: HealthScript = null
-var _character_color: Color = Color.WHITE
 var _knockback_vel: Vector3 = Vector3.ZERO
 var _knockback_timer: float = 0.0
 var _last_hit_dir: Vector3 = Vector3.FORWARD
@@ -378,7 +377,3 @@ func _apply_eye_visibility() -> void:
 		_cache_eyes()
 	if _eyes_root != null:
 		_eyes_root.visible = _eyes_chasing
-
-
-func get_snail_color() -> Color:
-	return _character_color

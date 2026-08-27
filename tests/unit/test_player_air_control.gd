@@ -1,7 +1,7 @@
 extends RefCounted
 
 const PlayerAirControlScript := preload("res://scripts/characters/player_air_control.gd")
-const PlayableCharacterScript := preload("res://scripts/characters/playable_character.gd")
+const PlayerScript := preload("res://scripts/characters/player.gd")
 
 
 func run() -> int:
@@ -80,7 +80,7 @@ func _test_tick_air_time_accumulates_when_airborne() -> int:
 
 
 func _test_config_from_player_exports() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.air_control_start_pct = 100.0
 	player.air_control_min_pct = 50.0
 	player.air_control_decay_pct_per_sec = 10.0

@@ -1,7 +1,7 @@
 extends RefCounted
 
 const PlayerDashScript := preload("res://scripts/characters/player_dash.gd")
-const PlayableCharacterScript := preload("res://scripts/characters/playable_character.gd")
+const PlayerScript := preload("res://scripts/characters/player.gd")
 
 
 func run() -> int:
@@ -43,7 +43,7 @@ func _test_config_speed_overrides_defaults() -> int:
 
 
 func _test_config_from_player_exports() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.dash_distance = 4.0
 	player.dash_duration = 0.2
 	player.dash_cooldown_sec = 2.5
@@ -84,7 +84,7 @@ func _test_post_decay_noop_while_dash_active() -> int:
 
 
 func _test_post_decay_noop_when_no_dash_happened() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.move_speed = 5.0
 	player.velocity = Vector3(20.0, 0.0, 0.0)
 	PlayerDashScript.tick_post_decay(player, 0.1)
@@ -97,7 +97,7 @@ func _test_post_decay_noop_when_no_dash_happened() -> int:
 
 
 func _test_post_decay_bleeds_speed_toward_target() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.move_speed = 5.0
 	player.dash_post_speed_pct = 100.0
 	player.velocity = Vector3(20.0, 0.0, 0.0)
@@ -114,7 +114,7 @@ func _test_post_decay_bleeds_speed_toward_target() -> int:
 
 
 func _test_post_decay_stops_once_target_reached() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.move_speed = 5.0
 	player.dash_post_speed_pct = 100.0
 	player.velocity = Vector3(5.0, 0.0, 0.0)

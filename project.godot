@@ -24,7 +24,6 @@ driver/enable_input=true
 GameState="*res://scripts/game_state.gd"
 SettingsManager="*res://scripts/settings_manager.gd"
 SpeechSttLoader="*res://scripts/spells/speech_stt_loader.gd"
-TrailRegistry="*res://scripts/trails/trail_registry.gd"
 SteamService="*res://scripts/network/steam_service.gd"
 NetworkManager="*res://scripts/network/network_manager.gd"
 MatchStateManager="*res://scripts/match/match_state_manager.gd"

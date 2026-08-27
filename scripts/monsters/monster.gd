@@ -295,7 +295,6 @@ func _kill_owned_summons() -> void:
 func _refresh_appearance() -> void:
 	_ensure_mesh_refs()
 	if _body_mesh != null and _head_mesh != null:
-		_character_color = body_tint
 		_apply_character_color(body_tint)
 	_tint_optional_body_parts()
 	_apply_eye_glow_from_health()

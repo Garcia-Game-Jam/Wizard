@@ -1,6 +1,6 @@
 extends RefCounted
 
-const PlayableCharacterScript := preload("res://scripts/characters/playable_character.gd")
+const PlayerScript := preload("res://scripts/characters/player.gd")
 const PlayerCrouchScript := preload("res://scripts/characters/player_crouch.gd")
 
 
@@ -18,7 +18,7 @@ func run() -> int:
 
 
 func _test_default_crouch_walk_speed() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.net_crouching = true
 	var speed := PlayerCrouchScript.ground_move_speed(player, 1.0)
 	player.free()
@@ -43,7 +43,7 @@ func _test_slide_entry_threshold() -> int:
 
 
 func _test_slide_friction_ramp() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.move_friction = 50.0
 	var config := {}
 	var ramp_high := maxf(
@@ -62,7 +62,7 @@ func _test_slide_friction_ramp() -> int:
 
 
 func _test_dash_grace_entry() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	PlayerCrouchScript.mark_dash_slide_grace(player, 0.2, 0.4)
 	if not PlayerCrouchScript.dash_slide_grace_active(player):
 		push_error("Expected dash slide grace to be active after marking")
@@ -78,7 +78,7 @@ func _test_dash_grace_entry() -> int:
 
 
 func _test_config_from_player_exports() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.crouch_speed = 1.8
 	player.crouch_slide_threshold = 2.0
 	player.crouch_slide_exit_speed = 0.8
@@ -96,7 +96,7 @@ func _test_config_from_player_exports() -> int:
 
 
 func _test_move_speed_export() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.move_speed = 6.5
 	if not is_equal_approx(PlayerCrouchScript.resolve_move_speed(player), 6.5):
 		push_error("Expected resolve_move_speed to read move_speed export")
@@ -107,7 +107,7 @@ func _test_move_speed_export() -> int:
 
 
 func _test_move_friction_export() -> int:
-	var player := PlayableCharacterScript.new()
+	var player := PlayerScript.new()
 	player.move_friction = 12.0
 	if not is_equal_approx(PlayerCrouchScript.resolve_move_friction(player), 12.0):
 		push_error("Expected resolve_move_friction to read move_friction export")

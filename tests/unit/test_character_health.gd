@@ -3,7 +3,7 @@ extends RefCounted
 ## The shared HP lifecycle. Players and monsters run the same assertions here:
 ## each owns one Health child, spends only its own pool, and dies once.
 
-const PlayerScene := preload("res://scenes/characters/playable_character.tscn")
+const PlayerScene := preload("res://scenes/characters/player.tscn")
 const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
 
 
@@ -114,7 +114,7 @@ func _test_revive_restores_combat() -> int:
 	var holder := _holder()
 	if holder == null:
 		return 1
-	var character := PlayerScene.instantiate() as PlayableCharacter
+	var character := PlayerScene.instantiate() as Player
 	holder.add_child(character)
 	character.health.kill()
 	character.health.revive()

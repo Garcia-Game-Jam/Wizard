@@ -218,10 +218,10 @@ func _test_cfg_migrates_sprint_and_wand_raise() -> int:
 
 
 func _test_source_guards() -> int:
-	var player := FileAccess.get_file_as_string("res://scripts/characters/playable_character.gd")
+	var player := FileAccess.get_file_as_string("res://scripts/characters/player.gd")
 	var dash := FileAccess.get_file_as_string("res://scripts/characters/player_dash.gd")
 	if player.find('is_action_pressed("spell_capture")') < 0:
-		push_error("playable_character.gd must listen for spell_capture")
+		push_error("player.gd must listen for spell_capture")
 		return 1
 	if dash.find('is_action_just_pressed("dash")') < 0:
 		push_error("player_dash.gd must dash on dash")

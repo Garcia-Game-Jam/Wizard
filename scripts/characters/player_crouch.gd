@@ -1,8 +1,8 @@
 class_name PlayerCrouch
 extends RefCounted
 
-## Foot crouch + momentum slide for PlayableCharacter. Tunables live on
-## PlayableCharacter; defaults below are fallbacks for tests.
+## Foot crouch + momentum slide for Player. Tunables live on
+## Player; defaults below are fallbacks for tests.
 
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 
@@ -44,7 +44,7 @@ static func config_from(player: CharacterBody3D) -> Dictionary:
 
 
 static func _export_float(player: Object, property: StringName, default: float) -> float:
-	if player is PlayableCharacter:
+	if player is Player:
 		return float(player.get(property))
 	var value: Variant = player.get(property)
 	if value == null:
@@ -53,12 +53,12 @@ static func _export_float(player: Object, property: StringName, default: float) 
 
 
 static func resolve_move_speed(player: CharacterBody3D) -> float:
-	return maxf(_export_float(player, "move_speed", PlayableCharacter.DEFAULT_WALK_SPEED), 0.0)
+	return maxf(_export_float(player, "move_speed", Player.DEFAULT_WALK_SPEED), 0.0)
 
 
 static func resolve_move_friction(player: CharacterBody3D) -> float:
 	return maxf(
-		_export_float(player, "move_friction", PlayableCharacter.DEFAULT_MOVE_FRICTION), 0.0
+		_export_float(player, "move_friction", Player.DEFAULT_MOVE_FRICTION), 0.0
 	)
 
 
