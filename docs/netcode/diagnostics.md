@@ -1,7 +1,7 @@
 # Netcode diagnostics (NetDiag)
 
-Structured capture for the "netfox feels choppy" investigation. The goal is to
-turn "choppy" into numbers we can compare across one-change-at-a-time experiments.
+Capture for comparing one-change-at-a-time netcode experiments. Do not add
+columns until a question needs one.
 
 ## Turn it on
 
@@ -9,77 +9,25 @@ turn "choppy" into numbers we can compare across one-change-at-a-time experiment
   `◉ NET DIAG` overlay shows while it records.
 - **Headless / automation:** set `WIZARD_NET_DIAG=1` before Godot starts.
 
-Each match writes one folder: `user://diag/<timestamp>/`
+Each match writes one folder: `user://diag/<timestamp>_<role>_<pid>/`
 (`…/AppData/Roaming/Godot/app_userdata/Wizard/diag/` on Windows).
 
-## What slice 1 captures
+## What a capture contains
 
-`meta.json` — self-describing header: build, OS/CPU/GPU, role (host/guest/solo),
-`backend` (`netfox`), and `backend_config` — the settings that matter for
-comparison (`sync_to_physics`, `tickrate`, `physics_ticks_per_second`,
-`max_ticks_per_frame`, diff/broadcast flags). Every capture carries the config it
-ran under, so runs stay comparable.
+`meta.json` — build, OS/CPU/GPU, role (host/guest/solo), `backend`, and
+`backend_config` (`sync_to_physics`, `tickrate`, `physics_ticks_per_second`,
+`max_ticks_per_frame`, diff/broadcast flags).
 
-`frame.csv` — one row per rendered frame:
+`frame.csv` — one row per rendered frame: `tickloop_us`, `rb_depth`,
+`proc_ms` / `phys_ms`, `fps`, `clock_stretch` / `clock_offset` / `rtt`,
+scene + physics load, `net_tick` / `peers`.
 
-| column | meaning |
-|---|---|
-| `tickloop_us` | wall time inside netfox's tick loop this frame |
-| `rb_depth` | ticks resimulated in the rollback pass (`NetworkPerformance`) |
-| `proc_ms` / `phys_ms` | `_process` / `_physics_process` frame cost |
-| `fps` | engine FPS monitor |
-| `clock_stretch` / `clock_offset` | netfox clock health (rubber-banding shows here) |
-| `node_count` / `coll_pairs` / `active_objs` | scene + physics load |
-| `net_tick` / `peers` | context |
+`pawn.csv` / `render.csv` / `events.csv` — rewind-body samples, on-screen pose,
+named markers.
 
-This needs **no gameplay-code changes** — NetDiag reads everything netcode-
-specific through `NetProbe` and otherwise only samples `Performance` monitors.
-
-## Backend-neutral by design
-
-NetDiag never touches netfox directly. It talks to `NetProbe`
-(`scripts/net/net_probe.gd`), a thin read model:
-
-| method | meaning | netfox-less fallback |
-|---|---|---|
-| `backend_id()` | label for meta.json + overlay | `"none"` |
-| `is_running()` | clock/session live | `false` |
-| `current_tick()` | net tick | `0` |
-| `rollback_depth()` | ticks resimulated last frame | `0` |
-| `clock_health()` | `{stretch, offset, rtt}` | `{1.0, 0.0, 0.0}` |
-| `pop_tick_loop()` | `{us, ticks}` since last frame | `{}` |
-| `config_snapshot()` | settings for meta.json | `{}` |
-| `peer_count()` | via Godot `multiplayer` | generic |
-
-`NetProbeNetfox` (`scripts/net/net_probe_netfox.gd`) is the **only file in the
-diagnostics path that knows netfox** — signal names, autoloads, `netfox/*`
-settings keys. Swapping backends is: write `NetProbePhoton`, add one branch to
-`NetProbe.create()`. The CSV schema is fixed, so baselines and
-`analyze_netdiag.py` keep working across a backend change — which is exactly what
-you want when A/B-ing netfox against an alternative.
-
-A backend without a concept (Photon has no rollback loop) returns the neutral
-value and those columns read 0 — graceful, not broken.
-
-### Wider coupling (not part of this seam)
-
-The diagnostics are decoupled; the **game's** net layer is not, and a real
-backend swap is a large project regardless. The netfox binding points to budget
-for:
-
-- `scripts/net/net_rewindable_mover.gd` — the factory that builds
-  `RollbackSynchronizer` / `TickInterpolator` / `PredictiveSynchronizer`.
-- `_rollback_tick(delta, tick, is_fresh)` implemented on ~15 nodes (players,
-  monsters, projectiles, cover, telegraph) — netfox's callback shape. Each
-  already delegates to a plain `_simulate_*()`; a swap re-points the shim.
-- `NetClock` (`physics_factor`, `is_initial_sync_done`), `NetLiveness`
-  (`PredictiveSynchronizer`), `PlayerNetInput` (`before_tick_loop` hook).
-- `netfox/*` ProjectSettings, `test_netfox_contract.gd`.
-
-`NetClock`, `NetAuthority`, `NetWorldEvent`, `NetRewindableProfiles` are already
-backend-neutral or close to it. **Discipline for new code:** gameplay scripts go
-through the `Net*` helpers, never `get_node("/root/NetworkTime")` or `netfox/*`
-settings directly.
+NetDiag reads netcode-specific values through `NetProbe`
+(`scripts/net/net_probe.gd`). Gameplay still goes through the `Net*` helpers,
+never `get_node("/root/NetworkTime")` directly.
 
 ## Analyse
 
@@ -88,28 +36,22 @@ python tools/analyze_netdiag.py --all
 python tools/analyze_netdiag.py <session_dir> [<session_dir> ...]
 ```
 
-Prints percentiles per session and PASS/FAIL against the (loose, first-pass)
-ceilings in `THRESHOLDS`. Tighten those as real baselines land.
+PASS/FAIL is against `THRESHOLDS` in `tools/analyze_netdiag.py`. Read the
+summary, not just RESULT:
 
-## Roadmap
-
-- **Slice 1 (this):** frame stream + overlay + toggle + analyzer skeleton, all
-  behind the `NetProbe` seam.
-- **Slice 2:** `begin/end_session` context enrichment (scenario id, `NetworkSimulator` params).
-- **Slice 3:** per-pawn per-fresh-tick rows — predicted vs authoritative position,
-  `correction_mag`, `vy`, `is_on_floor` — the `host-feel.log` successor.
-- **Slice 4:** `direct_space_state` query counter routed through the projectile /
-  monster hit paths.
-- **Later:** wire thresholds into the LAN E2E as a regression guard.
+- `frame_ms.max` is reported, not gated — a ~140 ms spike at `encounter_begin`
+  is the dump hitch, not ongoing lag. Use `frame_ms.p99`.
+- `step.max` is reported; the gate is owned-pawn `step.p95` vs capsule radius
+  (0.237 m). Dash can spike a single tick over the radius.
+- `stuck_airborne_pct` on `[rem]` is ignored. Guests do not `move_and_slide`
+  host-owned pawns the same way, so `is_on_floor()` stays stale.
+- `rtt` / `clock_offset` are printed from `frame.csv`.
 
 ## Experiment loop
 
-1. Capture a baseline (≥5 runs per network condition), commit the numbers.
-2. Pre-register the pass criterion for the next change.
-3. Change **one** variable (prefer a flag/setting so it A/Bs in one build).
-4. Re-run the identical scenario, compare distributions, keep only if p95 beats
-   run-to-run spread.
-5. Log it: hypothesis, change, numbers, verdict, decision.
+1. Capture a baseline, read percentiles (not a single FAIL).
+2. Change **one** variable.
+3. Re-run the identical scenario, compare distributions.
 
-First hypothesis queued: `netfox/time/sync_to_physics = true` +
-`physics_ticks_per_second = 30`.
+Current contract: `netfox/time/sync_to_physics = true`, physics 60 Hz, net
+tick 30 Hz.

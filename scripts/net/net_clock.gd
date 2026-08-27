@@ -3,6 +3,9 @@ extends RefCounted
 
 ## Start/stop netfox NetworkTime with the match, not the lobby.
 
+## Caps how many move_and_slide calls one tick can make (20 m/s dash needs 3).
+const _MAX_SLIDE_SUBSTEPS := 8
+
 ## Debug-only tunnelling guard state, keyed by instance id.
 static var _tunnel_warned: Dictionary = {}
 static var _radius_cache: Dictionary = {}
@@ -59,15 +62,34 @@ static func move_character(body: CharacterBody3D) -> void:
 		return
 	_warn_if_tunnelling(body)
 	if not is_ticking():
-		body.move_and_slide()
+		_slide_within_radius(body)
 		return
 	var nt := _network_time()
 	var factor := 1.0
 	if nt != null:
 		factor = float(nt.get("physics_factor"))
 	body.velocity *= factor
-	body.move_and_slide()
+	_slide_within_radius(body)
 	body.velocity /= factor
+
+
+## Chunks a slide so each move_and_slide stays inside the collision radius.
+static func _slide_within_radius(body: CharacterBody3D) -> void:
+	var radius := _collision_radius(body)
+	var delta := (
+		body.get_physics_process_delta_time()
+		if Engine.is_in_physics_frame()
+		else body.get_process_delta_time()
+	)
+	var step := body.velocity.length() * delta
+	if radius <= 0.0 or delta <= 0.0 or step <= radius:
+		body.move_and_slide()
+		return
+	var n := mini(ceili(step / radius), _MAX_SLIDE_SUBSTEPS)
+	body.velocity /= float(n)
+	for _i in n:
+		body.move_and_slide()
+	body.velocity *= float(n)
 
 
 ## Every character moves through move_character, so this one check guards the

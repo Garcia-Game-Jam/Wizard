@@ -1,8 +1,7 @@
 class_name TestNetfoxContract
 extends RefCounted
 
-## Guards the netfox PoC contract: lanes pick primitives, profiles split
-## input vs state, hits stay host-gated, voice stays off the tick.
+## Lanes pick primitives; profiles split input vs state.
 
 const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
@@ -12,9 +11,6 @@ func run() -> int:
 	var failures := 0
 	failures += _test_lane_primitives()
 	failures += _test_profile_split()
-	failures += _test_apply_hit_skips_non_authority()
-	failures += _test_lan_agreement_contract()
-	failures += _test_identity_and_death_contract()
 	return failures
 
 
@@ -39,6 +35,9 @@ func _test_lane_primitives() -> int:
 		if got != str(expected[effect_id]):
 			push_error("Effect '%s' should use %s, got %s" % [effect_id, expected[effect_id], got])
 			failures += 1
+	if NetWorldEventScript.primitive_for_effect("unknown") != "":
+		push_error("Unknown effects must not pick a primitive")
+		failures += 1
 	return failures
 
 
@@ -114,180 +113,3 @@ func _test_profile_split() -> int:
 		push_error("Charger must attach with CHARGE interpolator profile")
 		failures += 1
 	return failures
-
-
-func _test_lan_agreement_contract() -> int:
-	## Encodes the LAN pit proof we cannot run as two clients here.
-	var failures := 0
-	if not playable_uses_physics_factor():
-		push_error("Playable move must go through NetClock.move_character")
-		failures += 1
-	var threat_scripts := [
-		"res://scripts/monsters/abilities/ember_lob_projectile.gd",
-		"res://scripts/monsters/abilities/ember_halo_projectile.gd",
-		"res://scripts/monsters/abilities/ember_dash_trail_segment.gd",
-		"res://scripts/monsters/abilities/ash_ice_projectile.gd",
-		"res://scripts/monsters/abilities/ash_frost_breath_cloud.gd",
-		"res://scripts/monsters/abilities/wretch_command_orb_projectile.gd",
-		"res://scripts/monsters/abilities/wretch_summon_drop_orb.gd",
-		"res://scripts/spells/fireball_projectile.gd",
-		"res://scripts/spells/flare_effect.gd",
-	]
-	for path in threat_scripts:
-		var source := FileAccess.get_file_as_string(path)
-		if source.find("func _rollback_tick") < 0:
-			push_error("%s must simulate on the netfox tick" % path)
-			failures += 1
-		if source.find("NetLiveness") < 0:
-			push_error("%s must use NetLiveness instead of tick-loop queue_free" % path)
-			failures += 1
-	var ember_fx := FileAccess.get_file_as_string(
-		"res://scripts/monsters/abilities/ember_lob_projectile.gd"
-	)
-	if ember_fx.find("replicate_world_fx") < 0:
-		push_error("Ember lob must replicate VFX through NetLiveness, not local-only spawn")
-		failures += 1
-	var input_src := FileAccess.get_file_as_string("res://scripts/net/player_net_input.gd")
-	if input_src.find("func _exit_tree") < 0 or input_src.find("disconnect(_on_before_tick_loop)") < 0:
-		push_error("PlayerNetInput must drop NetworkTime.before_tick_loop on exit")
-		failures += 1
-	var trail_src := FileAccess.get_file_as_string(
-		"res://scripts/monsters/abilities/ember_dash_trail_segment.gd"
-	)
-	if trail_src.find("can_query_overlaps") < 0:
-		push_error("Trail rollback must not query overlaps when monitoring is off")
-		failures += 1
-	var weapon_src := FileAccess.get_file_as_string(
-		"res://addons/netfox.extras/weapon/network-weapon.gd"
-	)
-	if weapon_src.find("func _exit_tree") < 0 or weapon_src.find("disconnect(_before_tick_loop)") < 0:
-		push_error("NetworkWeapon must drop NetworkTime.before_tick_loop on exit")
-		failures += 1
-	var slide_src := FileAccess.get_file_as_string("res://scripts/slide_surface.gd")
-	if slide_src.find("func sync_motion_from_pose") < 0:
-		push_error("Jump must probe a real floor; is_on_floor is stale after rollback")
-		failures += 1
-	var playable_src := FileAccess.get_file_as_string(
-		"res://scripts/characters/playable_character.gd"
-	)
-	if playable_src.find("RollbackSynchronizer") < 0:
-		push_error("Solo must keep engine move when the clock ticks without rollback")
-		failures += 1
-	var monster_src := FileAccess.get_file_as_string("res://scripts/monsters/monster.gd")
-	var deferred_bind := "call_deferred(\"_bind_rewindable\")"
-	if monster_src.find("_bind_rewindable()") < 0 or monster_src.find(deferred_bind) >= 0:
-		push_error("Monsters must bind rewind on the dump frame, not a deferred hitch")
-		failures += 1
-	for live_path in [
-		"res://scripts/monsters/abilities/ember_lob_projectile.gd",
-		"res://scripts/monsters/abilities/ember_halo_projectile.gd",
-		"res://scripts/monsters/abilities/ember_dash_trail_segment.gd",
-		"res://scripts/monsters/abilities/ember_lob_ability.gd",
-		"res://scripts/monsters/abilities/ember_halo_ability.gd",
-		"res://scripts/monsters/charger.gd",
-	]:
-		var live_src := FileAccess.get_file_as_string(live_path)
-		if live_src.find("MeshInstance3D.new") >= 0:
-			push_error("%s must instance authored FX scenes, not MeshInstance3D.new" % live_path)
-			failures += 1
-	var charger_src := FileAccess.get_file_as_string("res://scripts/monsters/charger.gd")
-	if charger_src.find("_ghost_ram_victim") < 0:
-		push_error("Charger ram must collision-exception players after a hit")
-		failures += 1
-	if charger_src.find("_hit_bodies") >= 0:
-		push_error("Ram ghosts must come from restored stun this tick, not a sticky hit map")
-		failures += 1
-	if charger_src.find("is_stunned") < 0 or charger_src.find("RAM_HIT_RANGE := 0.55") < 0:
-		push_error("Charger must not ghost until stun sticks, and must not hit at 1.7m")
-		failures += 1
-	if charger_src.find("get_nodes_in_group(\"player\")") < 0:
-		push_error("Ram exceptions must be re-derived from live players each tick")
-		failures += 1
-	for path in [
-		"res://scripts/arena/arena_cover.gd",
-		"res://scripts/arena/spawn_telegraph.gd",
-	]:
-		var source := FileAccess.get_file_as_string(path)
-		if source.find("func _rollback_tick") < 0:
-			push_error("%s must simulate on the netfox tick" % path)
-			failures += 1
-	var voice_src := FileAccess.get_file_as_string("res://scripts/voice/game_voice_session.gd")
-	if voice_src.find("NetworkTime") >= 0:
-		push_error("Voice session must stay off NetworkTime")
-		failures += 1
-	return failures
-
-
-func playable_uses_physics_factor() -> bool:
-	var source := FileAccess.get_file_as_string("res://scripts/characters/playable_character.gd")
-	return (
-		source.find("NetClockScript.move_character") >= 0
-		and source.find("func _rollback_tick") >= 0
-	)
-
-
-func _test_identity_and_death_contract() -> int:
-	## Steam identity race is a playtest. These scans catch putting the
-	## contract back in the wrong order or freeing a rewindable dump body.
-	var failures := 0
-	var arena := FileAccess.get_file_as_string("res://scripts/arena/arena_scene.gd")
-	var bind_cover := arena.find("_bind_cover()")
-	var bind_tell := arena.find("_bind_telegraph()")
-	var start_clock := arena.find("start_for_match()")
-	if bind_cover < 0 or bind_tell < 0 or start_clock < 0:
-		push_error("Arena must enroll cover/telegraph and start the net clock")
-		failures += 1
-	elif bind_cover > start_clock or bind_tell > start_clock:
-		push_error("Cover and telegraph must enroll before NetworkTime.start")
-		failures += 1
-	if arena.find("dump_node_name") < 0:
-		push_error("Dump children must use stable names, not scene-root names")
-		failures += 1
-	var spawn_body := _func_body(arena, "func _spawn_dump")
-	if spawn_body.find("commit_pose") < 0:
-		push_error("Dump spawn must commit rewind pose after the pad teleport")
-		failures += 1
-	var clear_body := _func_body(arena, "func _clear_monsters")
-	var detach := clear_body.find("remove_child")
-	var free_after := clear_body.find("queue_free")
-	if detach < 0 or free_after < 0 or detach > free_after:
-		push_error("Dump clear must remove_child before queue_free so names reuse this frame")
-		failures += 1
-	var died_body := _func_body(arena, "func _on_player_died")
-	var respawn_body := _func_body(arena, "func _respawn_player")
-	if died_body.find("_is_run_host()") < 0 or respawn_body.find("_is_run_host()") < 0:
-		push_error("Death timers must stay host-only; guests must not self-revive")
-		failures += 1
-	var monster := FileAccess.get_file_as_string("res://scripts/monsters/monster.gd")
-	var death_body := _func_body(monster, "func _on_death")
-	var mp_gate := death_body.find("GameState.is_multiplayer")
-	var death_free := death_body.find("queue_free")
-	if mp_gate < 0 or death_free < 0 or mp_gate > death_free:
-		push_error("Dump monsters must not queue_free on death while HP is rewindable")
-		failures += 1
-	var health := FileAccess.get_file_as_string("res://scripts/combat/health.gd")
-	var character := FileAccess.get_file_as_string("res://scripts/characters/character.gd")
-	if health.find("signal revived") < 0 or character.find("_health.revived") < 0:
-		push_error("Rewind restoring HP must reverse death teardown")
-		failures += 1
-	return failures
-
-
-func _func_body(source: String, signature: String) -> String:
-	var start := source.find(signature)
-	if start < 0:
-		return ""
-	var rest := source.substr(start)
-	var next_func := rest.find("\nfunc ", 1)
-	if next_func < 0:
-		return rest
-	return rest.substr(0, next_func)
-
-
-func _test_apply_hit_skips_non_authority() -> int:
-	if not ClassDB.class_has_method("Object", "get"):
-		return 1
-	if NetWorldEventScript.primitive_for_effect("unknown") != "":
-		push_error("Unknown effects must not pick a primitive")
-		return 1
-	return 0

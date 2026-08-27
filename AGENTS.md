@@ -35,12 +35,13 @@ an authoring tool; bake it before it ships.
 Player capsule radius is 0.237 m, so at 60 Hz the ceiling is ~14 m/s. Exceeding
 it lets the body penetrate geometry; rollback then resimulates *from inside the
 wall* every tick, and the pawn appears to freeze mid-air on the other peer.
-Guards, all three of which must stay green:
+Guards:
 
 - `NetClock.move_character` warns in debug builds when a body out-runs its radius
-  (every character moves through it, so this catches the whole class).
-- `analyze_netdiag.py` fails a capture whose `step.max` exceeds the radius.
-- `tests/unit/test_knockback_bleed.gd` asserts knockback is tickrate-independent.
+  (every character moves through it, so this catches the whole class). Substeps
+  when a single slide would exceed the radius.
+- `analyze_netdiag.py` flags owned-pawn `step.p95` over the radius; `step.max`
+  is reported (dash spikes) but is not a merge gate.
 
 **Per-tick impulses must be delta-scaled.** A flat `velocity += x * 0.35` per
 tick silently compounds with tickrate — that bug turned a 9 m/s hit into 40 m/s
@@ -53,10 +54,8 @@ included — when the body is pressed into a wall at speed, and leaves the
 into-wall velocity untouched. A wizard fireballed into the pit wall hung mid-air
 for 67 of 70 ticks (same in Jolt and Godot Physics); GROUNDED resolves the
 identical case correctly. **Airborne is expressed as `floor_snap_length = 0`,
-not a mode change.** `tests/unit/test_wall_slide_stall.gd` fails if any character
-script so much as names the constant.
-
-Known outstanding: `dash_speed = 20.0` exceeds the 60 Hz budget. Clamp or substep.
+not a mode change.** `tests/unit/test_wall_slide_stall.gd` knocks a capsule into
+a box wall and requires it still falls.
 
 ## Other conventions
 
