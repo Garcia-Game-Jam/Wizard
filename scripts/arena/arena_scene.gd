@@ -29,6 +29,7 @@ var _staging: Staging = Staging.NONE
 var _staging_timer := 0.0
 var _pending_encounter := 0
 var _cover_misses := 0
+var _dump_scenes: Dictionary = {}
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
@@ -46,6 +47,9 @@ func _ready() -> void:
 		return
 
 	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
+	## After autoloads exist. Const-preloading charger.tscn from ArenaEncounters
+	## broke LAN E2E (--script parses that table before GameState).
+	_warm_live_dump_scenes()
 	NetDiag.begin_session({"scenario": "arena", "role": _diag_role()})
 	pause_menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	if voice_validator != null:
@@ -414,13 +418,27 @@ func _warn_wide_rollback() -> void:
 		push_warning("Arena: dump resimulated %d ticks (netfox rewind)" % ticks)
 
 
+func _warm_live_dump_scenes() -> void:
+	for kind in [ArenaEncountersScript.KIND_CHARGER, ArenaEncountersScript.KIND_EMBER]:
+		var packed := ArenaEncountersScript.packed_scene_for(kind)
+		if packed != null:
+			_dump_scenes[kind] = packed
+
+
+func _dump_packed_scene(kind: String) -> PackedScene:
+	var held: Variant = _dump_scenes.get(kind)
+	if held is PackedScene:
+		return held
+	return ArenaEncountersScript.packed_scene_for(kind)
+
+
 func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 	var slot := 0
 	for entry in dump:
 		var kind := str(entry.get("kind", ""))
 		var pad := int(entry.get("pad", 0))
 		var t_load := Time.get_ticks_usec()
-		var packed := ArenaEncountersScript.packed_scene_for(kind)
+		var packed := _dump_packed_scene(kind)
 		var load_us := Time.get_ticks_usec() - t_load
 		if packed == null:
 			push_warning("Arena: missing monster scene for %s" % kind)

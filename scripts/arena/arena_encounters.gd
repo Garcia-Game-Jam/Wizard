@@ -24,11 +24,9 @@ const PLAYER_SPAWN_POSITIONS: Array[Vector3] = [
 	Vector3(4.0, 1.0, 16.0),
 ]
 
-## ponytail: live pit is two PackedScenes. Preload them. When the roster is
-## large enough that pit-enter hitchs, background-load a window instead.
 const SCENE_BY_KIND := {
-	KIND_CHARGER: preload("res://scenes/monsters/charger.tscn"),
-	KIND_EMBER: preload("res://scenes/monsters/ember_wretch.tscn"),
+	KIND_CHARGER: "res://scenes/monsters/charger.tscn",
+	KIND_EMBER: "res://scenes/monsters/ember_wretch.tscn",
 	KIND_ASH: "res://scenes/monsters/evaluating/ash_wretch.tscn",
 }
 
@@ -127,20 +125,14 @@ static func _safe_cover(pos: Vector3) -> Vector3:
 
 
 static func packed_scene_for(kind: String) -> PackedScene:
-	var entry: Variant = SCENE_BY_KIND.get(kind)
-	if entry is PackedScene:
-		return entry
-	var path := str(entry) if entry != null else ""
+	var path := scene_path_for(kind)
 	if path.is_empty() or not ResourceLoader.exists(path):
 		return null
 	return load(path) as PackedScene
 
 
 static func scene_path_for(kind: String) -> String:
-	var entry: Variant = SCENE_BY_KIND.get(kind)
-	if entry is PackedScene:
-		return (entry as PackedScene).resource_path
-	return str(entry) if entry != null else ""
+	return str(SCENE_BY_KIND.get(kind, ""))
 
 
 ## Same path on every peer. Scene root names collide across waves and same-kind dumps.

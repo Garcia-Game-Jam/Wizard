@@ -18,7 +18,7 @@ func run() -> int:
 	failures += _test_cover_restage_survives_rewind_restore()
 	failures += _test_telegraph_survives_rewind_restore()
 	failures += _test_dump_slot_names_are_unique()
-	failures += _test_live_kinds_are_preloaded()
+	failures += _test_live_kind_scenes_resolve()
 	return failures
 
 
@@ -194,7 +194,7 @@ func _test_dump_slot_names_are_unique() -> int:
 	return 0
 
 
-func _test_live_kinds_are_preloaded() -> int:
+func _test_live_kind_scenes_resolve() -> int:
 	var charger := ArenaEncountersScript.packed_scene_for(ArenaEncountersScript.KIND_CHARGER)
 	var ember := ArenaEncountersScript.packed_scene_for(ArenaEncountersScript.KIND_EMBER)
 	if charger == null or ember == null:

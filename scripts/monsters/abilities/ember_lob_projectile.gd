@@ -11,7 +11,6 @@ const FireballExplosionEffectScript := preload(
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
-const SCENE := preload("res://scenes/monsters/abilities/ember_lob_projectile.tscn")
 const HIT_DAMAGE := 20.0
 const MAX_LIFE_SEC := 4.0
 
@@ -37,7 +36,10 @@ static func spawn(
 ) -> EmberLobProjectile:
 	if parent == null:
 		return null
-	var proj: EmberLobProjectile = SCENE.instantiate() as EmberLobProjectile
+	var packed: PackedScene = load(
+		"res://scenes/monsters/abilities/ember_lob_projectile.tscn"
+	) as PackedScene
+	var proj: EmberLobProjectile = packed.instantiate() as EmberLobProjectile
 	parent.add_child(proj)
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = origin

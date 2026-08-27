@@ -8,7 +8,6 @@ const EmberHaloFlightScript := preload("res://scripts/monsters/abilities/ember_h
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
-const SCENE := preload("res://scenes/monsters/abilities/ember_halo_projectile.tscn")
 const MAX_LIFE_SEC := 3.5
 
 @export var travel_speed: float = EmberHaloFlightScript.TRAVEL_SPEED
@@ -38,7 +37,10 @@ static func spawn(
 ) -> EmberHaloProjectile:
 	if parent == null:
 		return null
-	var proj: EmberHaloProjectile = SCENE.instantiate() as EmberHaloProjectile
+	var packed: PackedScene = load(
+		"res://scenes/monsters/abilities/ember_halo_projectile.tscn"
+	) as PackedScene
+	var proj: EmberHaloProjectile = packed.instantiate() as EmberHaloProjectile
 	parent.add_child(proj)
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = Vector3(origin.x, origin.y, origin.z)
