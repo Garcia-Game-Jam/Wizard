@@ -16,6 +16,7 @@ const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_
 const MonsterPatrolScript := preload("res://scripts/monsters/monster_patrol.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const TestEnvScript := preload("res://scripts/test/test_env.gd")
 
 const DEFAULT_TINT := Color(0.72, 0.28, 0.22, 1.0)
 const DEFAULT_PLAYER_SOURCE := &"player"
@@ -253,8 +254,17 @@ func _combat_groups() -> Array[StringName]:
 	return [&"monster", &"combat_target"]
 
 
+func restore_after_revive() -> void:
+	super.restore_after_revive()
+	_enter_idle()
+
+
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
+	## HP stays rewindable. Freeing the node here means a later restore cannot
+	## put the body back. Solo still drops a corpse; the pit clears dumps.
+	if GameState.is_multiplayer:
+		return
 	MonsterCorpseScript.spawn_from_monster(
 		self, _last_hit_dir, death_linger_sec, death_fade_sec, DEATH_IMPULSE_SCALE
 	)
@@ -493,6 +503,8 @@ func _interest_is_actionable(interest: MonsterInterest) -> bool:
 func _enter_idle() -> void:
 	_ai_state = MonsterAIScript.State.IDLE
 	_idle_timer = 0.0
+	if TestEnvScript.is_e2e():
+		_idle_timer = idle_duration_sec
 	_undetected_sec = 0.0
 	_alert_timer = 0.0
 	_clear_chase_move()

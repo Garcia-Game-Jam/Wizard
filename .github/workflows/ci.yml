@@ -80,3 +80,51 @@ jobs:
 
       - name: Run unit tests
         run: bash tools/run_godot_tests.sh
+
+  e2e-lan:
+    name: LAN pit E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Cache Godot binary
+        id: godot-bin-cache
+        uses: actions/cache@v6
+        with:
+          path: .cache/godot
+          key: godot-bin-${{ env.GODOT_VERSION }}-${{ hashFiles('tools/versions.env') }}
+
+      - name: Cache Godot import data
+        id: godot-import-cache
+        uses: actions/cache@v6
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
+
+      - name: Install Godot
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip libfontconfig1
+          bash tools/setup_godot_linux.sh
+
+      - name: Import project assets
+        run: bash tools/run_godot_import.sh
+
+      - name: Run LAN host/guest pit
+        run: |
+          source tools/load_versions.sh
+          load_versions tools/versions.env
+          export GODOT_PATH="${GODOT_PATH:-$PWD/.cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64}"
+          python3 tools/run_e2e_lan.py
+
+      - name: Upload E2E logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-lan-logs
+          path: .cache/e2e-lan-*.log
+          if-no-files-found: ignore

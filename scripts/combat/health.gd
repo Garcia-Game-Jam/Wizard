@@ -3,10 +3,15 @@ extends Node
 
 ## Authored HP pool. Parent characters call take_damage; this node owns current/max.
 ## `current_health` is rewindable character state — netfox writes it on remotes.
+## Death teardown must reverse when this value returns above 0. Do not
+## queue_free a body whose HP can come back this tick; arena dump clear is
+## the real despawn.
 
 signal damaged(amount: float, from: Variant)
 signal died(from: Variant)
 signal changed(current: float, maximum: float)
+## HP crossed back above 0 (host revive or rewind restore). Teardown must reverse.
+signal revived
 
 const DEFAULT_MAX_HEALTH := 100.0
 
@@ -29,6 +34,8 @@ var current_health: float = DEFAULT_MAX_HEALTH:
 		## RollbackSynchronizer writes and still need the death signal.
 		if _host_apply_depth == 0 and not was_dead and current_health <= 0.0:
 			died.emit(null)
+		if was_dead and current_health > 0.0:
+			revived.emit()
 
 var _host_apply_depth: int = 0
 
@@ -79,7 +86,8 @@ func heal(amount: float) -> void:
 	current_health = clampf(current_health + maxf(amount, 0.0), 0.0, max_health)
 
 
-## Restore a dead (or living) pool to full. Does not emit `died`.
+## Restore a dead (or living) pool to full. Does not emit `died`. Emits `revived`
+## when the pool was empty.
 func revive() -> void:
 	current_health = max_health
 

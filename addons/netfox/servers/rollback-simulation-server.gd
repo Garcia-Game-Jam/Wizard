@@ -111,7 +111,7 @@ func simulate(delta: float, tick: int) -> void:
 
 	var input_snapshot := NetworkHistoryServer._get_rollback_input_snapshot(tick)
 	var state_snapshot := NetworkHistoryServer._get_rollback_state_snapshot(tick)
-	var nodes := _get_nodes_to_simulate(input_snapshot) # Result is sorted by tree order
+	var nodes := _get_nodes_to_simulate(input_snapshot, tick) # Result is sorted by tree order
 	_predicted_nodes.clear()
 
 	# Determine predicted nodes
@@ -134,14 +134,13 @@ func simulate(delta: float, tick: int) -> void:
 	NetworkPerformance.push_rollback_nodes_simulated(nodes.size())
 
 # Returns nodes in scene tree order
-func _get_nodes_to_simulate(input_snapshot: _Snapshot) -> Array[Node]:
+func _get_nodes_to_simulate(input_snapshot: _Snapshot, tick: int) -> Array[Node]:
 	var result: Array[Node] = []
-	if not input_snapshot:
-		return []
-
-	var tick := input_snapshot.tick
+	var sim_tick := tick
+	if input_snapshot:
+		sim_tick = input_snapshot.tick
 	for node in get_tree().get_nodes_in_group(_group):
-		if not _liveness_server.is_alive(node, tick):
+		if not _liveness_server.is_alive(node, sim_tick):
 			# Node is not alive in this tick
 			continue
 
@@ -153,9 +152,14 @@ func _get_nodes_to_simulate(input_snapshot: _Snapshot) -> Array[Node]:
 			result.append(node)
 			continue
 
-		if NetworkRollback.is_mutated(node, tick):
+		if NetworkRollback.is_mutated(node, sim_tick):
 			# Node is mutated, must simulate
 			result.append(node)
+			continue
+
+		if input_snapshot == null:
+			if is_prediction_enabled_for(node):
+				result.append(node)
 			continue
 
 		if not input_snapshot.has_subjects(inputs, true) and \

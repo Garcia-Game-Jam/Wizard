@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help setup-dev setup-voice lint warnings test check verify-pinned-versions verify-voice
+.PHONY: help setup-dev setup-voice lint warnings test test-e2e-lan check verify-pinned-versions verify-voice
 
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
@@ -31,6 +31,7 @@ help:
 	@echo "  make lint                  gdlint + GDScript analyzer warnings"
 	@echo "  make warnings              GDScript analyzer warning probe (requires Godot)"
 	@echo "  make test                  Godot unit tests"
+	@echo "  make test-e2e-lan          Optional two-process LAN pit (not in make test)"
 	@echo "  make check                 lint + test"
 	@echo "  make verify-pinned-versions  CI guard: workflows match tools/versions.env"
 	@echo "  make verify-voice          quick file check for gdvosk install"
@@ -62,6 +63,9 @@ warnings:
 
 test:
 	GODOT_PATH="$(GODOT)" $(RUN_PYTHON) tools/run_checks.py --tests-only
+
+test-e2e-lan:
+	GODOT_PATH="$(GODOT)" $(RUN_PYTHON) tools/run_e2e_lan.py
 
 check: lint test
 

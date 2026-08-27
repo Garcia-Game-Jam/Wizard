@@ -65,8 +65,10 @@ static func apply_world_prop(root: Node, profile: String = "") -> void:
 		false
 	)
 	_ensure_interpolator(root, resolved)
-	if rs != null and rs.has_method("process_settings"):
-		rs.call("process_settings")
+	if rs != null:
+		rs.set("enable_prediction", true)
+		if rs.has_method("process_settings"):
+			rs.call("process_settings")
 
 
 static func apply_projectile(root: Node3D) -> Node:

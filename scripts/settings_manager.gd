@@ -44,6 +44,11 @@ var crosshair_show_dot: bool = true
 var dev_solo_role: int = GameState.PlayerRole.APPRENTICE
 var lobby_voice_default: bool = true
 var dev_allow_any_lobby_size: bool = false
+## When true, netfox's own logger is Debug (tree dumps, identity IDs). Off = Warning.
+var netfox_debug_logs: bool = false:
+	set(value):
+		netfox_debug_logs = value
+		_apply_netfox_logging()
 
 var _mic_testing: bool = false
 var _voice_meter_active: bool = false
@@ -62,6 +67,7 @@ func _ready() -> void:
 	load_settings()
 	apply_audio_settings()
 	apply_display_settings()
+	_apply_netfox_logging()
 
 
 func get_resolution_presets() -> Array[Vector2i]:
@@ -296,6 +302,7 @@ func load_settings() -> void:
 	dev_allow_any_lobby_size = config.get_value(
 		"dev", "dev_allow_any_lobby_size", dev_allow_any_lobby_size
 	)
+	netfox_debug_logs = bool(config.get_value("dev", "netfox_debug_logs", netfox_debug_logs))
 	_load_input_binds(config)
 	if persist_display:
 		save_settings()
@@ -348,6 +355,16 @@ func _migrate_input_action_name(action: String) -> String:
 	return action
 
 
+func _apply_netfox_logging() -> void:
+	var verbose := netfox_debug_logs
+	if OS.get_environment("WIZARD_E2E") == "1":
+		verbose = false
+	var level := NetfoxLogger.LOG_DEBUG if verbose else NetfoxLogger.LOG_WARN
+	NetfoxLogger.log_level = level
+	NetfoxLogger.module_log_level["netfox"] = level
+	NetfoxLogger.module_log_level["netfox.extras"] = level
+
+
 func apply_solo_dev_loadout_to_game_state() -> void:
 	GameState.apply_solo_dev_loadout(GameState.PlayerRole.APPRENTICE)
 
@@ -371,6 +388,7 @@ func save_settings() -> void:
 	config.set_value("crosshair", "show_dot", crosshair_show_dot)
 	config.set_value("dev", "dev_solo_role", dev_solo_role)
 	config.set_value("dev", "dev_allow_any_lobby_size", dev_allow_any_lobby_size)
+	config.set_value("dev", "netfox_debug_logs", netfox_debug_logs)
 	var binds := pack_live_input_binds()
 	for action in binds.keys():
 		config.set_value("input", str(action), binds[action])

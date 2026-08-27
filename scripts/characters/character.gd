@@ -98,6 +98,8 @@ func _bind_health() -> void:
 		_health.damaged.connect(_on_damaged)
 	if not _health.died.is_connected(_on_died):
 		_health.died.connect(_on_died)
+	if not _health.revived.is_connected(_on_revived):
+		_health.revived.connect(_on_revived)
 	if not _health.changed.is_connected(_on_health_changed):
 		_health.changed.connect(_on_health_changed)
 
@@ -191,13 +193,17 @@ func _on_death(_from: Node3D) -> void:
 	pass
 
 
-## Undo death teardown after Health.revive(): move again and rejoin combat groups.
+## Undo death teardown after Health.revive() or rewind restoring HP above 0.
 func restore_after_revive() -> void:
 	set_physics_process(true)
 	for group in _combat_groups():
 		if not is_in_group(group):
 			add_to_group(group)
 	_apply_eye_glow_from_health()
+
+
+func _on_revived() -> void:
+	restore_after_revive()
 
 
 ## A ward ate a spell this character cast.

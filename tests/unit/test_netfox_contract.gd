@@ -14,6 +14,7 @@ func run() -> int:
 	failures += _test_profile_split()
 	failures += _test_apply_hit_skips_non_authority()
 	failures += _test_lan_agreement_contract()
+	failures += _test_identity_and_death_contract()
 	return failures
 
 
@@ -223,6 +224,64 @@ func playable_uses_physics_factor() -> bool:
 		source.find("NetClockScript.move_character") >= 0
 		and source.find("func _rollback_tick") >= 0
 	)
+
+
+func _test_identity_and_death_contract() -> int:
+	## Steam identity race is a playtest. These scans catch putting the
+	## contract back in the wrong order or freeing a rewindable dump body.
+	var failures := 0
+	var arena := FileAccess.get_file_as_string("res://scripts/arena/arena_scene.gd")
+	var bind_cover := arena.find("_bind_cover()")
+	var bind_tell := arena.find("_bind_telegraph()")
+	var start_clock := arena.find("start_for_match()")
+	if bind_cover < 0 or bind_tell < 0 or start_clock < 0:
+		push_error("Arena must enroll cover/telegraph and start the net clock")
+		failures += 1
+	elif bind_cover > start_clock or bind_tell > start_clock:
+		push_error("Cover and telegraph must enroll before NetworkTime.start")
+		failures += 1
+	if arena.find("dump_node_name") < 0:
+		push_error("Dump children must use stable names, not scene-root names")
+		failures += 1
+	var spawn_body := _func_body(arena, "func _spawn_dump")
+	if spawn_body.find("commit_pose") < 0:
+		push_error("Dump spawn must commit rewind pose after the pad teleport")
+		failures += 1
+	var clear_body := _func_body(arena, "func _clear_monsters")
+	var detach := clear_body.find("remove_child")
+	var free_after := clear_body.find("queue_free")
+	if detach < 0 or free_after < 0 or detach > free_after:
+		push_error("Dump clear must remove_child before queue_free so names reuse this frame")
+		failures += 1
+	var died_body := _func_body(arena, "func _on_player_died")
+	var respawn_body := _func_body(arena, "func _respawn_player")
+	if died_body.find("_is_run_host()") < 0 or respawn_body.find("_is_run_host()") < 0:
+		push_error("Death timers must stay host-only; guests must not self-revive")
+		failures += 1
+	var monster := FileAccess.get_file_as_string("res://scripts/monsters/monster.gd")
+	var death_body := _func_body(monster, "func _on_death")
+	var mp_gate := death_body.find("GameState.is_multiplayer")
+	var death_free := death_body.find("queue_free")
+	if mp_gate < 0 or death_free < 0 or mp_gate > death_free:
+		push_error("Dump monsters must not queue_free on death while HP is rewindable")
+		failures += 1
+	var health := FileAccess.get_file_as_string("res://scripts/combat/health.gd")
+	var character := FileAccess.get_file_as_string("res://scripts/characters/character.gd")
+	if health.find("signal revived") < 0 or character.find("_health.revived") < 0:
+		push_error("Rewind restoring HP must reverse death teardown")
+		failures += 1
+	return failures
+
+
+func _func_body(source: String, signature: String) -> String:
+	var start := source.find(signature)
+	if start < 0:
+		return ""
+	var rest := source.substr(start)
+	var next_func := rest.find("\nfunc ", 1)
+	if next_func < 0:
+		return rest
+	return rest.substr(0, next_func)
 
 
 func _test_apply_hit_skips_non_authority() -> int:
