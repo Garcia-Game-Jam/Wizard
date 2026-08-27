@@ -2,51 +2,57 @@ extends Node
 
 ## Netcode / CPU diagnostics capture. Autoload.
 ##
-## Slice 1: per-frame budget + rollback-depth + clock-health stream, written to
-## user://diag/<stamp>_<role>_<pid>/frame.csv with a self-describing meta.json.
+## Per match, writes user://diag/<stamp>_<role>_<pid>/:
+##   frame.csv  - one row per rendered frame (real frame time, rollback depth,
+##                tick-loop cost, clock health, physics-step count)
+##   events.csv - named markers (clock_start, encounter_begin, ...) so spikes are
+##                attributable instead of guessed from net_tick
+##   pawn.csv   - per fresh tick per pawn: position, vy, is_on_floor (the
+##                floor-state check that hypothesis 1 hinges on)
+##   meta.json  - self-describing header (backend + config + machine)
 ##
-## Backend-neutral: everything netcode-specific is read through NetProbe, so a
-## future backend swap (Photon, custom ENet) is one NetProbe subclass, not a
-## NetDiag rewrite. The CSV schema is fixed so tools/analyze_netdiag.py and any
-## saved baselines keep comparing like for like.
-##
-## Toggle with the "Netcode diagnostics capture" Developer setting, or force on
-## for headless runs with WIZARD_NET_DIAG=1. Per-pawn correction data (predicted
-## vs authoritative) lands in a later slice.
+## Backend-neutral: all netcode reads go through NetProbe. Toggle with the
+## "Netcode diagnostics capture" Developer setting or WIZARD_NET_DIAG=1.
 
 const ENV_FORCE_KEY := "WIZARD_NET_DIAG"
 const SESSION_ROOT := "user://diag"
 const FLUSH_EVERY := 240
 const FRAME_HEADER := (
-	"t_ms,frame,net_tick,tickloop_us,rb_depth,proc_ms,phys_ms,fps,"
-	+ "clock_stretch,clock_offset,rtt,node_count,coll_pairs,active_objs,peers"
+	"t_ms,frame,net_tick,frame_ms,tickloop_us,rb_depth,phys_steps,"
+	+ "proc_ms_smooth,phys_ms_smooth,fps,clock_stretch,clock_offset,rtt,"
+	+ "node_count,island_count,active_objs,peers"
 )
+const EVENT_HEADER := "t_ms,frame,net_tick,event,detail"
+const PAWN_HEADER := "t_ms,net_tick,pawn,owner,px,py,pz,vy,on_floor,speed"
 
 var _armed := false
 var _capturing := false
 var _session_dir := ""
 var _frame_file: FileAccess = null
+var _event_file: FileAccess = null
+var _pawn_file: FileAccess = null
 var _frame_rows: PackedStringArray = []
+var _pawn_rows: PackedStringArray = []
 var _context: Dictionary = {}
 var _probe: NetProbe = null
 
+var _phys_steps := 0
 var _last_tickloop_us := 0
 var _overlay: CanvasLayer = null
 var _overlay_label: Label = null
-var _proc_ms_peak := 0.0
+var _frame_ms_peak := 0.0
 var _rb_depth_peak := 0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_process(false)
+	set_physics_process(false)
 	_probe = NetProbe.create(get_tree())
 	if OS.get_environment(ENV_FORCE_KEY) == "1":
 		set_enabled(true)
 
 
-## Arm/disarm from the Developer setting. Arming alone does not open files —
-## begin_session() (called when a match starts) does.
 func set_enabled(value: bool) -> void:
 	if _armed == value:
 		return
@@ -71,88 +77,141 @@ func begin_session(context: Dictionary = {}) -> void:
 		_probe = NetProbe.create(get_tree())
 	_context = context.duplicate(true)
 	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
-	## PID keeps two instances on one machine (LAN test) in separate folders even
-	## when both matches start in the same second.
+	## PID keeps two instances on one machine (LAN test) in separate folders.
 	var role := str(_context.get("role", "p"))
 	_session_dir = "%s/%s_%s_%d" % [SESSION_ROOT, stamp, role, OS.get_process_id()]
 	if DirAccess.make_dir_recursive_absolute(_session_dir) != OK:
 		push_warning("NetDiag: could not create %s" % _session_dir)
 		return
-	_frame_file = FileAccess.open("%s/frame.csv" % _session_dir, FileAccess.WRITE)
+	_frame_file = _open_csv("frame.csv", FRAME_HEADER)
+	_event_file = _open_csv("events.csv", EVENT_HEADER)
+	_pawn_file = _open_csv("pawn.csv", PAWN_HEADER)
 	if _frame_file == null:
-		push_warning("NetDiag: could not open frame.csv")
 		return
-	_frame_file.store_line(FRAME_HEADER)
 	_frame_rows.clear()
+	_pawn_rows.clear()
 	_write_meta()
 	_capturing = true
-	_proc_ms_peak = 0.0
+	_frame_ms_peak = 0.0
 	_rb_depth_peak = 0
 	_ensure_overlay()
 	set_process(true)
+	set_physics_process(true)
 	print("[NetDiag] capturing (%s) -> %s" % [_probe.backend_id(), _session_dir])
+	mark("session_begin", role)
 
 
-## Flush and close the current capture folder.
 func end_session() -> void:
 	if not _capturing:
 		return
+	mark("session_end")
 	_capturing = false
 	set_process(false)
-	_flush_frames()
-	if _frame_file != null:
-		_frame_file.close()
-		_frame_file = null
+	set_physics_process(false)
+	_flush()
+	for file in [_frame_file, _event_file, _pawn_file]:
+		if file != null:
+			file.close()
+	_frame_file = null
+	_event_file = null
+	_pawn_file = null
 	_clear_overlay()
 	print("[NetDiag] capture closed -> %s" % _session_dir)
 	_session_dir = ""
 
 
-func _process(_delta: float) -> void:
+## Timeline marker. Cheap no-op when not capturing — safe to call from anywhere.
+func mark(event: String, detail: String = "") -> void:
+	if not _capturing or _event_file == null:
+		return
+	_event_file.store_line("%d,%d,%d,%s,%s" % [
+		Time.get_ticks_msec(), Engine.get_process_frames(),
+		_probe.current_tick(), event, detail,
+	])
+	_event_file.flush()
+
+
+## One row per fresh sim tick per pawn. Call from the pawn's tick with
+## is_fresh == true. Cheap no-op when not capturing.
+func pawn_sample(pawn: Node3D, is_owner: bool) -> void:
+	if not _capturing or pawn == null:
+		return
+	var vel: Vector3 = pawn.get("velocity") if "velocity" in pawn else Vector3.ZERO
+	var on_floor := false
+	if pawn.has_method("is_on_floor"):
+		on_floor = bool(pawn.call("is_on_floor"))
+	var pos := pawn.global_position
+	_pawn_rows.append("%d,%d,%s,%d,%.3f,%.3f,%.3f,%.3f,%d,%.3f" % [
+		Time.get_ticks_msec(), _probe.current_tick(), pawn.name, int(is_owner),
+		pos.x, pos.y, pos.z, vel.y, int(on_floor),
+		Vector2(vel.x, vel.z).length(),
+	])
+	if _pawn_rows.size() >= FLUSH_EVERY:
+		_flush()
+
+
+func _physics_process(_delta: float) -> void:
+	_phys_steps += 1
+
+
+func _process(delta: float) -> void:
 	if not _capturing:
 		return
 	var tick := _probe.current_tick()
 	var clock := _probe.clock_health()
 	var rb_depth := _probe.rollback_depth()
-	var proc_ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
-	var phys_ms := Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
-
+	var frame_ms := delta * 1000.0
 	var loop: Dictionary = _probe.pop_tick_loop()
 	_last_tickloop_us = int(loop.get("us", 0))
 
-	var row := "%d,%d,%d,%d,%d,%.3f,%.3f,%.1f,%.4f,%.4f,%.4f,%d,%d,%d,%d" % [
+	_frame_rows.append("%d,%d,%d,%.3f,%d,%d,%d,%.3f,%.3f,%.1f,%.4f,%.4f,%.4f,%d,%d,%d,%d" % [
 		Time.get_ticks_msec(),
 		Engine.get_process_frames(),
 		tick,
+		frame_ms,
 		_last_tickloop_us,
 		rb_depth,
-		proc_ms,
-		phys_ms,
+		_phys_steps,
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_FPS),
 		float(clock.get("stretch", 1.0)),
 		float(clock.get("offset", 0.0)),
 		float(clock.get("rtt", 0.0)),
 		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
-		int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),
+		int(Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)),
 		int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)),
 		_probe.peer_count(),
-	]
-	_frame_rows.append(row)
+	])
+	_phys_steps = 0
 	if _frame_rows.size() >= FLUSH_EVERY:
-		_flush_frames()
+		_flush()
 
-	_proc_ms_peak = maxf(_proc_ms_peak * 0.97, proc_ms)
+	_frame_ms_peak = maxf(_frame_ms_peak * 0.95, frame_ms)
 	_rb_depth_peak = maxi(int(_rb_depth_peak * 0.9), rb_depth)
 	_update_overlay(tick, rb_depth, float(clock.get("stretch", 1.0)))
 
 
-func _flush_frames() -> void:
-	if _frame_file == null or _frame_rows.is_empty():
-		return
-	for line in _frame_rows:
-		_frame_file.store_line(line)
-	_frame_file.flush()
-	_frame_rows.clear()
+func _flush() -> void:
+	if _frame_file != null and not _frame_rows.is_empty():
+		for line in _frame_rows:
+			_frame_file.store_line(line)
+		_frame_file.flush()
+		_frame_rows.clear()
+	if _pawn_file != null and not _pawn_rows.is_empty():
+		for line in _pawn_rows:
+			_pawn_file.store_line(line)
+		_pawn_file.flush()
+		_pawn_rows.clear()
+
+
+func _open_csv(basename: String, header: String) -> FileAccess:
+	var file := FileAccess.open("%s/%s" % [_session_dir, basename], FileAccess.WRITE)
+	if file == null:
+		push_warning("NetDiag: could not open %s" % basename)
+		return null
+	file.store_line(header)
+	return file
 
 
 func _write_meta() -> void:
@@ -191,8 +250,8 @@ func _update_overlay(tick: int, rb_depth: int, stretch: float) -> void:
 	if _overlay_label == null:
 		return
 	_overlay_label.text = (
-		"◉ NET DIAG [%s]  tick %d  rb %d (pk %d)  proc %.1fms  x%.2f"
-		% [_probe.backend_id(), tick, rb_depth, _rb_depth_peak, _proc_ms_peak, stretch]
+		"◉ NET DIAG [%s]  tick %d  rb %d (pk %d)  frame pk %.0fms  x%.2f"
+		% [_probe.backend_id(), tick, rb_depth, _rb_depth_peak, _frame_ms_peak, stretch]
 	)
 
 

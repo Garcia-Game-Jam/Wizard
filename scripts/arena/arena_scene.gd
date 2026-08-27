@@ -65,7 +65,9 @@ func _ready() -> void:
 	_bind_cover()
 	_bind_telegraph()
 	if GameState.is_multiplayer:
+		NetDiag.mark("clock_start")
 		await NetClockScript.start_for_match()
+		NetDiag.mark("clock_started")
 	_bind_player_deaths()
 	_refresh_hud_prompt()
 
@@ -223,6 +225,7 @@ func _bind_player_deaths() -> void:
 
 
 func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
+	NetDiag.mark("player_died", player.name)
 	if not _is_run_host():
 		return
 	var id := player.get_instance_id()
@@ -304,6 +307,7 @@ func rpc_show_telegraph(encounter_index: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func rpc_begin_fight(encounter_index: int) -> void:
+	NetDiag.mark("encounter_begin", str(encounter_index))
 	_clear_monsters()
 	if spawn_telegraph != null and spawn_telegraph.has_method("clear_pads"):
 		spawn_telegraph.call("clear_pads")
@@ -361,6 +365,7 @@ func _revive_dead_players() -> void:
 
 
 func _revive_at(player: PlayableCharacter, world_pos: Vector3) -> void:
+	NetDiag.mark("respawn", player.name)
 	if player.health != null:
 		player.health.revive()
 	player.restore_after_revive()

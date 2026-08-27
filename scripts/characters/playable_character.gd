@@ -790,6 +790,8 @@ func _physics_process(delta: float) -> void:
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
 	var net_input := _get_net_input()
 	_simulate_move(delta, is_fresh, net_input)
+	if is_fresh:
+		NetDiag.pawn_sample(self, is_local_owner())
 
 
 func _simulate_move(delta: float, is_fresh: bool, net_input: Object) -> void:

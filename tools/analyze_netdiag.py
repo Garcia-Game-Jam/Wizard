@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Summarise NetDiag capture folders (user://diag/<stamp>/).
+"""Summarise NetDiag capture folders (user://diag/<stamp>_<role>_<pid>/).
 
 Usage:
     python tools/analyze_netdiag.py <session_dir> [<session_dir> ...]
     python tools/analyze_netdiag.py --all           # scans the default diag root
 
-Prints a per-session table of percentiles for the frame stream, plus a PASS/FAIL
-line against the thresholds in THRESHOLDS. Slice 1 reads frame.csv only; per-pawn
-metrics arrive in a later slice.
+Reads frame.csv (real per-frame time, rollback depth, tick-loop cost, clock
+health), events.csv (named markers) and pawn.csv (per-tick floor state). Prints
+percentiles, the worst frames with their nearest marker, and a floor-state check.
+PASS/FAIL is against the loose first-pass ceilings in THRESHOLDS.
 """
 
 from __future__ import annotations
@@ -15,16 +16,17 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 import sys
+from collections import Counter
 from pathlib import Path
 
-# p95 ceilings — deliberately loose for a first baseline, tighten as data lands.
 THRESHOLDS = {
-    "proc_ms.p99": 20.0,
-    "rb_depth.p95": 2.0,
+    "frame_ms.p99": 20.0,
+    "frame_ms.max": 50.0,
+    "rb_depth.p99": 3.0,
     "tickloop_ms.p99": 6.0,
-    "clock_stretch.spread": 0.35,  # p95 - p05
+    "clock_stretch.spread": 0.35,
+    "grounded_vy_abs.max": 2.0,
 }
 
 DIAG_ROOT_CANDIDATES = (
@@ -34,7 +36,7 @@ DIAG_ROOT_CANDIDATES = (
 )
 
 
-def _percentile(values: list[float], pct: float) -> float:
+def _pct(values: list[float], pct: float) -> float:
     if not values:
         return float("nan")
     ordered = sorted(values)
@@ -42,56 +44,89 @@ def _percentile(values: list[float], pct: float) -> float:
     return ordered[idx]
 
 
-def _load_frames(session: Path) -> list[dict[str, float]]:
-    frame_csv = session / "frame.csv"
-    if not frame_csv.exists():
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
         return []
-    rows: list[dict[str, float]] = []
-    with frame_csv.open(newline="") as handle:
-        for raw in csv.DictReader(handle):
-            row: dict[str, float] = {}
-            for key, value in raw.items():
-                try:
-                    row[key] = float(value)
-                except (TypeError, ValueError):
-                    row[key] = float("nan")
-            rows.append(row)
-    return rows
+    with path.open(newline="") as handle:
+        return list(csv.DictReader(handle))
 
 
-def _column(rows: list[dict[str, float]], key: str) -> list[float]:
-    return [r[key] for r in rows if key in r and r[key] == r[key]]
+def _floats(rows: list[dict[str, str]], key: str) -> list[float]:
+    out = []
+    for row in rows:
+        try:
+            out.append(float(row[key]))
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out
 
 
-def _summary(rows: list[dict[str, float]]) -> dict[str, float]:
-    proc = _column(rows, "proc_ms")
-    phys = _column(rows, "phys_ms")
-    tickloop_ms = [v / 1000.0 for v in _column(rows, "tickloop_us")]
-    rb = _column(rows, "rb_depth")
-    stretch = _column(rows, "clock_stretch")
-    fps = _column(rows, "fps")
+def _nearest_event(events: list[dict[str, str]], t_ms: float) -> str:
+    best, best_dt = "-", 1e18
+    for ev in events:
+        dt = t_ms - float(ev["t_ms"])
+        if 0 <= dt < best_dt:
+            best, best_dt = ev["event"], dt
+    return f"{best} (+{best_dt / 1000:.1f}s)" if best != "-" else "-"
+
+
+def _frame_summary(rows: list[dict[str, str]]) -> dict[str, float]:
+    frame_ms = _floats(rows, "frame_ms")
+    tickloop_ms = [v / 1000.0 for v in _floats(rows, "tickloop_us")]
+    rb = _floats(rows, "rb_depth")
+    stretch = _floats(rows, "clock_stretch")
+    phys_steps = _floats(rows, "phys_steps")
     return {
         "frames": float(len(rows)),
-        "fps.p50": _percentile(fps, 50),
-        "proc_ms.p50": _percentile(proc, 50),
-        "proc_ms.p99": _percentile(proc, 99),
-        "proc_ms.max": max(proc) if proc else float("nan"),
-        "phys_ms.p99": _percentile(phys, 99),
-        "tickloop_ms.p50": _percentile(tickloop_ms, 50),
-        "tickloop_ms.p99": _percentile(tickloop_ms, 99),
-        "rb_depth.p50": _percentile(rb, 50),
-        "rb_depth.p95": _percentile(rb, 95),
+        "fps.p50": _pct(_floats(rows, "fps"), 50),
+        "frame_ms.p50": _pct(frame_ms, 50),
+        "frame_ms.p95": _pct(frame_ms, 95),
+        "frame_ms.p99": _pct(frame_ms, 99),
+        "frame_ms.max": max(frame_ms) if frame_ms else float("nan"),
+        "tickloop_ms.p50": _pct(tickloop_ms, 50),
+        "tickloop_ms.p99": _pct(tickloop_ms, 99),
+        "tickloop_ms.max": max(tickloop_ms) if tickloop_ms else float("nan"),
+        "rb_depth.p50": _pct(rb, 50),
+        "rb_depth.p99": _pct(rb, 99),
         "rb_depth.max": max(rb) if rb else float("nan"),
-        "clock_stretch.spread": _percentile(stretch, 95) - _percentile(stretch, 5),
+        "phys_steps.max": max(phys_steps) if phys_steps else float("nan"),
+        "clock_stretch.spread": _pct(stretch, 95) - _pct(stretch, 5),
+    }
+
+
+def _pawn_check(rows: list[dict[str, str]]) -> dict[str, float]:
+    if not rows:
+        return {}
+    grounded_vy = []
+    flips = 0
+    prev_floor: dict[str, int] = {}
+    for row in rows:
+        try:
+            on_floor = int(row["on_floor"])
+            vy = float(row["vy"])
+        except (KeyError, ValueError):
+            continue
+        name = row.get("pawn", "?")
+        if name in prev_floor and prev_floor[name] != on_floor:
+            flips += 1
+        prev_floor[name] = on_floor
+        if on_floor:
+            grounded_vy.append(abs(vy))
+    return {
+        "pawn_ticks": float(len(rows)),
+        "grounded_vy_abs.p95": _pct(grounded_vy, 95),
+        "grounded_vy_abs.max": max(grounded_vy) if grounded_vy else 0.0,
+        "on_floor_flips": float(flips),
     }
 
 
 def _print_session(session: Path) -> bool:
-    rows = _load_frames(session)
+    frames = _read_csv(session / "frame.csv")
+    events = _read_csv(session / "events.csv")
+    pawns = _read_csv(session / "pawn.csv")
     meta = {}
-    meta_path = session / "meta.json"
-    if meta_path.exists():
-        meta = json.loads(meta_path.read_text())
+    if (session / "meta.json").exists():
+        meta = json.loads((session / "meta.json").read_text())
 
     print(f"\n=== {session.name} ===")
     ctx = meta.get("context", {})
@@ -100,20 +135,32 @@ def _print_session(session: Path) -> bool:
           f"scenario={ctx.get('scenario', '?')}")
     if cfg:
         print("  config: " + " ".join(f"{k}={v}" for k, v in cfg.items()))
-    if not rows:
+    if not frames:
         print("  (no frame.csv rows)")
         return False
 
-    summary = _summary(rows)
+    summary = _frame_summary(frames)
+    summary.update(_pawn_check(pawns))
     for key, value in summary.items():
         print(f"  {key:24s} {value:10.3f}")
+
+    print("  rb_depth histogram: " + str(dict(sorted(
+        Counter(int(float(r["rb_depth"])) for r in frames if "rb_depth" in r).items()
+    ))))
+
+    worst = sorted(frames, key=lambda r: -float(r.get("frame_ms", 0)))[:8]
+    print("  worst frames (frame_ms / rb / tick / nearest marker):")
+    for row in worst:
+        t_ms = float(row["t_ms"])
+        print(f"    {float(row['frame_ms']):7.1f}ms  rb={row['rb_depth']:>2}  "
+              f"tick={row['net_tick']:>6}  {_nearest_event(events, t_ms)}")
 
     ok = True
     for key, ceiling in THRESHOLDS.items():
         got = summary.get(key, float("nan"))
-        flag = "ok " if got <= ceiling else "OVER"
-        if got > ceiling:
+        if got == got and got > ceiling:
             ok = False
+        flag = "ok  " if not (got == got and got > ceiling) else "OVER"
         print(f"  [{flag}] {key} = {got:.3f} (<= {ceiling})")
     print(f"  RESULT: {'PASS' if ok else 'FAIL'}")
     return ok
