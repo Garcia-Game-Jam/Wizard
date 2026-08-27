@@ -19,8 +19,8 @@ const SESSION_ROOT := "user://diag"
 const FLUSH_EVERY := 240
 const FRAME_HEADER := (
 	"t_ms,frame,net_tick,frame_ms,tickloop_us,rb_depth,phys_steps,"
-	+ "proc_ms_smooth,phys_ms_smooth,fps,clock_stretch,clock_offset,rtt,"
-	+ "node_count,island_count,active_objs,peers"
+	+ "proc_ms_smooth,phys_ms_smooth,fps,tick_factor,tick_factor_delta,"
+	+ "clock_stretch,clock_offset,rtt,node_count,island_count,active_objs,peers"
 )
 const EVENT_HEADER := "t_ms,frame,net_tick,event,detail"
 const PAWN_HEADER := "t_ms,net_tick,pawn,owner,px,py,pz,vy,on_floor,speed"
@@ -38,6 +38,7 @@ var _probe: NetProbe = null
 
 var _phys_steps := 0
 var _last_tickloop_us := 0
+var _prev_tick_factor := 0.0
 var _overlay: CanvasLayer = null
 var _overlay_label: Label = null
 var _frame_ms_peak := 0.0
@@ -164,7 +165,15 @@ func _process(delta: float) -> void:
 	var loop: Dictionary = _probe.pop_tick_loop()
 	_last_tickloop_us = int(loop.get("us", 0))
 
-	_frame_rows.append("%d,%d,%d,%.3f,%d,%d,%d,%.3f,%.3f,%.1f,%.4f,%.4f,%.4f,%d,%d,%d,%d" % [
+	## tick_factor should sweep 0->1 monotonically between ticks then reset. A
+	## negative delta that is not a tick reset (< -0.5) is interpolation going
+	## backwards = the sub-tick stutter that sync_to_physics is meant to remove.
+	var tick_factor := float(clock.get("tick_factor", 0.0))
+	var tf_delta := tick_factor - _prev_tick_factor
+	_prev_tick_factor = tick_factor
+
+	_frame_rows.append(
+		"%d,%d,%d,%.3f,%d,%d,%d,%.3f,%.3f,%.1f,%.4f,%.4f,%.4f,%.4f,%.4f,%d,%d,%d,%d" % [
 		Time.get_ticks_msec(),
 		Engine.get_process_frames(),
 		tick,
@@ -175,6 +184,8 @@ func _process(delta: float) -> void:
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_FPS),
+		tick_factor,
+		tf_delta,
 		float(clock.get("stretch", 1.0)),
 		float(clock.get("offset", 0.0)),
 		float(clock.get("rtt", 0.0)),

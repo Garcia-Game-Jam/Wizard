@@ -53,6 +53,7 @@ func clock_health() -> Dictionary:
 		"stretch": float(net_time.get("clock_stretch_factor")),
 		"offset": offset,
 		"rtt": float(net_time.get("remote_rtt")),
+		"tick_factor": float(net_time.get("tick_factor")),
 	}
 
 

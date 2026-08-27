@@ -29,6 +29,7 @@ THRESHOLDS = {
     "rb_depth.p99": 3.0,
     "tickloop_ms.p99": 6.0,
     "clock_stretch.spread": 0.35,
+    "tick_factor.backward_pct": 2.0,
     "stuck_airborne_pct": 5.0,
     "grounded_vy_abs.p95": 1.0,
     "on_floor_flips": 10.0,
@@ -81,7 +82,19 @@ def _frame_summary(rows: list[dict[str, str]]) -> dict[str, float]:
     rb = _floats(rows, "rb_depth")
     stretch = _floats(rows, "clock_stretch")
     phys_steps = _floats(rows, "phys_steps")
-    return {
+    # tick_factor should rise 0->1 then reset. A step in (-0.9, -0.02) is
+    # interpolation going backwards mid-tick = the sub-tick stutter.
+    tf_delta = _floats(rows, "tick_factor_delta")
+    tf = _floats(rows, "tick_factor")
+    tf_backward = sum(1 for d in tf_delta if -0.9 < d < -0.02)
+    tf_pinned = sum(1 for i, v in enumerate(tf)
+                    if v > 0.98 and i < len(tf_delta) and abs(tf_delta[i]) < 0.001)
+    n = max(len(rows), 1)
+    extra = {
+        "tick_factor.backward_pct": 100.0 * tf_backward / n,
+        "tick_factor.pinned_pct": 100.0 * tf_pinned / n,
+    }
+    return extra | {
         "frames": float(len(rows)),
         "fps.p50": _pct(_floats(rows, "fps"), 50),
         "frame_ms.p50": _pct(frame_ms, 50),
