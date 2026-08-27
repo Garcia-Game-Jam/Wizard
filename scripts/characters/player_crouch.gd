@@ -287,8 +287,6 @@ static func _wants_crouch(player: CharacterBody3D, net_input: Object = null) -> 
 		return false
 	if not player.is_on_floor():
 		return false
-	if SlideSurfaceScript.should_slide(player):
-		return false
 	return true
 
 

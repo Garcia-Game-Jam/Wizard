@@ -1,44 +1,26 @@
 class_name SlideSurface
 extends RefCounted
 
-## Maze wall colliders tagged so players slide instead of walking. CharacterBody
-## ignores PhysicsMaterial friction, so locomotion must skip ground move and use
-## floating motion while the floor is a tagged wall.
+## Ground/air locomotion helpers for CharacterBody3D.
+##
+## Characters are ALWAYS MOTION_MODE_GROUNDED — walking, airborne, knocked back,
+## stunned. MOTION_MODE_FLOATING drops the entire motion vector (vertical
+## included) when a body is pressed into a wall at speed, which hung a
+## fireballed wizard mid-air for 67 of 70 ticks in both Jolt and Godot Physics.
+## Being airborne is expressed with floor_snap_length = 0, not a mode change.
+## See tests/unit/test_wall_slide_stall.gd and AGENTS.md.
 
-const GROUP := "slide_surface"
-## Cosine of ~70° from vertical. Vertical faces stay walls; tops and shoulders slide.
+## Cosine of ~70° from vertical. Steeper faces are walls, not floors.
 const FLOOR_DOT := 0.35
 ## Probe used when is_on_floor() is stale after rollback (apex hover).
 const FLOOR_PROBE_M := 0.22
-## Crest of a cylinder/sphere: normal is almost UP, so gravity has no downhill.
-const PEAK_DOT := 0.98
-const PEAK_SPEED := 0.35
-const PEAK_NUDGE := 2.4
 
 const PlayerCrouchScript := preload("res://scripts/characters/player_crouch.gd")
 const PlayerAirControlScript := preload("res://scripts/characters/player_air_control.gd")
 
 
-static func tag(body: CollisionObject3D) -> void:
-	if body == null:
-		return
-	body.add_to_group(GROUP, true)
-	var mat := PhysicsMaterial.new()
-	mat.friction = 0.0
-	body.physics_material_override = mat
-
-
-static func is_tagged(node: Object) -> bool:
-	var as_node := node as Node
-	return as_node != null and as_node.is_in_group(GROUP)
-
-
-static func is_slide_floor(collider: Object, normal: Vector3) -> bool:
-	return is_tagged(collider) and normal.dot(Vector3.UP) > FLOOR_DOT
-
-
 static func is_walkable_floor(collider: Object, normal: Vector3) -> bool:
-	if collider == null or is_tagged(collider):
+	if collider == null:
 		return false
 	return normal.dot(Vector3.UP) > FLOOR_DOT
 
@@ -53,26 +35,11 @@ static func hit_walkable_floor(body: CharacterBody3D) -> bool:
 	return false
 
 
-static func should_slide(body: CharacterBody3D) -> bool:
-	if body == null or hit_walkable_floor(body):
-		return false
-	for i in body.get_slide_collision_count():
-		var col: KinematicCollision3D = body.get_slide_collision(i)
-		if is_slide_floor(col.get_collider(), col.get_normal()):
-			return true
-	return false
-
-
-static func prepare(body: CharacterBody3D) -> bool:
-	var sliding := should_slide(body)
+## Characters are always GROUNDED. Single place that asserts the mode.
+static func prepare(body: CharacterBody3D) -> void:
 	if body == null:
-		return sliding
-	if sliding:
-		body.motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
-		_nudge_off_peak(body)
-	else:
-		body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
-	return sliding
+		return
+	body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 
 
 static func has_floor_below(player: CharacterBody3D) -> bool:
@@ -81,54 +48,22 @@ static func has_floor_below(player: CharacterBody3D) -> bool:
 	return player.test_move(player.global_transform, Vector3(0.0, -FLOOR_PROBE_M, 0.0))
 
 
-## Re-derive motion_mode / floor_snap from the restored pose. is_on_floor() is
-## leftover from the last simulated tick (and stays false in FLOATING mode).
-static func sync_motion_from_pose(body: CharacterBody3D, sliding: bool = false) -> bool:
+## Re-derive floor snap from the restored pose and report grounded state.
+## is_on_floor() is leftover from the last simulated tick, so probe instead.
+## The mode is always GROUNDED; airborne is expressed as snap 0.
+static func sync_motion_from_pose(body: CharacterBody3D) -> bool:
 	if body == null:
 		return false
-	var on_floor := has_floor_below(body)
-	if sliding or not on_floor:
-		body.motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+	if not has_floor_below(body):
 		body.floor_snap_length = 0.0
 		return false
-	body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 	var stunned := false
 	if body.has_method("is_stunned"):
 		stunned = bool(body.call("is_stunned"))
 	if not stunned and body.velocity.y <= 0.05:
 		body.floor_snap_length = 0.15
 	return true
-
-
-static func peak_push(
-	velocity: Vector3, normal: Vector3, rng: RandomNumberGenerator = null
-) -> Vector3:
-	if normal.dot(Vector3.UP) < PEAK_DOT:
-		return velocity
-	var horiz := Vector3(velocity.x, 0.0, velocity.z)
-	if horiz.length() >= PEAK_SPEED:
-		return velocity
-	var dir := horiz
-	if dir.length_squared() < 0.0025:
-		var yaw := randf() * TAU
-		if rng != null:
-			yaw = rng.randf() * TAU
-		dir = Vector3(cos(yaw), 0.0, sin(yaw))
-	else:
-		dir = dir.normalized()
-	return Vector3(dir.x * PEAK_NUDGE, velocity.y, dir.z * PEAK_NUDGE)
-
-
-static func _nudge_off_peak(body: CharacterBody3D) -> void:
-	var peak_n := Vector3.ZERO
-	for i in body.get_slide_collision_count():
-		var col: KinematicCollision3D = body.get_slide_collision(i)
-		var n: Vector3 = col.get_normal()
-		if is_slide_floor(col.get_collider(), n) and n.y >= peak_n.y:
-			peak_n = n
-	if peak_n == Vector3.ZERO:
-		return
-	body.velocity = peak_push(body.velocity, peak_n)
 
 
 static func apply_ground_move(
@@ -141,10 +76,10 @@ static func apply_ground_move(
 	block_crouch_slide: bool = false,
 	net_input: Object = null
 ) -> void:
-	var on_slide := prepare(player)
-	var on_floor := sync_motion_from_pose(player, on_slide)
-	PlayerAirControlScript.tick_air_time(player, delta, on_floor or on_slide)
-	if not on_floor or on_slide:
+	prepare(player)
+	var on_floor := sync_motion_from_pose(player)
+	PlayerAirControlScript.tick_air_time(player, delta, on_floor)
+	if not on_floor:
 		player.velocity.y -= gravity * delta
 	var jump_pressed := false
 	if net_input != null and "jump" in net_input:
@@ -154,7 +89,6 @@ static func apply_ground_move(
 	if (
 		jump_pressed
 		and on_floor
-		and not on_slide
 		and not PlayerCrouchScript.is_crouching(player)
 	):
 		player.velocity.y = PlayableCharacter.JUMP_VELOCITY
@@ -166,7 +100,7 @@ static func apply_ground_move(
 			stunned = bool(player.call("is_stunned"))
 		if not stunned:
 			player.floor_snap_length = 0.15
-	if on_slide or preserve_horizontal:
+	if preserve_horizontal:
 		if not block_crouch_slide and PlayerCrouchScript.is_coasting(player):
 			PlayerCrouchScript.apply_coast_physics(player, head, delta, boost, net_input)
 		return

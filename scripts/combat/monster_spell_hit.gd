@@ -6,7 +6,6 @@ extends RefCounted
 enum Kind { IGNORE, WARD, COMBAT, WALL }
 
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
-const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 
 const COLLISION_MASK := 1 | 2
 
@@ -50,8 +49,6 @@ static func is_combat_body(body: Node) -> bool:
 static func is_wall(body: Node) -> bool:
 	if body == null:
 		return false
-	if SlideSurfaceScript.is_tagged(body):
-		return true
 	if not (body is StaticBody3D):
 		return false
 	var name := str(body.name).to_lower()

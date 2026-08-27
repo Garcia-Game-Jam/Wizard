@@ -49,6 +49,11 @@ var netfox_debug_logs: bool = false:
 	set(value):
 		netfox_debug_logs = value
 		_apply_netfox_logging()
+## When true, NetDiag writes a per-frame netcode/CPU capture during matches.
+var net_diag_capture: bool = false:
+	set(value):
+		net_diag_capture = value
+		_apply_net_diag()
 
 var _mic_testing: bool = false
 var _voice_meter_active: bool = false
@@ -68,6 +73,7 @@ func _ready() -> void:
 	apply_audio_settings()
 	apply_display_settings()
 	_apply_netfox_logging()
+	_apply_net_diag()
 
 
 func get_resolution_presets() -> Array[Vector2i]:
@@ -303,6 +309,7 @@ func load_settings() -> void:
 		"dev", "dev_allow_any_lobby_size", dev_allow_any_lobby_size
 	)
 	netfox_debug_logs = bool(config.get_value("dev", "netfox_debug_logs", netfox_debug_logs))
+	net_diag_capture = bool(config.get_value("dev", "net_diag_capture", net_diag_capture))
 	_load_input_binds(config)
 	if persist_display:
 		save_settings()
@@ -365,6 +372,14 @@ func _apply_netfox_logging() -> void:
 	NetfoxLogger.module_log_level["netfox.extras"] = level
 
 
+func _apply_net_diag() -> void:
+	if not is_inside_tree():
+		return
+	var diag := get_tree().root.get_node_or_null("NetDiag")
+	if diag != null and diag.has_method("set_enabled"):
+		diag.call("set_enabled", net_diag_capture)
+
+
 func apply_solo_dev_loadout_to_game_state() -> void:
 	GameState.apply_solo_dev_loadout(GameState.PlayerRole.APPRENTICE)
 
@@ -389,6 +404,7 @@ func save_settings() -> void:
 	config.set_value("dev", "dev_solo_role", dev_solo_role)
 	config.set_value("dev", "dev_allow_any_lobby_size", dev_allow_any_lobby_size)
 	config.set_value("dev", "netfox_debug_logs", netfox_debug_logs)
+	config.set_value("dev", "net_diag_capture", net_diag_capture)
 	var binds := pack_live_input_binds()
 	for action in binds.keys():
 		config.set_value("input", str(action), binds[action])

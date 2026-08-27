@@ -46,6 +46,7 @@ func _ready() -> void:
 		return
 
 	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
+	NetDiag.begin_session({"scenario": "arena", "role": _diag_role()})
 	pause_menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	if voice_validator != null:
 		voice_validator.apply_settings_from_manager()
@@ -64,7 +65,9 @@ func _ready() -> void:
 	_bind_cover()
 	_bind_telegraph()
 	if GameState.is_multiplayer:
+		NetDiag.mark("clock_start")
 		await NetClockScript.start_for_match()
+		NetDiag.mark("clock_started")
 	_bind_player_deaths()
 	_refresh_hud_prompt()
 
@@ -75,6 +78,16 @@ func _ready() -> void:
 
 	if _is_run_host():
 		_between_timer = FIRST_FIGHT_DELAY_SEC
+
+
+func _exit_tree() -> void:
+	NetDiag.end_session()
+
+
+func _diag_role() -> String:
+	if not GameState.is_multiplayer:
+		return "solo"
+	return "host" if multiplayer.is_server() else "guest"
 
 
 func _process(delta: float) -> void:
@@ -212,6 +225,7 @@ func _bind_player_deaths() -> void:
 
 
 func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
+	NetDiag.mark("player_died", player.name)
 	if not _is_run_host():
 		return
 	var id := player.get_instance_id()
@@ -293,6 +307,7 @@ func rpc_show_telegraph(encounter_index: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func rpc_begin_fight(encounter_index: int) -> void:
+	NetDiag.mark("encounter_begin", str(encounter_index))
 	_clear_monsters()
 	if spawn_telegraph != null and spawn_telegraph.has_method("clear_pads"):
 		spawn_telegraph.call("clear_pads")
@@ -350,6 +365,7 @@ func _revive_dead_players() -> void:
 
 
 func _revive_at(player: PlayableCharacter, world_pos: Vector3) -> void:
+	NetDiag.mark("respawn", player.name)
 	if player.health != null:
 		player.health.revive()
 	player.restore_after_revive()

@@ -16,6 +16,12 @@ const HealthScript := preload("res://scripts/combat/health.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 
 const KNOCKBACK_TIMER_SEC := 0.35
+## Sustained shove during the knockback window, in units of _knockback_vel per
+## second. MUST be delta-scaled: applying a flat per-tick fraction compounds
+## with tickrate and turns the bleed into a velocity amplifier (a 9 m/s hit
+## reached 40 m/s at 60 Hz and buried the body in the pit wall).
+const KNOCKBACK_BLEED_PER_SEC := 10.5
+const KNOCKBACK_DECAY := 28.0
 const KNOCKBACK_HORIZONTAL := 9.0
 const KNOCKBACK_UP := 3.5
 const HURT_UP_IMPULSE := 5.0
@@ -267,9 +273,9 @@ func _apply_knockback_bleed(delta: float) -> void:
 	if _knockback_timer <= 0.0:
 		return
 	_knockback_timer -= delta
-	velocity.x += _knockback_vel.x * 0.35
-	velocity.z += _knockback_vel.z * 0.35
-	_knockback_vel = _knockback_vel.move_toward(Vector3.ZERO, 28.0 * delta)
+	velocity.x += _knockback_vel.x * KNOCKBACK_BLEED_PER_SEC * delta
+	velocity.z += _knockback_vel.z * KNOCKBACK_BLEED_PER_SEC * delta
+	_knockback_vel = _knockback_vel.move_toward(Vector3.ZERO, KNOCKBACK_DECAY * delta)
 
 
 func _apply_character_color(color: Color) -> void:

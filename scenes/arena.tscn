@@ -43,6 +43,30 @@ size = Vector3(2.4, 2, 2.4)
 [sub_resource type="BoxShape3D" id="Shape_cover"]
 size = Vector3(2.4, 2, 2.4)
 
+[sub_resource type="BoxMesh" id="Mesh_pit_floor"]
+size = Vector3(52, 1, 38)
+
+[sub_resource type="BoxShape3D" id="Shape_pit_floor"]
+size = Vector3(52, 1, 38)
+
+[sub_resource type="BoxMesh" id="Mesh_pit_wall_x"]
+size = Vector3(2, 24, 40)
+
+[sub_resource type="BoxShape3D" id="Shape_pit_wall_x"]
+size = Vector3(2, 24, 40)
+
+[sub_resource type="BoxMesh" id="Mesh_pit_wall_z"]
+size = Vector3(56, 24, 2)
+
+[sub_resource type="BoxShape3D" id="Shape_pit_wall_z"]
+size = Vector3(56, 24, 2)
+
+[sub_resource type="BoxMesh" id="Mesh_pit_ceiling"]
+size = Vector3(56, 2, 40)
+
+[sub_resource type="BoxShape3D" id="Shape_pit_ceiling"]
+size = Vector3(56, 2, 40)
+
 [sub_resource type="StandardMaterial3D" id="Mat_beam"]
 transparency = 1
 shading_mode = 0
@@ -85,56 +109,67 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14, 0)
 light_energy = 1.6
 omni_range = 70.0
 
-[node name="Pit" type="Node3D" parent="." unique_id=431377803]
+[node name="Pit" type="Node3D" parent="."]
 
-[node name="Floor" type="CSGCylinder3D" parent="Pit" unique_id=2053590265]
-transform = Transform3D(26.2, 0, 0, 0, 1, 0, 0, 0, 19.2, 0, -0.5, 0)
-use_collision = true
-radius = 1.0
-height = 1.0
-sides = 48
-material = SubResource("Mat_floor")
+[node name="Floor" type="StaticBody3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 
-[node name="Walls" type="CSGCombiner3D" parent="Pit" unique_id=474222871]
-use_collision = true
+[node name="Mesh" type="MeshInstance3D" parent="Pit/Floor"]
+mesh = SubResource("Mesh_pit_floor")
+material_override = SubResource("Mat_floor")
 
-[node name="Outer" type="CSGCylinder3D" parent="Pit/Walls" unique_id=1043274607]
-transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 22, 0, 12, 0)
-radius = 1.0
-height = 24.0
-sides = 48
-material = SubResource("Mat_wall")
+[node name="Collision" type="CollisionShape3D" parent="Pit/Floor"]
+shape = SubResource("Shape_pit_floor")
 
-[node name="InnerCut" type="CSGCylinder3D" parent="Pit/Walls" unique_id=1278888508]
-transform = Transform3D(26, 0, 0, 0, 1, 0, 0, 0, 19, 0, 12, 0)
-operation = 2
-radius = 1.0
-height = 24.0
-sides = 48
+[node name="WallEast" type="StaticBody3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 12, 0)
 
-[node name="Ceiling" type="CSGCylinder3D" parent="Pit" unique_id=1106596719]
-transform = Transform3D(26.5, 0, 0, 0, 1, 0, 0, 0, 19.5, 0, 23, 0)
-use_collision = true
-radius = 1.0
-sides = 48
-material = SubResource("Mat_lip")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallEast"]
+mesh = SubResource("Mesh_pit_wall_x")
+material_override = SubResource("Mat_wall")
 
-[node name="Lip" type="CSGCombiner3D" parent="Pit" unique_id=1558782769]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 23, 0)
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallEast"]
+shape = SubResource("Shape_pit_wall_x")
 
-[node name="LipOuter" type="CSGCylinder3D" parent="Pit/Lip" unique_id=1930150971]
-transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 22, 0, 0, 0)
-radius = 1.0
-height = 3.0
-sides = 48
-material = SubResource("Mat_lip")
+[node name="WallWest" type="StaticBody3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 12, 0)
 
-[node name="LipInner" type="CSGCylinder3D" parent="Pit/Lip" unique_id=873489739]
-transform = Transform3D(23.5, 0, 0, 0, 1, 0, 0, 0, 17, 0, 0, 0)
-operation = 2
-radius = 1.0
-height = 4.0
-sides = 48
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallWest"]
+mesh = SubResource("Mesh_pit_wall_x")
+material_override = SubResource("Mat_wall")
+
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallWest"]
+shape = SubResource("Shape_pit_wall_x")
+
+[node name="WallNorth" type="StaticBody3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 20)
+
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallNorth"]
+mesh = SubResource("Mesh_pit_wall_z")
+material_override = SubResource("Mat_wall")
+
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallNorth"]
+shape = SubResource("Shape_pit_wall_z")
+
+[node name="WallSouth" type="StaticBody3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, -20)
+
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallSouth"]
+mesh = SubResource("Mesh_pit_wall_z")
+material_override = SubResource("Mat_wall")
+
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallSouth"]
+shape = SubResource("Shape_pit_wall_z")
+
+[node name="Ceiling" type="StaticBody3D" parent="Pit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Pit/Ceiling"]
+mesh = SubResource("Mesh_pit_ceiling")
+material_override = SubResource("Mat_lip")
+
+[node name="Collision" type="CollisionShape3D" parent="Pit/Ceiling"]
+shape = SubResource("Shape_pit_ceiling")
 
 [node name="Cover" type="Node3D" parent="." unique_id=1678427664]
 
