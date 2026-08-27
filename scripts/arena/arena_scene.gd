@@ -11,6 +11,7 @@ const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
+const TestEnvScript := preload("res://scripts/test/test_env.gd")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -51,7 +52,8 @@ func _ready() -> void:
 	SettingsManager.settings_applied.connect(_on_voice_settings_applied)
 
 	TrailRegistry.reset()
-	await voice_validator.prepare_for_match()
+	if voice_validator != null and not TestEnvScript.skip_match_voice():
+		await voice_validator.prepare_for_match()
 	SteamProximityVoiceHub.set_mode(SteamProximityVoiceHub.Mode.GAME)
 
 	NetworkManager.spawn_players(players_root, _configure_local_player)
