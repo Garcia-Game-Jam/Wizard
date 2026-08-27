@@ -17,6 +17,7 @@ func run() -> int:
 	failures += _test_cover_restage_motion()
 	failures += _test_cover_restage_survives_rewind_restore()
 	failures += _test_telegraph_survives_rewind_restore()
+	failures += _test_dump_slot_names_are_unique()
 	return failures
 
 
@@ -168,5 +169,25 @@ func _test_telegraph_survives_rewind_restore() -> int:
 	tell.free()
 	if not restored:
 		push_error("Rewind restore must not wipe the spawn tell")
+		return 1
+	return 0
+
+
+func _test_dump_slot_names_are_unique() -> int:
+	var seen: Dictionary = {}
+	for encounter in 12:
+		var dump := ArenaEncountersScript.dump_for(encounter)
+		for slot in dump.size():
+			var node_name := ArenaEncountersScript.dump_node_name(encounter, slot)
+			if seen.has(node_name):
+				push_error("Dump name %s collides across encounters" % node_name)
+				return 1
+			seen[node_name] = true
+	var two_ember := ArenaEncountersScript.dump_for(5)
+	if two_ember.size() < 2:
+		push_error("Encounter 5 must dump at least two monsters")
+		return 1
+	if ArenaEncountersScript.dump_node_name(5, 0) == ArenaEncountersScript.dump_node_name(5, 1):
+		push_error("Same-kind dump slots must not share a node name")
 		return 1
 	return 0

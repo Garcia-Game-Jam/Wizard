@@ -15,6 +15,7 @@ func run() -> int:
 	failures += _test_pools_are_independent()
 	failures += _test_revive_restores_combat()
 	failures += _test_replicated_health_emits_death()
+	failures += _test_replicated_health_restores_combat()
 	return failures
 
 
@@ -144,6 +145,26 @@ func _test_replicated_health_emits_death() -> int:
 	holder.queue_free()
 	if deaths[0] != 1:
 		push_error("Writing HP to 0 (netfox restore) should emit died once, got %d" % deaths[0])
+		return 1
+	return 0
+
+
+func _test_replicated_health_restores_combat() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var character := PlayerScene.instantiate() as Character
+	holder.add_child(character)
+	character.health.current_health = 0.0
+	character.health.current_health = character.health.max_health
+	var ok := (
+		character.is_alive()
+		and character.is_physics_processing()
+		and character.is_in_group(&"combat_target")
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Writing HP back above 0 (rewind) should reverse death teardown")
 		return 1
 	return 0
 

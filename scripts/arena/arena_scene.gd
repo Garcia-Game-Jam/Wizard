@@ -57,10 +57,12 @@ func _ready() -> void:
 	NetworkManager.spawn_players(players_root, _configure_local_player)
 	await NetworkManager.players_spawned
 	_place_players_at_spawns()
-	if GameState.is_multiplayer:
-		await NetClockScript.start_for_match()
+	## Cover and telegraph already exist in the scene. Enroll them before the
+	## clock so Steam guests do not get rewind for paths they have not named.
 	_bind_cover()
 	_bind_telegraph()
+	if GameState.is_multiplayer:
+		await NetClockScript.start_for_match()
 	_bind_player_deaths()
 	_refresh_hud_prompt()
 
@@ -208,6 +210,8 @@ func _bind_player_deaths() -> void:
 
 
 func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
+	if not _is_run_host():
+		return
 	var id := player.get_instance_id()
 	if _pending_respawns.has(id):
 		return
@@ -220,6 +224,8 @@ func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
 
 func _respawn_player(player: PlayableCharacter, id: int) -> void:
 	_pending_respawns.erase(id)
+	if not _is_run_host():
+		return
 	if not is_instance_valid(player) or player.is_alive():
 		return
 	_revive_at(player, _spawn_for_player(player))
@@ -288,7 +294,7 @@ func rpc_begin_fight(encounter_index: int) -> void:
 	_clear_monsters()
 	if spawn_telegraph != null and spawn_telegraph.has_method("clear_pads"):
 		spawn_telegraph.call("clear_pads")
-	_spawn_dump(ArenaEncountersScript.dump_for(encounter_index))
+	_spawn_dump(encounter_index, ArenaEncountersScript.dump_for(encounter_index))
 	_wave_live = true
 	_staging = Staging.NONE
 	_refresh_hud_prompt()
@@ -387,7 +393,8 @@ func _warn_wide_rollback() -> void:
 		push_warning("Arena: dump resimulated %d ticks (netfox rewind)" % ticks)
 
 
-func _spawn_dump(dump: Array[Dictionary]) -> void:
+func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
+	var slot := 0
 	for entry in dump:
 		var kind := str(entry.get("kind", ""))
 		var pad := int(entry.get("pad", 0))
@@ -402,6 +409,7 @@ func _spawn_dump(dump: Array[Dictionary]) -> void:
 		if monster == null:
 			continue
 		var spawn := _pad_position(pad)
+		monster.name = ArenaEncountersScript.dump_node_name(encounter_index, slot)
 		monster.set_meta("lookdev_live_ai", true)
 		monster.set_meta("patrol_home", spawn)
 		monster.set_meta("patrol_size", PATROL_SIZE)
@@ -413,6 +421,7 @@ func _spawn_dump(dump: Array[Dictionary]) -> void:
 		monster.global_position = spawn
 		monster.rotation = Vector3.ZERO
 		monster.set_multiplayer_authority(1)
+		slot += 1
 
 
 func _pad_position(pad: int) -> Vector3:
@@ -428,7 +437,9 @@ func _pad_position(pad: int) -> Vector3:
 
 
 func _clear_monsters() -> void:
-	for child in monsters_root.get_children():
+	var children := monsters_root.get_children()
+	for child in children:
+		monsters_root.remove_child(child)
 		child.queue_free()
 
 

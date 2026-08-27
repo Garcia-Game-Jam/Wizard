@@ -253,8 +253,17 @@ func _combat_groups() -> Array[StringName]:
 	return [&"monster", &"combat_target"]
 
 
+func restore_after_revive() -> void:
+	super.restore_after_revive()
+	_enter_idle()
+
+
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
+	## HP stays rewindable. Freeing the node here means a later restore cannot
+	## put the body back. Solo still drops a corpse; the pit clears dumps.
+	if GameState.is_multiplayer:
+		return
 	MonsterCorpseScript.spawn_from_monster(
 		self, _last_hit_dir, death_linger_sec, death_fade_sec, DEATH_IMPULSE_SCALE
 	)

@@ -38,6 +38,10 @@ Playable: boot lobby → pit. Raise wand, speak a spell, slot it, dump a fight.
 
 Fail if you needed a tutorial, a second map, or a currency. Fail if fight 4 is a copy of fight 1 with a new icon.
 
+## Rewind vs death
+
+`Health.current_health` is rewindable. Crossing to 0 still runs death teardown; crossing back above 0 must reverse it (`Health.revived` → `restore_after_revive`). Do not `queue_free` a dump body whose HP can return this tick — `_clear_monsters` is the despawn. Cover and telegraph enroll before `NetworkTime.start()`. Dump children use stable names (`M{encounter}_{slot}`), not scene-root names.
+
 ### What not to test yet
 
 New art, navmesh rewrite, UI restyle, PvP ladder, wave-as-campaign UI.

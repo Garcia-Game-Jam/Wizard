@@ -128,5 +128,10 @@ static func scene_path_for(kind: String) -> String:
 	return str(SCENE_BY_KIND.get(kind, ""))
 
 
+## Same path on every peer. Scene root names collide across waves and same-kind dumps.
+static func dump_node_name(encounter_index: int, slot: int) -> String:
+	return "M%d_%d" % [encounter_index, slot]
+
+
 static func _spawn(kind: String, pad: int) -> Dictionary:
 	return {"kind": kind, "pad": pad}
