@@ -29,6 +29,20 @@ SteamService="*res://scripts/network/steam_service.gd"
 NetworkManager="*res://scripts/network/network_manager.gd"
 MatchStateManager="*res://scripts/match/match_state_manager.gd"
 SteamProximityVoiceHub="*res://scripts/voice/steam_proximity_voice_hub.gd"
+NetworkTime="*res://addons/netfox/network-time.gd"
+NetworkTimeSynchronizer="*res://addons/netfox/network-time-synchronizer.gd"
+NetworkRollback="*res://addons/netfox/rollback/network-rollback.gd"
+NetworkEvents="*res://addons/netfox/network-events.gd"
+NetworkPerformance="*res://addons/netfox/network-performance.gd"
+RollbackSimulationServer="*res://addons/netfox/servers/rollback-simulation-server.gd"
+NetworkHistoryServer="*res://addons/netfox/servers/network-history-server.gd"
+NetworkSynchronizationServer="*res://addons/netfox/servers/network-synchronization-server.gd"
+NetworkIdentityServer="*res://addons/netfox/servers/network-identity-server.gd"
+NetworkCommandServer="*res://addons/netfox/servers/network-command-server.gd"
+RollbackLivenessServer="*res://addons/netfox/servers/rollback-liveness-server.gd"
+InterpolationServer="*res://addons/netfox/servers/interpolation-server.gd"
+WindowTiler="*res://addons/netfox.extras/window-tiler.gd"
+NetworkSimulator="*res://addons/netfox.extras/network-simulator.gd"
 
 [debug]
 
@@ -43,7 +57,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/combat_balance/plugin.cfg")
+enabled=PackedStringArray("res://addons/combat_balance/plugin.cfg", "res://addons/netfox.internals/plugin.cfg", "res://addons/netfox/plugin.cfg", "res://addons/netfox.extras/plugin.cfg")
 
 [gui]
 
@@ -170,6 +184,20 @@ spell_slot_4={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":69,"key_label":0,"unicode":101,"location":0,"echo":false,"script":null)
 ]
 }
+
+[netfox]
+
+general/clear_settings=false
+general/supress_identity_peer_disconnected_warning=true
+events/enabled=false
+time/tickrate=30
+time/max_ticks_per_frame=8
+time/suppress_offline_peer_warning=true
+rollback/enabled=true
+rollback/enable_input_broadcast=false
+rollback/enable_diff_states=true
+extras/auto_tile_windows=false
+autoconnect/enabled=false
 
 [physics]
 

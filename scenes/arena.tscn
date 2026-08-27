@@ -2,24 +2,17 @@
 
 [ext_resource type="Script" uid="uid://carenascn001" path="res://scripts/arena/arena_scene.gd" id="1_arena"]
 [ext_resource type="Script" uid="uid://bkvka4fuy7rl2" path="res://scripts/spells/spell_registry.gd" id="6_registry"]
-[ext_resource type="Resource" uid="uid://678bsder6qrs" path="res://scenes/spells/haste/haste.tres" id="8_haste"]
 [ext_resource type="Script" uid="uid://bfnrfxnwjg02y" path="res://scripts/ui/aim_cursor.gd" id="9_aim"]
 [ext_resource type="Script" uid="uid://crdov1cq8kly5" path="res://scripts/ui/game_hud.gd" id="9_hud"]
-[ext_resource type="PackedScene" path="res://scenes/ui/player_menu.tscn" id="9_player_menu"]
+[ext_resource type="PackedScene" uid="uid://cfpo0lb3smm3y" path="res://scenes/ui/player_menu.tscn" id="9_player_menu"]
 [ext_resource type="Script" uid="uid://c3khbmmmkw14b" path="res://scripts/ui/spell_word_banner.gd" id="9_spell_word"]
 [ext_resource type="Script" uid="uid://yf2yi73fbs6o" path="res://scripts/spells/voice_spell_validator.gd" id="10_validator"]
 [ext_resource type="Script" uid="uid://cgo2lkhlxtcky" path="res://scripts/spells/spell_validation_runner.gd" id="11_runner"]
-[ext_resource type="PackedScene" uid="uid://cpausemenu001" path="res://scenes/ui/pause_menu.tscn" id="14_pause"]
 [ext_resource type="PackedScene" uid="uid://cswbhealth001" path="res://scenes/ui/scaffolding/health_bar.tscn" id="14_health"]
+[ext_resource type="PackedScene" uid="uid://cpausemenu001" path="res://scenes/ui/pause_menu.tscn" id="14_pause"]
 [ext_resource type="Resource" uid="uid://dud80ue7p23rt" path="res://scenes/spells/fireball/fireball.tres" id="15_fireball"]
-[ext_resource type="Resource" uid="uid://dqc3frk775rdr" path="res://scenes/spells/light/light.tres" id="25_light"]
-[ext_resource type="Resource" uid="uid://yhkf2aamt6r7" path="res://scenes/spells/light_ball/light_ball.tres" id="26_light_ball"]
-[ext_resource type="Resource" uid="uid://dex1n2eif1prk" path="res://scenes/spells/target/target.tres" id="27_target"]
-[ext_resource type="Resource" uid="uid://cnbmfykshgjy" path="res://scenes/spells/pull/pull.tres" id="29_pull"]
-[ext_resource type="Resource" uid="uid://b2tj23aicq5ks" path="res://scenes/spells/follow/follow.tres" id="30_follow"]
-[ext_resource type="Resource" uid="uid://dm0b3twvh1yuv" path="res://scenes/spells/dispell/dispell.tres" id="31_dispell"]
-[ext_resource type="Resource" uid="uid://c300xtr2mgchs" path="res://scenes/spells/flare/flare.tres" id="33_flare"]
-[ext_resource type="Resource" uid="uid://uuo4bgv3b66" path="res://scenes/spells/stop/stop.tres" id="34_stop"]
+[ext_resource type="Script" uid="uid://dtymt6tugqqxx" path="res://scripts/arena/arena_cover.gd" id="16_cover"]
+[ext_resource type="Script" uid="uid://grlb8nli07gx" path="res://scripts/arena/spawn_telegraph.gd" id="17_spot"]
 [ext_resource type="Resource" uid="uid://djudlmjak0msk" path="res://scenes/spells/ward/ward.tres" id="35_ward"]
 
 [sub_resource type="Environment" id="Environment_arena"]
@@ -36,9 +29,6 @@ albedo_color = Color(0.32, 0.3, 0.26, 1)
 [sub_resource type="StandardMaterial3D" id="Mat_wall"]
 albedo_color = Color(0.2, 0.18, 0.16, 1)
 
-[sub_resource type="StandardMaterial3D" id="Mat_seat"]
-albedo_color = Color(0.26, 0.24, 0.22, 1)
-
 [sub_resource type="StandardMaterial3D" id="Mat_lip"]
 albedo_color = Color(0.16, 0.15, 0.14, 1)
 
@@ -52,194 +42,302 @@ size = Vector3(2.4, 2, 2.4)
 [sub_resource type="BoxShape3D" id="Shape_cover"]
 size = Vector3(2.4, 2, 2.4)
 
-[node name="Arena" type="Node3D"]
+[sub_resource type="StandardMaterial3D" id="Mat_beam"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.89, 0.67, 0.26, 0.55)
+
+[sub_resource type="CylinderMesh" id="Mesh_beam"]
+material = SubResource("Mat_beam")
+top_radius = 1.1
+bottom_radius = 1.6
+height = 21.0
+radial_segments = 12
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Mat_ring"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.89, 0.67, 0.26, 0.85)
+
+[sub_resource type="CylinderMesh" id="Mesh_ring"]
+material = SubResource("Mat_ring")
+top_radius = 1.8
+bottom_radius = 1.8
+height = 0.08
+radial_segments = 20
+rings = 1
+
+[node name="Arena" type="Node3D" unique_id=425358963]
 script = ExtResource("1_arena")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=200357659]
 environment = SubResource("Environment_arena")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1042482150]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 28, 0)
-shadow_enabled = true
 light_energy = 1.2
+shadow_enabled = true
 
-[node name="FillLight" type="OmniLight3D" parent="."]
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=1356369661]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14, 0)
 light_energy = 1.6
 omni_range = 70.0
 
-[node name="Pit" type="Node3D" parent="."]
+[node name="Pit" type="Node3D" parent="." unique_id=431377803]
 
-[node name="ArenaBowl" type="CSGCombiner3D" parent="Pit"]
+[node name="Floor" type="CSGCylinder3D" parent="Pit" unique_id=2053590265]
+transform = Transform3D(26.2, 0, 0, 0, 1, 0, 0, 0, 19.2, 0, -0.5, 0)
+use_collision = true
+radius = 1.0
+height = 1.0
+sides = 48
+material = SubResource("Mat_floor")
+
+[node name="Walls" type="CSGCombiner3D" parent="Pit" unique_id=474222871]
 use_collision = true
 
-[node name="Outer" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+[node name="Outer" type="CSGCylinder3D" parent="Pit/Walls" unique_id=1043274607]
 transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 22, 0, 12, 0)
 radius = 1.0
 height = 24.0
 sides = 48
-smooth_faces = true
 material = SubResource("Mat_wall")
 
-[node name="InnerCut" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+[node name="InnerCut" type="CSGCylinder3D" parent="Pit/Walls" unique_id=1278888508]
+transform = Transform3D(26, 0, 0, 0, 1, 0, 0, 0, 19, 0, 12, 0)
 operation = 2
-transform = Transform3D(26, 0, 0, 0, 1, 0, 0, 0, 19, 0, 11, 0)
 radius = 1.0
-height = 22.0
+height = 24.0
 sides = 48
-smooth_faces = true
 
-[node name="Sand" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
-transform = Transform3D(26.2, 0, 0, 0, 1, 0, 0, 0, 19.2, 0, -0.5, 0)
-radius = 1.0
-height = 1.0
-sides = 48
-smooth_faces = true
-material = SubResource("Mat_floor")
-
-[node name="Ceiling" type="CSGCylinder3D" parent="Pit/ArenaBowl"]
+[node name="Ceiling" type="CSGCylinder3D" parent="Pit" unique_id=1106596719]
 transform = Transform3D(26.5, 0, 0, 0, 1, 0, 0, 0, 19.5, 0, 23, 0)
+use_collision = true
 radius = 1.0
-height = 2.0
 sides = 48
-smooth_faces = true
 material = SubResource("Mat_lip")
 
-[node name="Lip" type="CSGCombiner3D" parent="Pit"]
+[node name="Lip" type="CSGCombiner3D" parent="Pit" unique_id=1558782769]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 23, 0)
-use_collision = true
 
-[node name="LipOuter" type="CSGCylinder3D" parent="Pit/Lip"]
+[node name="LipOuter" type="CSGCylinder3D" parent="Pit/Lip" unique_id=1930150971]
 transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 22, 0, 0, 0)
 radius = 1.0
 height = 3.0
 sides = 48
-smooth_faces = true
 material = SubResource("Mat_lip")
 
-[node name="LipInner" type="CSGCylinder3D" parent="Pit/Lip"]
-operation = 2
+[node name="LipInner" type="CSGCylinder3D" parent="Pit/Lip" unique_id=873489739]
 transform = Transform3D(23.5, 0, 0, 0, 1, 0, 0, 0, 17, 0, 0, 0)
+operation = 2
 radius = 1.0
 height = 4.0
 sides = 48
-smooth_faces = true
 
-[node name="Seating" type="Node3D" parent="Pit"]
+[node name="Cover" type="Node3D" parent="." unique_id=1678427664]
 
-[node name="Tier1" type="CSGCombiner3D" parent="Pit/Seating"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
-use_collision = false
-
-[node name="Tier1Outer" type="CSGCylinder3D" parent="Pit/Seating/Tier1"]
-transform = Transform3D(38, 0, 0, 0, 1, 0, 0, 0, 28, 0, 0, 0)
-radius = 1.0
-height = 5.0
-sides = 48
-smooth_faces = true
-material = SubResource("Mat_seat")
-
-[node name="Tier1Inner" type="CSGCylinder3D" parent="Pit/Seating/Tier1"]
-operation = 2
-transform = Transform3D(30.2, 0, 0, 0, 1, 0, 0, 0, 22.2, 0, 0, 0)
-radius = 1.0
-height = 6.0
-sides = 48
-smooth_faces = true
-
-[node name="Tier2" type="CSGCombiner3D" parent="Pit/Seating"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.5, 0)
-use_collision = false
-
-[node name="Tier2Outer" type="CSGCylinder3D" parent="Pit/Seating/Tier2"]
-transform = Transform3D(44, 0, 0, 0, 1, 0, 0, 0, 33, 0, 0, 0)
-radius = 1.0
-height = 5.0
-sides = 48
-smooth_faces = true
-material = SubResource("Mat_seat")
-
-[node name="Tier2Inner" type="CSGCylinder3D" parent="Pit/Seating/Tier2"]
-operation = 2
-transform = Transform3D(38.2, 0, 0, 0, 1, 0, 0, 0, 28.2, 0, 0, 0)
-radius = 1.0
-height = 6.0
-sides = 48
-smooth_faces = true
-
-[node name="Cover" type="Node3D" parent="."]
-
-[node name="Block0" type="StaticBody3D" parent="Cover"]
+[node name="Block0" type="StaticBody3D" parent="Cover" unique_id=914047691]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1, -4)
+script = ExtResource("16_cover")
 
-[node name="Mesh" type="MeshInstance3D" parent="Cover/Block0"]
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block0" unique_id=1691342392]
 mesh = SubResource("Mesh_cover")
 
-[node name="Collision" type="CollisionShape3D" parent="Cover/Block0"]
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block0" unique_id=1511643987]
 shape = SubResource("Shape_cover")
 
-[node name="Block1" type="StaticBody3D" parent="Cover"]
+[node name="Block1" type="StaticBody3D" parent="Cover" unique_id=1271011071]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 3)
+script = ExtResource("16_cover")
 
-[node name="Mesh" type="MeshInstance3D" parent="Cover/Block1"]
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block1" unique_id=290748976]
 mesh = SubResource("Mesh_cover")
 
-[node name="Collision" type="CollisionShape3D" parent="Cover/Block1"]
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block1" unique_id=125141297]
 shape = SubResource("Shape_cover")
 
-[node name="Block2" type="StaticBody3D" parent="Cover"]
+[node name="Block2" type="StaticBody3D" parent="Cover" unique_id=1763027603]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 8)
+script = ExtResource("16_cover")
 
-[node name="Mesh" type="MeshInstance3D" parent="Cover/Block2"]
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block2" unique_id=1849661908]
 mesh = SubResource("Mesh_cover")
 
-[node name="Collision" type="CollisionShape3D" parent="Cover/Block2"]
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block2" unique_id=503740211]
 shape = SubResource("Shape_cover")
 
-[node name="Pads" type="Node3D" parent="."]
+[node name="SpawnTelegraph" type="Node3D" parent="." unique_id=76050704]
+script = ExtResource("17_spot")
 
-[node name="Pad0" type="Marker3D" parent="Pads"]
+[node name="Spot0" type="SpotLight3D" parent="SpawnTelegraph" unique_id=2118967436]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -14, 21, -10)
+light_color = Color(1, 0.92, 0.7, 1)
+light_energy = 0.0
+light_specular = 0.35
+spot_range = 32.0
+spot_attenuation = 0.2
+spot_angle = 24.0
+
+[node name="Spot1" type="SpotLight3D" parent="SpawnTelegraph" unique_id=1477856098]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 14, 21, -10)
+light_color = Color(1, 0.92, 0.7, 1)
+light_energy = 0.0
+light_specular = 0.35
+spot_range = 32.0
+spot_attenuation = 0.2
+spot_angle = 24.0
+
+[node name="Spot2" type="SpotLight3D" parent="SpawnTelegraph" unique_id=159308801]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 14, 21, 10)
+light_color = Color(1, 0.92, 0.7, 1)
+light_energy = 0.0
+light_specular = 0.35
+spot_range = 32.0
+spot_attenuation = 0.2
+spot_angle = 24.0
+
+[node name="Spot3" type="SpotLight3D" parent="SpawnTelegraph" unique_id=1035579884]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -14, 21, 10)
+light_color = Color(1, 0.92, 0.7, 1)
+light_energy = 0.0
+light_specular = 0.35
+spot_range = 32.0
+spot_attenuation = 0.2
+spot_angle = 24.0
+
+[node name="Omni0" type="OmniLight3D" parent="SpawnTelegraph" unique_id=2118967501]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.4, -10)
+light_color = Color(1, 0.88, 0.55, 1)
+light_energy = 0.0
+light_specular = 0.35
+omni_range = 9.0
+omni_attenuation = 0.2
+
+[node name="Omni1" type="OmniLight3D" parent="SpawnTelegraph" unique_id=2118967502]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 2.4, -10)
+light_color = Color(1, 0.88, 0.55, 1)
+light_energy = 0.0
+light_specular = 0.35
+omni_range = 9.0
+omni_attenuation = 0.2
+
+[node name="Omni2" type="OmniLight3D" parent="SpawnTelegraph" unique_id=2118967503]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 2.4, 10)
+light_color = Color(1, 0.88, 0.55, 1)
+light_energy = 0.0
+light_specular = 0.35
+omni_range = 9.0
+omni_attenuation = 0.2
+
+[node name="Omni3" type="OmniLight3D" parent="SpawnTelegraph" unique_id=2118967504]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.4, 10)
+light_color = Color(1, 0.88, 0.55, 1)
+light_energy = 0.0
+light_specular = 0.35
+omni_range = 9.0
+omni_attenuation = 0.2
+
+[node name="Beam0" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=827129894]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.5, -10)
+visible = false
+material_override = SubResource("Mat_beam")
+cast_shadow = 0
+mesh = SubResource("Mesh_beam")
+
+[node name="Beam1" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=1096483677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 10.5, -10)
+visible = false
+material_override = SubResource("Mat_beam")
+cast_shadow = 0
+mesh = SubResource("Mesh_beam")
+
+[node name="Beam2" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=731444202]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 10.5, 10)
+visible = false
+material_override = SubResource("Mat_beam")
+cast_shadow = 0
+mesh = SubResource("Mesh_beam")
+
+[node name="Beam3" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=787445874]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.5, 10)
+visible = false
+material_override = SubResource("Mat_beam")
+cast_shadow = 0
+mesh = SubResource("Mesh_beam")
+
+[node name="Ring0" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=787445901]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.08, -10)
+visible = false
+material_override = SubResource("Mat_ring")
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="Ring1" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=787445902]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.08, -10)
+visible = false
+material_override = SubResource("Mat_ring")
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="Ring2" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=787445903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.08, 10)
+visible = false
+material_override = SubResource("Mat_ring")
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="Ring3" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=787445904]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.08, 10)
+visible = false
+material_override = SubResource("Mat_ring")
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="Pads" type="Node3D" parent="." unique_id=1303146122]
+
+[node name="Pad0" type="Marker3D" parent="Pads" unique_id=1529885816]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.05, -10)
 
-[node name="Pad1" type="Marker3D" parent="Pads"]
+[node name="Pad1" type="Marker3D" parent="Pads" unique_id=463461701]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.05, -10)
 
-[node name="Pad2" type="Marker3D" parent="Pads"]
+[node name="Pad2" type="Marker3D" parent="Pads" unique_id=2011400742]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.05, 10)
 
-[node name="Pad3" type="Marker3D" parent="Pads"]
+[node name="Pad3" type="Marker3D" parent="Pads" unique_id=1981095190]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.05, 10)
 
-[node name="Players" type="Node3D" parent="."]
+[node name="Players" type="Node3D" parent="." unique_id=177683108]
 
-[node name="PlayerSpawn_0" type="Marker3D" parent="Players"]
+[node name="PlayerSpawn_0" type="Marker3D" parent="Players" unique_id=872546909]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, 14)
 
-[node name="PlayerSpawn_1" type="Marker3D" parent="Players"]
+[node name="PlayerSpawn_1" type="Marker3D" parent="Players" unique_id=91604636]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 14)
 
-[node name="PlayerSpawn_2" type="Marker3D" parent="Players"]
+[node name="PlayerSpawn_2" type="Marker3D" parent="Players" unique_id=1384771737]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, 16)
 
-[node name="PlayerSpawn_3" type="Marker3D" parent="Players"]
+[node name="PlayerSpawn_3" type="Marker3D" parent="Players" unique_id=1111018430]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
 
-[node name="Monsters" type="Node3D" parent="."]
+[node name="Monsters" type="Node3D" parent="." unique_id=185664855]
 
-[node name="SpellRegistry" type="Node" parent="."]
+[node name="SpellRegistry" type="Node" parent="." unique_id=232182131]
 script = ExtResource("6_registry")
-spells = Array[Resource]([ExtResource("8_haste"), ExtResource("15_fireball"), ExtResource("33_flare"), ExtResource("35_ward"), ExtResource("25_light"), ExtResource("26_light_ball"), ExtResource("27_target"), ExtResource("29_pull"), ExtResource("30_follow"), ExtResource("34_stop"), ExtResource("31_dispell")])
+spells = Array[Resource]([ExtResource("15_fireball"), ExtResource("35_ward")])
 
-[node name="VoiceSpellValidator" type="Node" parent="."]
+[node name="VoiceSpellValidator" type="Node" parent="." unique_id=600817741]
 script = ExtResource("10_validator")
 
-[node name="SpellValidationRunner" type="Node" parent="VoiceSpellValidator"]
+[node name="SpellValidationRunner" type="Node" parent="VoiceSpellValidator" unique_id=419964656]
 script = ExtResource("11_runner")
 
-[node name="GameHUD" type="CanvasLayer" parent="."]
+[node name="GameHUD" type="CanvasLayer" parent="." unique_id=2140789848]
 script = ExtResource("9_hud")
 
-[node name="HealthBar" parent="GameHUD" instance=ExtResource("14_health")]
+[node name="HealthBar" parent="GameHUD" unique_id=489680548 instance=ExtResource("14_health")]
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
@@ -252,7 +350,7 @@ offset_bottom = -136.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="AimCursor" type="Control" parent="GameHUD"]
+[node name="AimCursor" type="Control" parent="GameHUD" unique_id=1127414832]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -262,10 +360,10 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("9_aim")
 
-[node name="PlayerMenu" parent="GameHUD" instance=ExtResource("9_player_menu")]
+[node name="PlayerMenu" parent="GameHUD" unique_id=1824854497 instance=ExtResource("9_player_menu")]
 visible = false
 
-[node name="MarginContainer" type="MarginContainer" parent="GameHUD"]
+[node name="MarginContainer" type="MarginContainer" parent="GameHUD" unique_id=1789180993]
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 48.0
@@ -273,12 +371,12 @@ grow_horizontal = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 12
 
-[node name="PromptLabel" type="Label" parent="GameHUD/MarginContainer"]
+[node name="PromptLabel" type="Label" parent="GameHUD/MarginContainer" unique_id=1912321667]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.88, 1, 1)
 theme_override_font_sizes/font_size = 18
 
-[node name="SpellWordBanner" type="Control" parent="GameHUD"]
+[node name="SpellWordBanner" type="Control" parent="GameHUD" unique_id=617111259]
 z_index = 64
 layout_mode = 3
 anchors_preset = 8
@@ -295,7 +393,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("9_spell_word")
 
-[node name="SpellWordLabel" type="Label" parent="GameHUD/SpellWordBanner"]
+[node name="SpellWordLabel" type="Label" parent="GameHUD/SpellWordBanner" unique_id=501131372]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -309,7 +407,7 @@ theme_override_font_sizes/font_size = 68
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CastingPanel" type="PanelContainer" parent="GameHUD"]
+[node name="CastingPanel" type="PanelContainer" parent="GameHUD" unique_id=822127782]
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
@@ -322,50 +420,50 @@ offset_bottom = -120.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="MarginContainer" type="MarginContainer" parent="GameHUD/CastingPanel"]
+[node name="MarginContainer" type="MarginContainer" parent="GameHUD/CastingPanel" unique_id=1893945146]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="VBox" type="VBoxContainer" parent="GameHUD/CastingPanel/MarginContainer"]
+[node name="VBox" type="VBoxContainer" parent="GameHUD/CastingPanel/MarginContainer" unique_id=859487610]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TitleLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="TitleLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=609261177]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Casting"
 
-[node name="WordsLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="WordsLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=2120376616]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 
-[node name="GuideLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="GuideLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=493742637]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.82, 0.95, 1)
 theme_override_font_sizes/font_size = 14
 autowrap_mode = 2
 
-[node name="StatusLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="StatusLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=309482247]
 layout_mode = 2
 
-[node name="MicLevelBar" type="ProgressBar" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="MicLevelBar" type="ProgressBar" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=694678333]
 custom_minimum_size = Vector2(0, 18)
 layout_mode = 2
 show_percentage = false
 
-[node name="FeedbackLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="FeedbackLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=1004260054]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.75, 0.45, 1)
 autowrap_mode = 2
 
-[node name="DetailLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox"]
+[node name="DetailLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=748559232]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.58, 0.78, 1)
 theme_override_font_sizes/font_size = 13
 autowrap_mode = 2
 
-[node name="PauseMenu" parent="." instance=ExtResource("14_pause")]
+[node name="PauseMenu" parent="." unique_id=2113642032 instance=ExtResource("14_pause")]
 visible = false

@@ -14,8 +14,8 @@ const PAD_SE := 3
 const PAD_CENTER := 4
 const PAD_CLEARING := 5
 
-const WretchScene := preload("res://scenes/monsters/wretch.tscn")
-const AshWretchScene := preload("res://scenes/monsters/ash_wretch.tscn")
+const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
+const AshWretchScene := preload("res://scenes/monsters/evaluating/ash_wretch.tscn")
 const EmberWretchScene := preload("res://scenes/monsters/ember_wretch.tscn")
 const ChargerScene := preload("res://scenes/monsters/charger.tscn")
 const PlayableScene := preload("res://scenes/characters/playable_character.tscn")

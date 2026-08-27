@@ -1,11 +1,8 @@
 class_name TestPlayerSpawnAuthority
 extends RefCounted
 
-## Guards the spawn ordering contract: a body's multiplayer authority must be final
-## before it enters the tree, because PlayableCharacter._ready() decides first-person
-## camera ownership from is_multiplayer_authority(). Assigning authority after
-## add_child() let every peer claim the local view of every body.
-## The headless harness runs on an OfflineMultiplayerPeer, so the local peer id is 1.
+## Host owns the body (authority 1). The controlling peer owns Input and the
+## first-person camera, decided from owner_peer_id before enter-tree.
 
 const LOCAL_PEER_ID := 1
 const REMOTE_PEER_ID := 7
@@ -15,6 +12,7 @@ func run(tree: SceneTree) -> int:
 	var failures := 0
 	failures += _test_remote_body_gives_up_local_view(tree)
 	failures += _test_local_body_keeps_local_view(tree)
+	failures += _test_host_owns_body_peer_owns_input(tree)
 	return failures
 
 
@@ -27,17 +25,8 @@ func _test_remote_body_gives_up_local_view(tree: SceneTree) -> int:
 	if player == null:
 		push_error("Expected a spawned body for peer %d" % REMOTE_PEER_ID)
 		failures = 1
-	elif player.get_multiplayer_authority() != REMOTE_PEER_ID:
-		push_error(
-			"Expected spawned body authority %d, got %d"
-			% [REMOTE_PEER_ID, player.get_multiplayer_authority()]
-		)
-		failures = 1
 	elif _has_live_view_camera(player):
-		push_error(
-			"Remote body kept the first-person camera — authority was applied "
-			+ "after enter-tree, so _ready() still saw the local peer"
-		)
+		push_error("Remote body kept the first-person camera")
 		failures = 1
 
 	players_root.queue_free()
@@ -57,6 +46,44 @@ func _test_local_body_keeps_local_view(tree: SceneTree) -> int:
 		push_error("Local body should keep its first-person camera")
 		failures = 1
 
+	players_root.queue_free()
+	return failures
+
+
+func _test_host_owns_body_peer_owns_input(tree: SceneTree) -> int:
+	var players_root := Node3D.new()
+	tree.root.add_child(players_root)
+	var failures := 0
+	var player := _spawn(players_root, REMOTE_PEER_ID)
+	if player == null:
+		push_error("Expected a spawned body for peer %d" % REMOTE_PEER_ID)
+		players_root.queue_free()
+		return 1
+	if player.get_multiplayer_authority() != 1:
+		push_error(
+			"Expected host to own body state, got authority %d"
+			% player.get_multiplayer_authority()
+		)
+		failures = 1
+	var input := player.get_node_or_null("Input")
+	if input == null:
+		push_error("Expected peer-owned Input child")
+		failures = 1
+	elif input.get_multiplayer_authority() != REMOTE_PEER_ID:
+		push_error(
+			"Expected Input authority %d, got %d"
+			% [REMOTE_PEER_ID, input.get_multiplayer_authority()]
+		)
+		failures = 1
+	if player.get_node_or_null("RollbackSynchronizer") == null:
+		push_error("Expected RollbackSynchronizer on playable")
+		failures = 1
+	if player.get_node_or_null("TickInterpolator") == null:
+		push_error("Expected TickInterpolator on playable")
+		failures = 1
+	if player.get_node_or_null("MultiplayerSynchronizer") != null:
+		push_error("Playable should not keep MultiplayerSynchronizer")
+		failures = 1
 	players_root.queue_free()
 	return failures
 

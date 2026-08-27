@@ -183,6 +183,11 @@ def sync_godotsteam_gdextension(godot: Path | None = None) -> list[str]:
 	return changes
 
 
+def disable_gdvosk_for_headless_tests() -> bool:
+	"""Do not load libgdvosk in --script Godot. Unloading it on quit ACCESS_VIOLATIONs."""
+	return _disable_extension(GDVOSK_ACTIVE, GDVOSK_DISABLED)
+
+
 def sync_extensions(godot: Path | None = None) -> list[str]:
 	changes: list[str] = []
 	restored = _restore_if_disabled(GDVOSK_ACTIVE, GDVOSK_DISABLED)

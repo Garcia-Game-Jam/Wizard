@@ -64,44 +64,78 @@ static func _export_float(player: Object, property: StringName, default: float) 
 
 
 static func is_active(player: CharacterBody3D) -> bool:
+	if "dash_lock_remaining" in player:
+		return float(player.get("dash_lock_remaining")) > 0.0
 	return Time.get_ticks_msec() < int(player.get_meta(META_ACTIVE_UNTIL, 0))
 
 
 static func tick_and_try(
-	player: CharacterBody3D, head: Node3D, delta: float, config: Dictionary = {}
+	player: CharacterBody3D,
+	head: Node3D,
+	delta: float,
+	config: Dictionary = {},
+	net_input: Object = null
 ) -> void:
 	if config.is_empty():
 		config = config_from(player)
 	_tick_cooldown(player, delta)
+	_tick_lock(player, delta)
 	if is_active(player):
 		return
-	_try_dash(player, head, config)
+	_try_dash(player, head, config, net_input)
+
+
+static func _tick_lock(player: CharacterBody3D, delta: float) -> void:
+	if "dash_lock_remaining" in player:
+		var left := float(player.get("dash_lock_remaining"))
+		if left > 0.0:
+			player.set("dash_lock_remaining", maxf(0.0, left - delta))
 
 
 static func _tick_cooldown(player: CharacterBody3D, delta: float) -> void:
+	if "dash_cooldown_remaining" in player:
+		var left := float(player.get("dash_cooldown_remaining"))
+		if left > 0.0:
+			player.set("dash_cooldown_remaining", maxf(0.0, left - delta))
+		return
 	var cooldown := float(player.get_meta(META_COOLDOWN, 0.0))
 	if cooldown <= 0.0:
 		return
 	player.set_meta(META_COOLDOWN, maxf(0.0, cooldown - delta))
 
 
-static func _try_dash(player: CharacterBody3D, head: Node3D, config: Dictionary) -> void:
-	if float(player.get_meta(META_COOLDOWN, 0.0)) > 0.0:
+static func _try_dash(
+	player: CharacterBody3D, head: Node3D, config: Dictionary, net_input: Object = null
+) -> void:
+	if "dash_cooldown_remaining" in player:
+		if float(player.get("dash_cooldown_remaining")) > 0.0:
+			return
+	elif float(player.get_meta(META_COOLDOWN, 0.0)) > 0.0:
 		return
-	if not Input.is_action_just_pressed("dash"):
+	var wants_dash := false
+	if net_input != null and "dash" in net_input:
+		wants_dash = bool(net_input.get("dash"))
+	else:
+		wants_dash = Input.is_action_just_pressed("dash")
+	if not wants_dash:
 		return
-	var direction := SlideSurfaceScript.camera_relative_move_direction(head)
+	var direction := SlideSurfaceScript.camera_relative_move_direction(head, net_input)
 	if direction == Vector3.ZERO:
 		return
 	var speed := dash_speed(config)
 	var duration := dash_duration(config)
 	player.velocity.x = direction.x * speed
 	player.velocity.z = direction.z * speed
-	player.set_meta(
-		META_ACTIVE_UNTIL, Time.get_ticks_msec() + int(round(duration * 1000.0))
-	)
-	player.set_meta(META_COOLDOWN, dash_cooldown(config))
-	player.set_meta(META_POST_DECAY_PENDING, true)
+	if "dash_lock_remaining" in player:
+		player.set("dash_lock_remaining", duration)
+		player.set("dash_cooldown_remaining", dash_cooldown(config))
+		player.set("dash_post_decay_pending", true)
+	else:
+		player.set_meta(
+			META_ACTIVE_UNTIL, Time.get_ticks_msec() + int(round(duration * 1000.0))
+		)
+		player.set_meta(META_COOLDOWN, dash_cooldown(config))
+		player.set_meta(META_POST_DECAY_PENDING, true)
 	var grace := _export_float(player, "crouch_slide_dash_grace_sec", 0.6)
 	PlayerCrouchScript.mark_dash_slide_grace(player, duration, grace)
 
@@ -118,7 +152,10 @@ static func tick_post_decay(
 ) -> void:
 	if is_active(player):
 		return
-	if not bool(player.get_meta(META_POST_DECAY_PENDING, false)):
+	if "dash_post_decay_pending" in player:
+		if not bool(player.get("dash_post_decay_pending")):
+			return
+	elif not bool(player.get_meta(META_POST_DECAY_PENDING, false)):
 		return
 	if config.is_empty():
 		config = config_from(player)
@@ -126,7 +163,10 @@ static func tick_post_decay(
 	var horiz := Vector3(player.velocity.x, 0.0, player.velocity.z)
 	var speed := horiz.length()
 	if speed <= target + 0.01:
-		player.set_meta(META_POST_DECAY_PENDING, false)
+		if "dash_post_decay_pending" in player:
+			player.set("dash_post_decay_pending", false)
+		else:
+			player.set_meta(META_POST_DECAY_PENDING, false)
 		return
 	var dir := horiz / speed
 	var new_speed := move_toward(speed, target, POST_DASH_DECAY_RATE * delta)

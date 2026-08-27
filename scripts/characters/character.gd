@@ -13,6 +13,7 @@ extends CharacterBody3D
 
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const HealthScript := preload("res://scripts/combat/health.gd")
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
 
 const KNOCKBACK_TIMER_SEC := 0.35
 const KNOCKBACK_HORIZONTAL := 9.0
@@ -25,6 +26,17 @@ const EYE_LIGHT_ENERGY := 2.6
 const EYE_DEAD_RGB_SCALE := Vector3(0.04, 0.06, 0.04)
 const EYE_DEAD_ENERGY_SCALE := 0.28
 const DEFAULT_EYE_GLOW := Color(0.2, 0.55, 1.0, 1.0)
+## Pose, knockback, and HP. Subclasses append movement tells in net_state_paths().
+const NET_STATE_PATHS: PackedStringArray = [
+	":position",
+	":velocity",
+	":rotation",
+	":_knockback_vel",
+	":_knockback_timer",
+	"Health:current_health",
+	":_eyes_chasing",
+	":eye_glow_color",
+]
 
 @export_group("Appearance")
 ## Eye tint for scenes that author Head/Eyes. Dims toward black as HP drops.
@@ -43,6 +55,8 @@ var health: HealthScript:
 		_bind_health()
 		return _health
 
+var net_phase: int = 0
+var net_telegraph: float = 0.0
 var _health: HealthScript = null
 var _character_color: Color = Color.WHITE
 var _knockback_vel: Vector3 = Vector3.ZERO
@@ -63,6 +77,15 @@ var _eyes_chasing: bool = false
 
 func _ready() -> void:
 	_bind_health()
+	call_deferred("_bind_rewindable")
+
+
+func _bind_rewindable() -> void:
+	pass
+
+
+func _net_rewind_profile() -> String:
+	return ""
 
 
 func _bind_health() -> void:
@@ -75,6 +98,21 @@ func _bind_health() -> void:
 		_health.damaged.connect(_on_damaged)
 	if not _health.died.is_connected(_on_died):
 		_health.died.connect(_on_died)
+	if not _health.changed.is_connected(_on_health_changed):
+		_health.changed.connect(_on_health_changed)
+
+
+func net_state_paths() -> Array[String]:
+	var paths: Array[String] = []
+	for path in NET_STATE_PATHS:
+		paths.append(path)
+	for path in _net_state_extra():
+		paths.append(path)
+	return paths
+
+
+func _net_state_extra() -> PackedStringArray:
+	return PackedStringArray()
 
 
 func is_alive() -> bool:
@@ -102,6 +140,10 @@ static func apply_hit(body: Node, amount: float, from: Variant = null) -> void:
 	if mp and not character.is_multiplayer_authority():
 		return
 	character.health.take_damage(amount, from)
+
+
+func _on_health_changed(_current: float, _maximum: float) -> void:
+	_apply_eye_glow_from_health()
 
 
 ## Group scans hit nodes that may be freed or may not be characters at all
@@ -311,10 +353,19 @@ func _apply_eye_glow_from_health() -> void:
 
 func _set_chase_eyes_active(active: bool) -> void:
 	_eyes_chasing = active
+	_apply_eye_visibility()
+
+
+func _apply_replicated_eyes() -> void:
+	_apply_eye_visibility()
+	_apply_eye_glow_from_health()
+
+
+func _apply_eye_visibility() -> void:
 	if _eyes_root == null:
 		_cache_eyes()
 	if _eyes_root != null:
-		_eyes_root.visible = active
+		_eyes_root.visible = _eyes_chasing
 
 
 func get_snail_color() -> Color:

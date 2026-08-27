@@ -91,7 +91,13 @@ func get_cast_charge_scene() -> PackedScene:
 static func spell_folder(spell_id: String) -> String:
 	if spell_id.is_empty():
 		return SPELLS_ROOT
-	return "%s%s/" % [SPELLS_ROOT, spell_id]
+	var live := "%s%s/" % [SPELLS_ROOT, spell_id]
+	if ResourceLoader.exists("%s%s.tscn" % [live, spell_id]):
+		return live
+	var evaluating := "%sevaluating/%s/" % [SPELLS_ROOT, spell_id]
+	if ResourceLoader.exists("%s%s.tscn" % [evaluating, spell_id]):
+		return evaluating
+	return live
 
 
 static func world_scene_path(spell_id: String) -> String:

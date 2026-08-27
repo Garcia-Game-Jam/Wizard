@@ -92,9 +92,21 @@ func _prepare_exit() -> void:
 	if steam_service != null and steam_service.has_method("shutdown"):
 		steam_service.shutdown()
 	SpellValidationWorker.force_stt_in_tests = false
-	if TestEnvScript.is_active():
+	GdvoskAdapter.skip_native_engine = false
+	if not TestEnvScript.is_active():
+		GdvoskAdapter.unload_model()
+	_unload_gdvosk_extension()
+
+
+func _unload_gdvosk_extension() -> void:
+	## libgdvosk statically links Kaldi/OpenMP. Godot's quit-time FreeLibrary
+	## ACCESS_VIOLATIONs on Windows. Unload while the engine is still up.
+	var path := "res://addons/gdvosk/gdvosk.gdextension"
+	if not GDExtensionManager.is_extension_loaded(path):
 		return
-	GdvoskAdapter.unload_model()
+	var err := GDExtensionManager.unload_extension(path)
+	if err != OK:
+		push_warning("gdvosk unload before quit failed (%s)" % err)
 
 
 func _assert_steam_offline() -> bool:

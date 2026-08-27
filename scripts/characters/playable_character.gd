@@ -22,6 +22,31 @@ const SpellManaScript := preload("res://scripts/spells/spell_mana.gd")
 const PlayerEmberBurnScript := preload("res://scripts/characters/player_ember_burn.gd")
 const WardSlotChannelScript := preload("res://scripts/spells/ward_slot_channel.gd")
 const PlayerCombatReactionsScript := preload("res://scripts/characters/player_combat_reactions.gd")
+const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
+const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
+
+## Movement tells and stun on top of Character.NET_STATE_PATHS.
+const NET_STATE_EXTRA: PackedStringArray = [
+	"Head:rotation",
+	"Head/CameraPivot:rotation",
+	":dash_lock_remaining",
+	":dash_cooldown_remaining",
+	":dash_post_decay_pending",
+	":net_crouching",
+	":net_sliding",
+	":crouch_recovery_remaining",
+	":dash_slide_grace_remaining",
+	":_speed_boost_multiplier",
+	":_speed_boost_timer",
+	":net_wand_raised",
+	":net_charge_factor",
+	":net_flashlight",
+	"Stun:visual_active",
+	"Stun:_stunned",
+	"Stun:_airborne",
+	"Stun:_post_land_left",
+	"Stun:_launch_vel",
+]
 
 @export var player_index: int = 0
 @export var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
@@ -70,6 +95,18 @@ const PlayerCombatReactionsScript := preload("res://scripts/characters/player_co
 ## Slide friction near exit speed (0–100). Higher = snappier finish before recovery.
 @export_range(0.0, 100.0, 1.0) var crouch_slide_friction: float = 35.0
 
+var owner_peer_id: int = 0
+var dash_lock_remaining: float = 0.0
+var dash_cooldown_remaining: float = 0.0
+var dash_post_decay_pending: bool = false
+var net_crouching: bool = false
+var net_sliding: bool = false
+var crouch_recovery_remaining: float = 0.0
+var dash_slide_grace_remaining: float = 0.0
+var net_wand_raised: bool = false
+var net_charge_factor: float = 0.0
+var net_flashlight: bool = false
+
 var _spell_loadout: Node
 var _casting_session: SpellCastingSession
 var _game_hud: CanvasLayer
@@ -114,6 +151,7 @@ func _ready() -> void:
 	_character_color = GameState.get_snail_color(player_index)
 	_apply_character_color(_character_color)
 	_setup_view_camera()
+	_bind_rewindable()
 
 
 func _exit_tree() -> void:
@@ -143,10 +181,48 @@ func _setup_view_camera() -> void:
 
 
 func _uses_local_view() -> bool:
-	## has_multiplayer_peer() is true for a closed ENet peer; get_unique_id() then errors.
+	return is_local_owner()
+
+
+func _net_state_extra() -> PackedStringArray:
+	return NET_STATE_EXTRA
+
+
+func is_local_owner() -> bool:
+	if owner_peer_id <= 0 and name.is_valid_int():
+		owner_peer_id = int(name)
+	if owner_peer_id > 0:
+		var unique := 1
+		if is_inside_tree() and multiplayer != null:
+			unique = multiplayer.get_unique_id()
+		return owner_peer_id == unique
+	if not GameState.is_multiplayer:
+		return true
 	if not _multiplayer_peer_active():
 		return true
-	return is_multiplayer_authority()
+	return owner_peer_id == multiplayer.get_unique_id()
+
+
+func is_wand_raised() -> bool:
+	return _wand_raised
+
+
+func _get_net_input() -> Object:
+	return get_node_or_null("Input")
+
+
+func _bind_rewindable() -> void:
+	if Engine.is_editor_hint():
+		return
+	if PlayableCharacterPreviewScript.should_use_preview_mode(self):
+		return
+	if not GameState.is_multiplayer and owner_peer_id <= 0:
+		return
+	if owner_peer_id <= 0 and name.is_valid_int():
+		owner_peer_id = int(name)
+	if owner_peer_id <= 0 and _multiplayer_peer_active():
+		owner_peer_id = multiplayer.get_unique_id()
+	NetWorldEventScript.bind_player(self, owner_peer_id, is_local_owner())
 
 
 func _multiplayer_peer_active() -> bool:
@@ -272,6 +348,7 @@ func apply_ember_trail_burn(dps: float, slow_multiplier: float, refresh_sec: flo
 
 
 func set_flashlight_enabled(active: bool) -> void:
+	net_flashlight = active
 	if _wand != null:
 		_wand.set_flashlight_enabled(active)
 
@@ -498,6 +575,7 @@ func _raise_wand_and_listen() -> bool:
 		return false
 	_cancel_spell_fire_charge(true)
 	_wand_raised = true
+	net_wand_raised = true
 	if _wand != null:
 		_wand.set_raised(true)
 		_wand.set_armed(true)
@@ -506,6 +584,7 @@ func _raise_wand_and_listen() -> bool:
 
 func _lower_wand(cancel_listen: bool) -> void:
 	_wand_raised = false
+	net_wand_raised = false
 	if cancel_listen and _casting_session != null and _casting_session.is_wand_voice_select():
 		_casting_session.cancel()
 	if _wand != null:
@@ -697,38 +776,54 @@ func apply_rat_explode_hit(hit_dir: Vector3) -> void:
 	PlayerCombatReactionsScript.apply_rat_explode_hit(self, hit_dir)
 
 
-func _sync_body_yaw_to_head() -> void:
-	var body := get_node_or_null("Body") as Node3D
-	if body == null or head == null:
-		return
-	body.rotation.y = head.rotation.y
-
-
 func _physics_process(delta: float) -> void:
+	## Clock ticking without a RollbackSynchronizer (solo, leftover sync) must
+	## still simulate here — _rollback_tick never runs.
+	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
+		_sync_remote_tells()
+		if is_local_owner():
+			_update_interaction_prompt()
+		return
+	_simulate_move(delta, true, null)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	var net_input := _get_net_input()
+	_simulate_move(delta, is_fresh, net_input)
+
+
+func _simulate_move(delta: float, is_fresh: bool, net_input: Object) -> void:
+	if net_input != null:
+		_apply_net_look(net_input)
+		_apply_net_tells(net_input)
 	_sync_body_yaw_to_head()
 	if _speed_boost_timer > 0.0:
 		_speed_boost_timer -= delta
 		if _speed_boost_timer <= 0.0:
 			_speed_boost_multiplier = 1.0
+		if is_fresh:
+			_sync_haste_visual()
+	elif _haste_aura != null and _haste_aura.visible and is_fresh:
 		_sync_haste_visual()
-	elif _haste_aura != null and _haste_aura.visible:
-		_sync_haste_visual()
-	if not _uses_local_view():
+	if GameState.is_multiplayer and not NetAuthorityScript.should_predict_or_simulate(self):
+		return
+	if not is_local_owner() and net_input == null and not NetClockScript.is_ticking():
 		return
 	PlayerEmberBurnScript.tick(self, delta)
 	if is_stunned():
 		var stun := get_node("Stun")
 		stun.call("tick_physics", self, delta, gravity)
 		SlideSurfaceScript.prepare(self)
-		move_and_slide()
+		NetClockScript.move_character(self)
 		stun.call("after_slide", self)
 		_separate_from_players()
-		_update_interaction_prompt()
+		if is_fresh and is_local_owner():
+			_update_interaction_prompt()
 		return
 
-	PlayerDashScript.tick_and_try(self, head, delta)
+	PlayerDashScript.tick_and_try(self, head, delta, {}, net_input)
 	PlayerDashScript.tick_post_decay(self, delta)
-	PlayerCrouchScript.tick(self)
+	PlayerCrouchScript.tick(self, net_input, delta)
 	var dash_active := PlayerDashScript.is_active(self)
 	var crouch_coasting := PlayerCrouchScript.is_coasting(self)
 	SlideSurfaceScript.apply_ground_move(
@@ -738,13 +833,54 @@ func _physics_process(delta: float) -> void:
 		delta,
 		_speed_boost_multiplier,
 		dash_active or crouch_coasting,
-		dash_active
+		dash_active,
+		net_input
 	)
 	_apply_knockback_bleed(delta)
 
-	move_and_slide()
+	NetClockScript.move_character(self)
 	_separate_from_players()
-	_update_interaction_prompt()
+	if is_fresh and is_local_owner():
+		_update_interaction_prompt()
+
+
+func _apply_net_look(net_input: Object) -> void:
+	if head != null:
+		head.rotation.y = net_input.look_yaw
+	if camera_pivot != null:
+		camera_pivot.rotation.x = clampf(net_input.look_pitch, deg_to_rad(-70.0), deg_to_rad(70.0))
+
+
+func _apply_net_tells(net_input: Object) -> void:
+	net_wand_raised = net_input.wand_raised
+	if net_input.charging:
+		net_charge_factor = clampf(net_input.charge_factor, 0.0, 1.0)
+	else:
+		net_charge_factor = 0.0
+	if not is_local_owner():
+		_apply_replicated_wand_tell()
+
+
+func _sync_remote_tells() -> void:
+	if is_local_owner():
+		return
+	_apply_replicated_wand_tell()
+
+
+func _apply_replicated_wand_tell() -> void:
+	if _wand == null:
+		return
+	if _wand.has_method("set_replicated_cast_tell"):
+		_wand.call("set_replicated_cast_tell", net_wand_raised, net_charge_factor)
+	else:
+		_wand.set_raised(net_wand_raised)
+
+
+func _sync_body_yaw_to_head() -> void:
+	var body := get_node_or_null("Body") as Node3D
+	if body == null or head == null:
+		return
+	body.rotation.y = head.rotation.y
 
 
 func _apply_knockback_bleed(delta: float) -> void:

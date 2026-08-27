@@ -3,30 +3,30 @@ extends RefCounted
 
 ## Multiplayer persistence model for spell visuals / world effects.
 ## Pick one lane when adding a spell — do not invent a fourth replication style.
+## NetWorldEvent maps each lane onto a netfox primitive (weapon / action / world_prop).
 ##
-## PLAYER_BOUND — runs on the caster avatar (haste, flashlight). Wire carries
-##   scalars only; every peer applies to that caster player node.
+## PLAYER_BOUND — caster avatar (haste, flashlight). RewindableAction; scalars
+##   live in host-owned playable state.
 ##
-## EPHEMERAL — fire-and-forget projectile or short FX (fireball, ward). Pack spawn
-##   pose into the cast wire; every peer spawns and simulates locally. No spawn_id,
-##   no later remove/flicker RPC. Child impact VFX ride the local sim.
-##   Use SpellEphemeralFx.
+## EPHEMERAL — fire-and-forget projectile or volume (fireball, flare, ward).
+##   NetworkWeapon: spawn immediately on the caster, host confirms, reconcile.
+##   PredictiveSynchronizer + liveness; no queue_free in the tick loop.
 ##
-## WORLD_OBJECT — lasting interactive prop (light ball). Cast wire
-##   spawns with a stable id; later Target / Dispell / touch events use
-##   SpellWorldSync. Mutate and despawn go through the shared world-event RPC.
+## WORLD_OBJECT — lasting interactive prop (light ball). Host-owned rewindable
+##   world_prop; later Target / Dispell / touch use SpellWorldSync ids.
 ##
 ## TARGETED — operates on an existing world object or mark (target, pull, follow,
-##   stop, dispell). Wire carries kind + mark / spawn_id / grid; apply resolves the
-##   object on each peer. Despawn of world objects still uses SpellWorldSync.
-##   Stop is payload-free and clears Follow/Pull on every peer.
+##   stop, dispell, clone). Host-validated session RPC then apply; clone/prop
+##   ids go through SpellWorldSync. Stop is payload-free and clears Follow/Pull.
 
 const PLAYER_BOUND := "player_bound"
 const EPHEMERAL := "ephemeral"
 const WORLD_OBJECT := "world_object"
 const TARGETED := "targeted"
 
-## effect_id → lane. Keep in sync when registering a new spell effect.
+## effect_id → lane. Adding a spell: pick a lane here. Predicted casts also
+## need spawn_predicted() (ephemeral) or apply() (player-bound). Session RPC
+## lanes only need apply(); world objects attach in their spawn().
 const BY_EFFECT := {
 	"haste": PLAYER_BOUND,
 	"flashlight_toggle": PLAYER_BOUND,
@@ -47,6 +47,25 @@ static func for_effect(effect_id: String) -> String:
 	return str(BY_EFFECT.get(effect_id, ""))
 
 
+## Fire-and-forget and caster-bound casts skip the session RPC and run on the tick.
+static func predicts_locally(effect_id: String) -> bool:
+	var lane := for_effect(effect_id)
+	return lane == EPHEMERAL or lane == PLAYER_BOUND
+
+
+## Child name on the playable for predicted casts. Empty = no per-player node.
+static func player_node_name(effect_id: String) -> String:
+	var lane := for_effect(effect_id)
+	var base := effect_id.to_pascal_case()
+	match lane:
+		EPHEMERAL:
+			return "%sWeapon" % base
+		PLAYER_BOUND:
+			return "%sAction" % base
+		_:
+			return ""
+
+
 static func is_known(effect_id: String) -> bool:
 	return BY_EFFECT.has(effect_id)
 
@@ -54,12 +73,12 @@ static func is_known(effect_id: String) -> bool:
 static func describe(lane: String) -> String:
 	match lane:
 		PLAYER_BOUND:
-			return "Apply on caster; scalars only; no world spawn id."
+			return "RewindableAction on caster; host-owned pose state."
 		EPHEMERAL:
-			return "Spawn once from cast pose; local sim; no later events."
+			return "NetworkWeapon: predict spawn, host confirm, liveness."
 		WORLD_OBJECT:
-			return "Spawn with id via SpellWorldSync; later mutate/despawn events."
+			return "Host-owned rewindable world_prop; later mutate/despawn by id."
 		TARGETED:
-			return "Resolve world mark/id; may clear or destroy SpellWorldSync objects."
+			return "Host-validated apply; may clear or destroy SpellWorldSync objects."
 		_:
 			return "Unknown spell sync lane."

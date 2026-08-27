@@ -17,7 +17,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 from check_gdscript_warnings import run_warning_probe  # noqa: E402
-from restore_extensions import find_godot_binary, sync_extensions  # noqa: E402
+from restore_extensions import (  # noqa: E402
+    disable_gdvosk_for_headless_tests,
+    find_godot_binary,
+    sync_extensions,
+)
 LINT_PATHS = ("scripts", "tests")
 ## Calls that write a theme override, and so re-emit NOTIFICATION_THEME_CHANGED.
 UI_OVERRIDE_WRITE_MARKERS = ("add_theme_", "remove_theme_", "UiPalette.paint_")
@@ -333,6 +337,8 @@ def run_tests() -> tuple[int, str]:
     env["STEAM_PROXIMITY_VOICE_TEST"] = "1"
     TEST_LOG.parent.mkdir(parents=True, exist_ok=True)
     stdout_text = ""
+    test_proc: subprocess.CompletedProcess[str] | None = None
+    disable_gdvosk_for_headless_tests()
     try:
         with TEST_LOG.open("w", encoding="utf-8") as log_handle:
             test_proc = subprocess.run(
@@ -364,11 +370,15 @@ def run_tests() -> tuple[int, str]:
         if stdout_text:
             output_lines.append(stdout_text)
         return 1, "\n".join(line for line in output_lines if line)
+    finally:
+        sync_extensions(godot)
     output_lines.append(stdout_text)
     analyzer_issues = _find_gdscript_analyzer_issues(stdout_text)
     if analyzer_issues:
         output_lines.append("GDScript analyzer issues (see Godot output above):")
         output_lines.extend(analyzer_issues)
+        return 1, "\n".join(line for line in output_lines if line)
+    if test_proc is None:
         return 1, "\n".join(line for line in output_lines if line)
     exit_code = _normalize_test_exit(test_proc.returncode, stdout_text, "")
     return exit_code, "\n".join(line for line in output_lines if line)

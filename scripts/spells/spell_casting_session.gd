@@ -761,6 +761,8 @@ func _is_local_simulation() -> bool:
 	if peer == null or peer is OfflineMultiplayerPeer:
 		return true
 	var player_node: Node = get_parent()
-	if player_node != null:
-		return player_node.is_multiplayer_authority()
+	if player_node != null and player_node.has_method("is_local_owner"):
+		return bool(player_node.call("is_local_owner"))
+	if player_node != null and player_node.has_method("_uses_local_view"):
+		return bool(player_node.call("_uses_local_view"))
 	return is_multiplayer_authority()

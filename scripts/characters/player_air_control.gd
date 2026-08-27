@@ -66,8 +66,14 @@ static func control_scale(player: CharacterBody3D, config: Dictionary = {}) -> f
 ## direction, capped at move_speed * boost * control_scale. Zero friction —
 ## momentum from a jump, dash, or knockback carries over; only the component
 ## along the wish direction gets pulled up toward the air-speed cap.
-static func apply(player: CharacterBody3D, head: Node3D, delta: float, boost: float) -> void:
-	var wish := SlideSurfaceScript.camera_relative_move_direction(head)
+static func apply(
+	player: CharacterBody3D,
+	head: Node3D,
+	delta: float,
+	boost: float,
+	net_input: Object = null
+) -> void:
+	var wish := SlideSurfaceScript.camera_relative_move_direction(head, net_input)
 	if wish == Vector3.ZERO:
 		return
 	var speed := PlayerCrouchScript.resolve_move_speed(player) * boost * control_scale(player)

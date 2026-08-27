@@ -33,7 +33,12 @@ func is_busy() -> bool:
 
 
 func open() -> bool:
-	if _player == null or not _player.is_multiplayer_authority():
+	if _player == null:
+		return false
+	if _player.has_method("is_local_owner"):
+		if not bool(_player.call("is_local_owner")):
+			return false
+	elif not _player.is_multiplayer_authority():
 		return false
 	if is_placing():
 		_placement.cancel()

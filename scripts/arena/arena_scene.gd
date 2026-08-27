@@ -2,24 +2,38 @@ extends Node3D
 
 ## Greybox pit match: spawn players, dump encounters, grant a spell every third fight.
 
+enum Staging { NONE, COVER, SPOTLIGHT }
+
 const ArenaRunScript := preload("res://scripts/arena/arena_run.gd")
 const ArenaEncountersScript := preload("res://scripts/arena/arena_encounters.gd")
+const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 
-const FIRST_FIGHT_DELAY_SEC := 2.5
-const BETWEEN_FIGHTS_SEC := 3.5
+const FIRST_FIGHT_DELAY_SEC := 0.5
+const COVER_MOVE_SEC := 1.7
+const SPOTLIGHT_SEC := 3.0
 const RESPAWN_SEC := 2.0
 const PATROL_SIZE := Vector2(40.0, 28.0)
+const ROLLBACK_WIDE_TICKS := 8
 
 var _run: ArenaRun
 var _local_player: CharacterBody3D
 var _wave_live := false
 var _between_timer := 0.0
 var _pending_respawns: Dictionary = {}
+var _staging: Staging = Staging.NONE
+var _staging_timer := 0.0
+var _pending_encounter := 0
+var _cover_misses := 0
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
 @onready var pads_root: Node3D = $Pads
 @onready var cover_root: Node3D = $Cover
+@onready var spawn_telegraph: Node3D = $SpawnTelegraph
 @onready var spell_registry: SpellRegistry = $SpellRegistry
 @onready var game_hud: CanvasLayer = $GameHUD
 @onready var voice_validator: VoiceSpellValidator = $VoiceSpellValidator
@@ -43,6 +57,10 @@ func _ready() -> void:
 	NetworkManager.spawn_players(players_root, _configure_local_player)
 	await NetworkManager.players_spawned
 	_place_players_at_spawns()
+	if GameState.is_multiplayer:
+		await NetClockScript.start_for_match()
+	_bind_cover()
+	_bind_telegraph()
 	_bind_player_deaths()
 	_refresh_hud_prompt()
 
@@ -58,10 +76,13 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint() or not _is_run_host():
 		return
+	if _staging != Staging.NONE:
+		_tick_staging(delta)
+		return
 	if _between_timer > 0.0:
 		_between_timer -= delta
 		if _between_timer <= 0.0:
-			_host_begin_fight()
+			_host_begin_staging()
 		return
 	if _wave_live and _live_monster_count() == 0:
 		_host_resolve_fight()
@@ -71,6 +92,19 @@ func _is_run_host() -> bool:
 	if not GameState.is_multiplayer:
 		return true
 	return multiplayer.is_server()
+
+
+func _authority_rpc(method: StringName, args: Array) -> void:
+	if GameState.is_multiplayer:
+		match args.size():
+			1:
+				rpc(method, args[0])
+			2:
+				rpc(method, args[0], args[1])
+			_:
+				push_error("Arena: unsupported rpc arity for %s" % method)
+	else:
+		callv(method, args)
 
 
 func _on_voice_settings_applied() -> void:
@@ -99,6 +133,18 @@ func _configure_local_player(player: CharacterBody3D) -> void:
 	casting_session.configure(voice_validator, loadout)
 	casting_session.add_to_group("casting_session")
 	player.configure_interaction(loadout, casting_session, game_hud, effect_applier)
+
+
+func apply_synced_spell_cast(caster_peer_id: int, spell_id: String, params: Dictionary) -> void:
+	var player := players_root.get_node_or_null(str(caster_peer_id)) as CharacterBody3D
+	if player == null:
+		return
+	var spell := spell_registry.get_spell(spell_id) if spell_registry != null else null
+	var applier := player.get_node_or_null("%SpellEffectApplier")
+	if spell != null and applier != null and applier.has_method("apply_synced_cast"):
+		applier.call("apply_synced_cast", player, spell, params)
+		return
+	NetWorldEventScript.dispatch_spell(player, params)
 
 
 func _fill_starter_hotbar(hotbar: Node) -> void:
@@ -130,9 +176,9 @@ func _place_players_at_spawns() -> void:
 		var peer_id := 1
 		if player.name.is_valid_int():
 			peer_id = int(player.name)
+		## TickInterpolator writes display pose on this same body, so proximity
+		## chat follows the interpolated wizard without putting audio on the tick.
 		SteamProximityVoiceHub.set_peer_anchor(peer_id, player)
-		if GameState.is_multiplayer and not player.is_multiplayer_authority():
-			continue
 		player.global_position = _spawn_for_player(player)
 
 
@@ -174,30 +220,79 @@ func _on_player_died(_from: Variant, player: PlayableCharacter) -> void:
 
 func _respawn_player(player: PlayableCharacter, id: int) -> void:
 	_pending_respawns.erase(id)
-	if not is_instance_valid(player):
+	if not is_instance_valid(player) or player.is_alive():
 		return
 	_revive_at(player, _spawn_for_player(player))
 
 
-func _host_begin_fight() -> void:
-	rpc_begin_fight.rpc(_run.encounter_index())
+func _host_begin_staging() -> void:
+	var encounter := _run.encounter_index()
+	var restage := ArenaEncountersScript.should_restage_cover(
+		encounter, randf(), _cover_misses
+	)
+	if encounter > 0:
+		if restage:
+			_cover_misses = 0
+		else:
+			_cover_misses += 1
+	_authority_rpc(&"rpc_stage_between", [encounter, restage])
+	_pending_encounter = encounter
+	if restage:
+		_staging = Staging.COVER
+		_staging_timer = COVER_MOVE_SEC
+	else:
+		_host_show_telegraph()
+
+
+func _host_show_telegraph() -> void:
+	_authority_rpc(&"rpc_show_telegraph", [_pending_encounter])
+	_staging = Staging.SPOTLIGHT
+	_staging_timer = SPOTLIGHT_SEC
+
+
+func _tick_staging(delta: float) -> void:
+	_staging_timer -= delta
+	if _staging_timer > 0.0:
+		return
+	if _staging == Staging.COVER:
+		_host_show_telegraph()
+		return
+	if _staging == Staging.SPOTLIGHT:
+		_authority_rpc(&"rpc_begin_fight", [_pending_encounter])
+		_staging = Staging.NONE
 
 
 func _host_resolve_fight() -> void:
 	_wave_live = false
 	var granted := _run.complete_fight()
-	rpc_fight_resolved.rpc(_run.to_snapshot(), granted)
-	_between_timer = BETWEEN_FIGHTS_SEC
+	_authority_rpc(&"rpc_fight_resolved", [_run.to_snapshot(), granted])
+	_host_begin_staging()
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
+	_pending_encounter = encounter_index
+	_revive_dead_players()
+	if restage_cover:
+		_restage_cover(encounter_index)
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_show_telegraph(encounter_index: int) -> void:
+	if spawn_telegraph != null and spawn_telegraph.has_method("show_pads"):
+		spawn_telegraph.call("show_pads", ArenaEncountersScript.pads_for(encounter_index))
 
 
 @rpc("authority", "call_local", "reliable")
 func rpc_begin_fight(encounter_index: int) -> void:
 	_clear_monsters()
-	_apply_cover(encounter_index)
+	if spawn_telegraph != null and spawn_telegraph.has_method("clear_pads"):
+		spawn_telegraph.call("clear_pads")
 	_spawn_dump(ArenaEncountersScript.dump_for(encounter_index))
-	_reset_players_for_fight()
 	_wave_live = true
+	_staging = Staging.NONE
 	_refresh_hud_prompt()
+	call_deferred("_warn_wide_rollback")
 
 
 @rpc("authority", "call_local", "reliable")
@@ -208,6 +303,17 @@ func rpc_fight_resolved(snapshot: Dictionary, granted_spell_id: String) -> void:
 	if not granted_spell_id.is_empty():
 		_grant_spell_to_local(granted_spell_id)
 	_refresh_hud_prompt()
+
+
+func broadcast_threat_fx(kind: String, origin: Vector3, extra: Dictionary) -> void:
+	if not GameState.is_multiplayer or not _is_run_host():
+		return
+	rpc_threat_fx.rpc(kind, origin, extra)
+
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_threat_fx(kind: String, origin: Vector3, extra: Dictionary) -> void:
+	NetThreatFxScript.apply(kind, origin, extra)
 
 
 func _grant_spell_to_local(spell_id: String) -> void:
@@ -224,10 +330,15 @@ func _grant_spell_to_local(spell_id: String) -> void:
 		hotbar.call("begin_pending", def)
 
 
-func _reset_players_for_fight() -> void:
+func _revive_dead_players() -> void:
 	for child in players_root.get_children():
-		if child is PlayableCharacter:
-			_revive_at(child as PlayableCharacter, _spawn_for_player(child))
+		if not (child is PlayableCharacter):
+			continue
+		var player := child as PlayableCharacter
+		if player.is_alive():
+			continue
+		_pending_respawns.erase(player.get_instance_id())
+		_revive_at(player, _spawn_for_player(player))
 
 
 func _revive_at(player: PlayableCharacter, world_pos: Vector3) -> void:
@@ -236,17 +347,44 @@ func _revive_at(player: PlayableCharacter, world_pos: Vector3) -> void:
 	player.restore_after_revive()
 	player.global_position = world_pos
 	player.velocity = Vector3.ZERO
+	var ti := player.get_node_or_null("TickInterpolator")
+	if ti != null and ti.has_method("teleport"):
+		ti.call("teleport")
 
 
-func _apply_cover(encounter_index: int) -> void:
+func _bind_cover() -> void:
+	for child in cover_root.get_children():
+		NetLivenessScript.attach(child, Profiles.COVER)
+
+
+func _bind_telegraph() -> void:
+	if spawn_telegraph != null:
+		NetLivenessScript.attach(spawn_telegraph, Profiles.WORLD_PROP)
+
+
+func _restage_cover(encounter_index: int) -> void:
 	var positions := ArenaEncountersScript.cover_positions(encounter_index)
 	var i := 0
 	for child in cover_root.get_children():
 		if i >= positions.size():
 			break
-		if child is Node3D:
-			(child as Node3D).position = positions[i]
+		if child.has_method("restage_to"):
+			child.call("restage_to", positions[i])
 		i += 1
+
+
+func _warn_wide_rollback() -> void:
+	if not NetClockScript.is_ticking():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var perf := tree.root.get_node_or_null("NetworkPerformance")
+	if perf == null or not perf.has_method("get_rollback_ticks"):
+		return
+	var ticks := int(perf.call("get_rollback_ticks"))
+	if ticks > ROLLBACK_WIDE_TICKS:
+		push_warning("Arena: dump resimulated %d ticks (netfox rewind)" % ticks)
 
 
 func _spawn_dump(dump: Array[Dictionary]) -> void:
@@ -273,6 +411,8 @@ func _spawn_dump(dump: Array[Dictionary]) -> void:
 			monster.set("patrol_radius", 12.0)
 		monsters_root.add_child(monster)
 		monster.global_position = spawn
+		monster.rotation = Vector3.ZERO
+		monster.set_multiplayer_authority(1)
 
 
 func _pad_position(pad: int) -> Vector3:
@@ -326,10 +466,9 @@ func _refresh_hud_prompt() -> void:
 
 func _on_quit_to_menu() -> void:
 	SettingsManager.stop_mic_test()
-	NetworkManager.disconnect_session()
+	if get_tree() != null:
+		get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var app := get_tree().get_first_node_in_group("game_app")
-	if app != null and app.has_method("return_to_main_menu"):
-		app.call_deferred("return_to_main_menu")
-	else:
+	NetworkManager.end_match_to_menu()
+	if get_tree().get_first_node_in_group("game_app") == null:
 		get_tree().call_deferred("change_scene_to_file", "res://scenes/game_app.tscn")

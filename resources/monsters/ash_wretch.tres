@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="MonsterSummonEntry" format=3 uid="uid://c5cyiflve6xob"]
 
 [ext_resource type="Script" uid="uid://byba5sgpdlik8" path="res://scripts/ui/book/monster/monster_summon_entry.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://bashwretch01" path="res://scenes/monsters/ash_wretch.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://bashwretch01" path="res://scenes/monsters/evaluating/ash_wretch.tscn" id="2"]
 
 [resource]
 script = ExtResource("1")

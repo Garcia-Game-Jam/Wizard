@@ -9,30 +9,11 @@ enum ChargePhase { NONE, TELEGRAPH, CHARGE, WALL_STUN, SEARCH }
 const ChargerChargeScript := preload("res://scripts/monsters/charger_charge.gd")
 const ChargerLaunchScript := preload("res://scripts/monsters/charger_launch.gd")
 const SIGHT_SOURCE := &"sight"
-const RAM_HIT_RANGE := 1.7
+const RAM_HIT_RANGE := 0.55
 const RAM_WALL_RAY := 1.15
 const GORE_TOSS_SPEED_RAD := 10.0
 const EYE_REST := Color(0.96, 0.96, 0.94, 1.0)
 const EYE_REST_ENERGY := 0.32
-const _SNOUT_CAPSULE_BASIS := Basis(Vector3.RIGHT, PI * 0.5)
-const _SPHERE_COLLIDER_PARTS: PackedStringArray = [
-	"%CollisionShape3D|%Body",
-	"MidBodyCollision|%MidBody",
-	"NeckCollision|%Neck",
-	"HeadCollision|%Head",
-	"LeftHindlegCollision|%LeftHindleg",
-	"RightHindlegCollision|%RightHindleg",
-	"LeftForelegCollision|%LeftForeleg",
-	"RightForelegCollision|%RightForeleg",
-]
-const _FLESH_PARTS: PackedStringArray = [
-	"%Snout",
-	"%Neck",
-	"%LeftForeleg",
-	"%RightForeleg",
-	"%LeftHindleg",
-	"%RightHindleg",
-]
 
 @export_group("Charge")
 ## Pose only: lock, ward, bow, turn red. Holds when the telegraph is finished.
@@ -87,7 +68,8 @@ var _phase: ChargePhase = ChargePhase.NONE
 var _charge := ChargerChargeScript.new()
 var _charge_target: Node3D = null
 var _held_ward: Node = null
-var _hit_bodies: Dictionary = {}
+## Cleared at the start of each rollback tick. Not history.
+var _tick_ram_hits: Dictionary = {}
 var _stun_stars: Node = null
 var _los_eye: Color = Color(0.95, 0.08, 0.05, 1.0)
 var _body_lean: Node3D = null
@@ -100,11 +82,6 @@ var _lookdev_launch_stuns: Array[Node] = []
 var _search_base_yaw: float = 0.0
 var _search_about_faced: bool = false
 var _painted_tint: Color = Color(0, 0, 0, 0)
-var _collider_cols: Array[CollisionShape3D] = []
-var _collider_parts: Array[Node3D] = []
-var _snout_col: CollisionShape3D = null
-var _snout_part: Node3D = null
-var _hide_meshes: Array[MeshInstance3D] = []
 
 
 func _ready() -> void:
@@ -117,15 +94,12 @@ func _ready() -> void:
 	if _head_lean != null:
 		_head_rest_pitch = _head_lean.rotation.x
 	_stun_stars = get_node_or_null("Head/StunStars")
-	_cache_hide_meshes()
-	_cache_part_colliders()
 	_set_stun_stars(false)
 	_set_chase_eyes_active(true)
 	_sync_los_eyes()
 	if Engine.is_editor_hint() and _phase == ChargePhase.NONE:
 		_sanitize_rest_pose()
 		_apply_rest_visuals()
-	_sync_part_colliders()
 	if bool(get_meta("lookdev_live_ai", false)):
 		set_process(true)
 
@@ -284,6 +258,8 @@ func _arm_charge_ticks(pose_only: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		_apply_replicated_eyes()
 	if Engine.is_editor_hint():
 		_tick_lookdev_launches(delta)
 	if _phase == ChargePhase.NONE:
@@ -320,13 +296,41 @@ func _uses_continuous_chase_move_timer() -> bool:
 	return false
 
 
+func _net_state_extra() -> PackedStringArray:
+	return PackedStringArray([
+		":net_phase", ":net_telegraph", ":_head_pitch", "Head:rotation", "Body:rotation"
+	])
+
+
 func _face_horizontal(desired_vel: Vector3) -> void:
-	_face_horizontal_at_speed(
-		desired_vel, get_physics_process_delta_time(), patrol_turn_speed_rad
-	)
+	_face_horizontal_at_speed(desired_vel, _face_delta(), patrol_turn_speed_rad)
 
 
 func _physics_process(delta: float) -> void:
+	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
+		_sync_charge_net_pose()
+		return
+	_simulate_charger(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	_tick_ram_hits.clear()
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		_sync_charge_net_pose()
+		return
+	if _phase != ChargePhase.NONE:
+		_simulate_charger(delta)
+		return
+	if is_fresh:
+		_simulate_charger(delta)
+		return
+	_replay_restored_motion(delta)
+	_sync_los_eyes()
+	_sync_charge_net_pose()
+
+
+func _simulate_charger(delta: float) -> void:
+	_sim_delta = delta
 	if not is_alive() or _charge.pose_only:
 		return
 	if _phase != ChargePhase.NONE:
@@ -334,11 +338,30 @@ func _physics_process(delta: float) -> void:
 			return
 		_tick_locked_phase(delta)
 		_sync_los_eyes()
+		_sync_charge_net_pose()
 		return
 	if Engine.is_editor_hint() and not bool(get_meta("lookdev_live_ai", false)):
 		return
-	super._physics_process(delta)
+	_simulate_monster(delta)
 	_sync_los_eyes()
+	_sync_charge_net_pose()
+
+
+func _sync_charge_net_pose() -> void:
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		_phase = net_phase as ChargePhase
+		var tell := 0.0
+		if _phase == ChargePhase.TELEGRAPH:
+			tell = net_telegraph
+		elif _phase == ChargePhase.CHARGE:
+			tell = 1.0
+		_apply_charge_tint(tell)
+		return
+	net_phase = int(_phase)
+	if _phase == ChargePhase.TELEGRAPH:
+		net_telegraph = _charge.telegraph_progress(telegraph_sec)
+	else:
+		net_telegraph = 0.0
 
 
 func _tick_chase(delta: float) -> void:
@@ -372,7 +395,6 @@ func _tick_locked_phase(delta: float) -> void:
 			_tick_search(delta)
 	if _phase != ChargePhase.SEARCH:
 		_tick_head_pitch(delta)
-	_sync_part_colliders()
 	if _charge.pose_only:
 		return
 	if _sandbox_charge_tick():
@@ -380,12 +402,14 @@ func _tick_locked_phase(delta: float) -> void:
 			velocity.y = 0.0
 			global_position += Vector3(velocity.x, 0.0, velocity.z) * delta
 			_try_ram_contacts()
+			_sync_ram_ghosts()
 		else:
 			MonsterAIScript.apply_move(self, delta)
 		return
-	move_and_slide()
+	NetClockScript.move_character(self)
 	if _phase == ChargePhase.CHARGE:
 		_try_ram_contacts()
+		_sync_ram_ghosts()
 
 
 func _tick_telegraph(delta: float) -> void:
@@ -411,7 +435,8 @@ func _tick_telegraph(delta: float) -> void:
 func _begin_charging() -> void:
 	_phase = ChargePhase.CHARGE
 	_charge.begin_charge(_locked_forward())
-	_hit_bodies.clear()
+	_clear_ram_ghosts()
+	_tick_ram_hits.clear()
 	_apply_charge_tint(1.0)
 	_set_body_lean(0.32)
 	var plunge := ChargerLaunchScript.plunge_pitch_rad(charge_head_plunge_deg)
@@ -441,6 +466,7 @@ func _tick_charging(delta: float) -> void:
 
 
 func _begin_wall_stun() -> void:
+	_clear_ram_ghosts()
 	_shatter_ward()
 	_phase = ChargePhase.WALL_STUN
 	_charge.begin_wall_stun()
@@ -535,11 +561,11 @@ func _finish_search_to_patrol() -> void:
 	_head_pitch = 0.0
 	_head_pitch_goal = 0.0
 	_apply_head_pitch()
-	_sync_part_colliders()
 	_phase = ChargePhase.NONE
 	_charge.reset()
 	_charge_target = null
-	_hit_bodies.clear()
+	_clear_ram_ghosts()
+	_tick_ram_hits.clear()
 	_begin_patrol()
 
 
@@ -551,11 +577,11 @@ func _reset_to_idle() -> void:
 	_head_pitch = 0.0
 	_head_pitch_goal = 0.0
 	_apply_head_pitch()
-	_sync_part_colliders()
 	_phase = ChargePhase.NONE
 	_charge.reset()
 	_charge_target = null
-	_hit_bodies.clear()
+	_clear_ram_ghosts()
+	_tick_ram_hits.clear()
 	_enter_idle()
 
 
@@ -648,12 +674,17 @@ func _try_hit_player(body: Node) -> void:
 	var victim := resolve_playable_hit_body(body)
 	if victim == null or victim == self:
 		return
-	var id := victim.get_instance_id()
-	if _hit_bodies.has(id):
+	if victim.has_method("is_stunned") and bool(victim.call("is_stunned")):
+		_ghost_ram_victim(victim)
 		return
-	_hit_bodies[id] = true
+	var id := victim.get_instance_id()
+	if _tick_ram_hits.has(id):
+		return
+	_tick_ram_hits[id] = true
 	_begin_player_gore_pose()
 	_launch_player(victim as Node3D)
+	if victim.has_method("is_stunned") and bool(victim.call("is_stunned")):
+		_ghost_ram_victim(victim)
 
 
 func _begin_player_gore_pose() -> void:
@@ -693,6 +724,45 @@ func _apply_player_hit(player: Node, launch_vel: Vector3) -> void:
 	var peer := int(player.get_multiplayer_authority())
 	if peer > 0 and stun.has_method("rpc_begin_charger_hit"):
 		stun.rpc_id(peer, "rpc_begin_charger_hit", launch_vel)
+
+
+func _ghost_ram_victim(victim: Node) -> void:
+	if victim == null or not (victim is CollisionObject3D):
+		return
+	var body := victim as CollisionObject3D
+	add_collision_exception_with(body)
+	body.add_collision_exception_with(self)
+
+
+func _unghost_ram_victim(victim: Node) -> void:
+	if victim == null or not (victim is CollisionObject3D):
+		return
+	var body := victim as CollisionObject3D
+	remove_collision_exception_with(body)
+	body.remove_collision_exception_with(self)
+
+
+func _sync_ram_ghosts() -> void:
+	if not is_inside_tree():
+		return
+	var charging := _phase == ChargePhase.CHARGE
+	for node in get_tree().get_nodes_in_group("player"):
+		if not (node is CollisionObject3D):
+			continue
+		var stunned := node.has_method("is_stunned") and bool(node.call("is_stunned"))
+		if charging and stunned:
+			_ghost_ram_victim(node)
+		else:
+			_unghost_ram_victim(node)
+
+
+func _clear_ram_ghosts() -> void:
+	for other in get_collision_exceptions():
+		if not (other is Node) or not (other as Node).is_in_group("player"):
+			continue
+		remove_collision_exception_with(other)
+		if other is CollisionObject3D:
+			(other as CollisionObject3D).remove_collision_exception_with(self)
 
 
 func _tick_lookdev_launches(delta: float) -> void:
@@ -793,22 +863,12 @@ func _snap_yaw(desired: Vector3) -> void:
 		look_at(at, Vector3.UP)
 
 
-func _tint_optional_body_parts() -> void:
-	super._tint_optional_body_parts()
-	for path in _FLESH_PARTS:
-		_tint_mesh_instance(get_node_or_null(path) as MeshInstance3D, body_tint)
-
-
 func _apply_charge_tint(t: float) -> void:
 	var next := rest_tint.lerp(charge_tint, clampf(t, 0.0, 1.0))
 	if _painted_tint.is_equal_approx(next):
 		return
 	_painted_tint = next
-	_paint_hide(next)
-	if Engine.is_editor_hint():
-		return
-	if is_equal_approx(t, 0.0) or is_equal_approx(t, 1.0):
-		body_tint = next
+	body_tint = next
 
 
 func _set_chase_eyes_active(_active: bool) -> void:
@@ -843,7 +903,7 @@ func _set_body_lean(pitch: float) -> void:
 
 
 func _sanitize_rest_pose() -> void:
-	## Editor saves can bake windup into Head/Body. Rest is an untilted hide.
+	## Editor saves can bake windup into Head/Body. Rest is untilted.
 	if _head_lean != null and absf(_head_lean.rotation.x) > deg_to_rad(25.0):
 		_head_lean.rotation.x = 0.0
 		_head_rest_pitch = 0.0
@@ -857,7 +917,6 @@ func _apply_rest_visuals() -> void:
 	_head_pitch_goal = 0.0
 	_apply_head_pitch()
 	_apply_charge_tint(0.0)
-	_sync_part_colliders()
 
 
 func _reapply_charge_visuals() -> void:
@@ -874,7 +933,6 @@ func _reapply_charge_visuals() -> void:
 		_apply_charge_tint(0.0)
 		_set_body_lean(0.0)
 	_apply_head_pitch()
-	_sync_part_colliders()
 
 
 func _set_head_pitch_goal(offset_rad: float, speed_rad: float) -> void:
@@ -892,55 +950,6 @@ func _tick_head_pitch(delta: float) -> void:
 func _apply_head_pitch() -> void:
 	if _head_lean != null:
 		_head_lean.rotation.x = _head_rest_pitch + _head_pitch
-
-
-func _cache_hide_meshes() -> void:
-	_hide_meshes.clear()
-	for path in PackedStringArray(["%Body", "%HeadMesh", "%MidBody"]) + _FLESH_PARTS:
-		var mesh := get_node_or_null(path) as MeshInstance3D
-		if mesh != null:
-			_hide_meshes.append(mesh)
-
-
-func _paint_hide(color: Color) -> void:
-	if _hide_meshes.is_empty():
-		_cache_hide_meshes()
-	for mesh in _hide_meshes:
-		_tint_mesh_instance(mesh, color)
-
-
-func _cache_part_colliders() -> void:
-	_collider_cols.clear()
-	_collider_parts.clear()
-	for spec in _SPHERE_COLLIDER_PARTS:
-		var bits := spec.split("|")
-		if bits.size() != 2:
-			continue
-		var col := get_node_or_null(bits[0]) as CollisionShape3D
-		var part := get_node_or_null(bits[1]) as Node3D
-		if col == null or part == null:
-			continue
-		_collider_cols.append(col)
-		_collider_parts.append(part)
-	_snout_col = get_node_or_null("SnoutCollision") as CollisionShape3D
-	_snout_part = get_node_or_null("%Snout") as Node3D
-
-
-func _sync_part_colliders() -> void:
-	# CollisionShape3D must stay direct children of Charger. Snap them to meshes.
-	if _collider_cols.is_empty():
-		_cache_part_colliders()
-	for i in _collider_cols.size():
-		var col := _collider_cols[i]
-		var part := _collider_parts[i]
-		var xf := part.global_transform
-		xf.basis = xf.basis.orthonormalized()
-		col.global_transform = xf
-	if _snout_col == null or _snout_part == null or _head_lean == null:
-		return
-	var snout_xf := _snout_part.global_transform
-	snout_xf.basis = _head_lean.global_transform.basis * _SNOUT_CAPSULE_BASIS
-	_snout_col.global_transform = snout_xf
 
 
 func _set_stun_stars(on: bool) -> void:

@@ -4,7 +4,7 @@ extends RefCounted
 ## each owns one Health child, spends only its own pool, and dies once.
 
 const PlayerScene := preload("res://scenes/characters/playable_character.tscn")
-const WretchScene := preload("res://scenes/monsters/wretch.tscn")
+const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
 
 
 func run() -> int:
@@ -14,6 +14,7 @@ func run() -> int:
 	failures += _test_kill_matches_lethal_damage()
 	failures += _test_pools_are_independent()
 	failures += _test_revive_restores_combat()
+	failures += _test_replicated_health_emits_death()
 	return failures
 
 
@@ -127,6 +128,22 @@ func _test_revive_restores_combat() -> int:
 	holder.queue_free()
 	if not ok:
 		push_error("revive should restore HP, physics, and allow a pit teleport")
+		return 1
+	return 0
+
+
+func _test_replicated_health_emits_death() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var character := PlayerScene.instantiate() as Character
+	holder.add_child(character)
+	var deaths := [0]
+	character.health.died.connect(func(_from: Variant) -> void: deaths[0] += 1)
+	character.health.current_health = 0.0
+	holder.queue_free()
+	if deaths[0] != 1:
+		push_error("Writing HP to 0 (netfox restore) should emit died once, got %d" % deaths[0])
 		return 1
 	return 0
 

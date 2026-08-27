@@ -11,6 +11,8 @@ const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
 const ForceFieldScript := preload("res://scripts/fx/force_field.gd")
 const WardBurstScript := preload("res://scripts/spells/ward_burst.gd")
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const GROUP := "spell_ward"
 const DURATION_SEC := 8.0
@@ -181,6 +183,11 @@ static func spawn(
 		ward.call("set_duration_sec", linger_sec)
 	if ward.has_method("setup_cast"):
 		ward.call("setup_cast", origin, direction, hit_capacity)
+	if ward is Node3D:
+		if NetClockScript.is_ticking():
+			NetLivenessScript.after_spawn(ward as Node3D)
+		else:
+			NetLivenessScript.attach(ward)
 	return ward
 
 

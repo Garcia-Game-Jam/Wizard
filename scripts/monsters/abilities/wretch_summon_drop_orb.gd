@@ -6,12 +6,14 @@ extends Node3D
 signal landed(world_position: Vector3)
 
 const GLOW := Color(0.3, 0.95, 0.4, 1.0)
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 var _start: Vector3 = Vector3.ZERO
 var _end: Vector3 = Vector3.ZERO
 var _duration: float = 1.0
 var _age: float = 0.0
 var _done: bool = false
+var _tick_fresh: bool = true
 var _mesh: MeshInstance3D = null
 var _light: OmniLight3D = null
 
@@ -26,6 +28,7 @@ static func spawn(
 	orb.name = "WretchSummonDropOrb"
 	parent.add_child(orb)
 	orb._setup(origin, land_position, duration_sec)
+	NetLivenessScript.after_spawn(orb)
 	return orb
 
 
@@ -67,6 +70,28 @@ func _build_visual() -> void:
 func _process(delta: float) -> void:
 	if _done:
 		return
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_fresh = true
+	_tick_drop(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	_tick_fresh = is_fresh
+	_tick_drop(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_drop(delta: float) -> void:
+	if _done:
+		return
 	_age += delta
 	var t := clampf(_age / _duration, 0.0, 1.0)
 	## Ease-in drop: hangs a beat, then settles to the ground.
@@ -83,5 +108,6 @@ func _finish() -> void:
 	if _done:
 		return
 	_done = true
-	landed.emit(_end)
-	queue_free()
+	if _tick_fresh:
+		landed.emit(_end)
+	NetLivenessScript.despawn_or_free(self)

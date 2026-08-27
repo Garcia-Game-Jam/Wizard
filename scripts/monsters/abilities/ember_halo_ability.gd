@@ -27,38 +27,10 @@ func start_windup_fx(monster: Monster) -> void:
 	var hand := resolve_hand(monster)
 	if hand == null:
 		return
-	_windup_fx = Node3D.new()
+	_windup_fx = FxScenesScript.ring(telegraph_color)
 	_windup_fx.name = "EmberHaloWindup"
 	_windup_fx.position = Vector3(0.0, 0.18, 0.0)
 	hand.add_child(_windup_fx)
-
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.06
-	torus.outer_radius = 0.14
-	torus.rings = 12
-	torus.ring_segments = 20
-	ring.mesh = torus
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.2, 0.08, 0.85)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.25, 0.1)
-	mat.emission_energy_multiplier = 4.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	ring.material_override = mat
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	## TorusMesh already faces the ground plane (around +Y).
-	ring.rotation_degrees = Vector3.ZERO
-	_windup_fx.add_child(ring)
-
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.25, 0.08)
-	light.light_energy = 2.8
-	light.omni_range = 1.3
-	light.shadow_enabled = false
-	_windup_fx.add_child(light)
 
 
 func _fire_cast(monster: Monster, target: Node3D) -> void:

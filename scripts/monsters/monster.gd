@@ -14,6 +14,8 @@ const MonsterCombatSpacingScript := preload("res://scripts/monsters/monster_comb
 const MonsterCasterCombatScript := preload("res://scripts/monsters/monster_caster_combat.gd")
 const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_gizmos.gd")
 const MonsterPatrolScript := preload("res://scripts/monsters/monster_patrol.gd")
+const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const DEFAULT_TINT := Color(0.72, 0.28, 0.22, 1.0)
 const DEFAULT_PLAYER_SOURCE := &"player"
@@ -116,6 +118,7 @@ var _casting_ability: Node = null
 var _cast_prefer_index: int = 0
 var _chase_move: MonsterChaseMove = null
 var _lookdev_aggro: Node3D = null
+var _sim_delta: float = 0.0
 
 func _ready() -> void:
 	super._ready()
@@ -144,11 +147,29 @@ func _ready() -> void:
 		return
 	_enter_idle()
 	set_physics_process(true)
+	## Bind on this frame so spawn_tick is the dump tick, not a deferred hitch later.
+	_bind_rewindable()
+
+
+func _net_rewind_profile() -> String:
+	# Telegraph+ram pose interpolates Head/Body; other monsters are root pose only.
+	if ":net_phase" in _net_state_extra():
+		return Profiles.CHARGE
+	return Profiles.WORLD_PROP
+
+
+func _bind_rewindable() -> void:
+	if Engine.is_editor_hint():
+		return
+	NetLivenessScript.attach(self, _net_rewind_profile())
 
 
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint() and bool(get_meta("lookdev_live_ai", false)):
 		_physics_process(delta)
+		return
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		_apply_replicated_eyes()
 
 
 func _sync_chase_move_config() -> void:
@@ -375,6 +396,31 @@ func _prefer_interest(candidates: Array) -> MonsterInterest:
 	return MonsterAIScript.prefer_highest_urgency(candidates) as MonsterInterest
 
 func _physics_process(delta: float) -> void:
+	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
+		return
+	_simulate_monster(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	if GameState.is_multiplayer and not is_multiplayer_authority():
+		return
+	if is_fresh:
+		_simulate_monster(delta)
+		return
+	## Resim restores pose/velocity; do not re-run senses or RNG.
+	_replay_restored_motion(delta)
+
+
+func _replay_restored_motion(delta: float) -> void:
+	if not is_alive():
+		return
+	MonsterAIScript.apply_gravity(self, delta, gravity)
+	_apply_knockback_bleed(delta)
+	MonsterAIScript.apply_move(self, delta)
+
+
+func _simulate_monster(delta: float) -> void:
+	_sim_delta = delta
 	if not is_alive():
 		return
 	if Engine.is_editor_hint() and not bool(get_meta("lookdev_live_ai", false)):
@@ -813,9 +859,16 @@ func _try_touch_damage(target: Node3D) -> void:
 
 func _face_horizontal(desired_vel: Vector3) -> void:
 	## Strafe keeps facing the player; retreat/approach turn at face_turn_speed_rad.
-	_face_horizontal_at_speed(
-		desired_vel, get_physics_process_delta_time(), face_turn_speed_rad
-	)
+	_face_horizontal_at_speed(desired_vel, _face_delta(), face_turn_speed_rad)
+
+
+func _face_delta() -> float:
+	if _sim_delta > 0.0:
+		return _sim_delta
+	if NetClockScript.is_ticking():
+		return NetClockScript.tick_delta()
+	var physics_delta := get_physics_process_delta_time()
+	return physics_delta if physics_delta > 0.0 else NetClockScript.tick_delta()
 
 
 func _face_horizontal_at_speed(desired: Vector3, delta: float, speed_rad: float) -> void:

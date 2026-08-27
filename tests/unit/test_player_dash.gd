@@ -14,6 +14,9 @@ func run() -> int:
 	failures += _test_post_decay_noop_when_no_dash_happened()
 	failures += _test_post_decay_bleeds_speed_toward_target()
 	failures += _test_post_decay_stops_once_target_reached()
+	failures += _test_dash_pulse_survives_until_gather()
+	failures += _test_jump_pulse_survives_until_gather()
+	failures += _test_held_jump_is_one_tick()
 	return failures
 
 
@@ -98,7 +101,7 @@ func _test_post_decay_bleeds_speed_toward_target() -> int:
 	player.move_speed = 5.0
 	player.dash_post_speed_pct = 100.0
 	player.velocity = Vector3(20.0, 0.0, 0.0)
-	player.set_meta("_dash_post_decay_pending", true)
+	player.dash_post_decay_pending = true
 	PlayerDashScript.tick_post_decay(player, 0.1)
 	var speed := player.velocity.x
 	player.free()
@@ -115,9 +118,9 @@ func _test_post_decay_stops_once_target_reached() -> int:
 	player.move_speed = 5.0
 	player.dash_post_speed_pct = 100.0
 	player.velocity = Vector3(5.0, 0.0, 0.0)
-	player.set_meta("_dash_post_decay_pending", true)
+	player.dash_post_decay_pending = true
 	PlayerDashScript.tick_post_decay(player, 0.1)
-	var pending := bool(player.get_meta("_dash_post_decay_pending", false))
+	var pending := player.dash_post_decay_pending
 	var speed := player.velocity.x
 	player.free()
 	if pending:
@@ -125,5 +128,47 @@ func _test_post_decay_stops_once_target_reached() -> int:
 		return 1
 	if not is_equal_approx(speed, 5.0):
 		push_error("Expected velocity to be left untouched once already at the target")
+		return 1
+	return 0
+
+
+func _test_dash_pulse_survives_until_gather() -> int:
+	var net_input := PlayerNetInput.new()
+	net_input.queue_dash()
+	net_input._gather()
+	var first := net_input.dash
+	net_input._gather()
+	var second := net_input.dash
+	net_input.free()
+	if not first:
+		push_error("Expected a queued dash press to land on the next gather")
+		return 1
+	if second:
+		push_error("Expected dash pulse to consume after one gather")
+		return 1
+	return 0
+
+
+func _test_jump_pulse_survives_until_gather() -> int:
+	var net_input := PlayerNetInput.new()
+	net_input.queue_jump()
+	net_input._gather()
+	var first := net_input.jump
+	net_input._gather()
+	var second := net_input.jump
+	net_input.free()
+	if not first:
+		push_error("Expected a queued jump press to land on the next gather")
+		return 1
+	if second:
+		push_error("Expected jump pulse to consume after one gather")
+		return 1
+	return 0
+
+
+func _test_held_jump_is_one_tick() -> int:
+	var src := FileAccess.get_file_as_string("res://scripts/net/player_net_input.gd")
+	if src.find("_jump_was_held") < 0:
+		push_error("Held jump must be an edge or floor-snap keeps grounded hover")
 		return 1
 	return 0

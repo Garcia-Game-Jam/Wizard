@@ -2,6 +2,7 @@ class_name Health
 extends Node
 
 ## Authored HP pool. Parent characters call take_damage; this node owns current/max.
+## `current_health` is rewindable character state — netfox writes it on remotes.
 
 signal damaged(amount: float, from: Variant)
 signal died(from: Variant)
@@ -16,7 +17,20 @@ const DEFAULT_MAX_HEALTH := 100.0
 			current_health = max_health
 		_emit_changed()
 
-var current_health: float = DEFAULT_MAX_HEALTH
+var current_health: float = DEFAULT_MAX_HEALTH:
+	set(value):
+		var next := clampf(value, 0.0, max_health)
+		if is_equal_approx(current_health, next):
+			return
+		var was_dead := current_health <= 0.0
+		current_health = next
+		_emit_changed()
+		## Host take_damage emits `died` with a source. Remotes get HP from
+		## RollbackSynchronizer writes and still need the death signal.
+		if _host_apply_depth == 0 and not was_dead and current_health <= 0.0:
+			died.emit(null)
+
+var _host_apply_depth: int = 0
 
 
 func _ready() -> void:
@@ -39,9 +53,10 @@ func take_damage(amount: float, from: Variant = null) -> void:
 	var hit := maxf(amount, 0.0)
 	if hit <= 0.0:
 		return
+	_host_apply_depth += 1
 	current_health = maxf(0.0, current_health - hit)
+	_host_apply_depth -= 1
 	damaged.emit(hit, from)
-	_emit_changed()
 	if is_dead():
 		died.emit(from)
 
@@ -62,13 +77,11 @@ func heal(amount: float) -> void:
 	if is_dead():
 		return
 	current_health = clampf(current_health + maxf(amount, 0.0), 0.0, max_health)
-	_emit_changed()
 
 
 ## Restore a dead (or living) pool to full. Does not emit `died`.
 func revive() -> void:
 	current_health = max_health
-	_emit_changed()
 
 
 func _emit_changed() -> void:

@@ -8,6 +8,8 @@ extends RefCounted
 const GROUP := "slide_surface"
 ## Cosine of ~70° from vertical. Vertical faces stay walls; tops and shoulders slide.
 const FLOOR_DOT := 0.35
+## Probe used when is_on_floor() is stale after rollback (apex hover).
+const FLOOR_PROBE_M := 0.22
 ## Crest of a cylinder/sphere: normal is almost UP, so gravity has no downhill.
 const PEAK_DOT := 0.98
 const PEAK_SPEED := 0.35
@@ -73,6 +75,31 @@ static func prepare(body: CharacterBody3D) -> bool:
 	return sliding
 
 
+static func has_floor_below(player: CharacterBody3D) -> bool:
+	if player == null or not player.is_inside_tree():
+		return false
+	return player.test_move(player.global_transform, Vector3(0.0, -FLOOR_PROBE_M, 0.0))
+
+
+## Re-derive motion_mode / floor_snap from the restored pose. is_on_floor() is
+## leftover from the last simulated tick (and stays false in FLOATING mode).
+static func sync_motion_from_pose(body: CharacterBody3D, sliding: bool = false) -> bool:
+	if body == null:
+		return false
+	var on_floor := has_floor_below(body)
+	if sliding or not on_floor:
+		body.motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+		body.floor_snap_length = 0.0
+		return false
+	body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+	var stunned := false
+	if body.has_method("is_stunned"):
+		stunned = bool(body.call("is_stunned"))
+	if not stunned and body.velocity.y <= 0.05:
+		body.floor_snap_length = 0.15
+	return true
+
+
 static func peak_push(
 	velocity: Vector3, normal: Vector3, rng: RandomNumberGenerator = null
 ) -> Vector3:
@@ -111,27 +138,42 @@ static func apply_ground_move(
 	delta: float,
 	boost: float,
 	preserve_horizontal: bool = false,
-	block_crouch_slide: bool = false
+	block_crouch_slide: bool = false,
+	net_input: Object = null
 ) -> void:
 	var on_slide := prepare(player)
-	PlayerAirControlScript.tick_air_time(player, delta, player.is_on_floor() or on_slide)
-	if not player.is_on_floor() or on_slide:
+	var on_floor := sync_motion_from_pose(player, on_slide)
+	PlayerAirControlScript.tick_air_time(player, delta, on_floor or on_slide)
+	if not on_floor or on_slide:
 		player.velocity.y -= gravity * delta
+	var jump_pressed := false
+	if net_input != null and "jump" in net_input:
+		jump_pressed = bool(net_input.get("jump"))
+	else:
+		jump_pressed = Input.is_action_just_pressed("jump")
 	if (
-		Input.is_action_just_pressed("jump")
-		and player.is_on_floor()
+		jump_pressed
+		and on_floor
 		and not on_slide
 		and not PlayerCrouchScript.is_crouching(player)
 	):
 		player.velocity.y = PlayableCharacter.JUMP_VELOCITY
+		player.floor_snap_length = 0.0
+		on_floor = false
+	elif on_floor and player.velocity.y <= 0.05:
+		var stunned := false
+		if player.has_method("is_stunned"):
+			stunned = bool(player.call("is_stunned"))
+		if not stunned:
+			player.floor_snap_length = 0.15
 	if on_slide or preserve_horizontal:
 		if not block_crouch_slide and PlayerCrouchScript.is_coasting(player):
-			PlayerCrouchScript.apply_coast_physics(player, head, delta, boost)
+			PlayerCrouchScript.apply_coast_physics(player, head, delta, boost, net_input)
 		return
-	if not player.is_on_floor():
-		PlayerAirControlScript.apply(player, head, delta, boost)
+	if not on_floor:
+		PlayerAirControlScript.apply(player, head, delta, boost, net_input)
 		return
-	var direction := camera_relative_move_direction(head)
+	var direction := camera_relative_move_direction(head, net_input)
 	var speed := PlayerCrouchScript.ground_move_speed(player, boost)
 	if direction:
 		player.velocity.x = direction.x * speed
@@ -142,10 +184,16 @@ static func apply_ground_move(
 		player.velocity.z = move_toward(player.velocity.z, 0.0, friction_step)
 
 
-static func camera_relative_move_direction(head: Node3D) -> Vector3:
-	var input_dir := Input.get_vector(
-		"move_left", "move_right", "move_forward", "move_back"
-	)
+static func camera_relative_move_direction(
+	head: Node3D, net_input: Object = null
+) -> Vector3:
+	var input_dir := Vector2.ZERO
+	if net_input != null and "movement" in net_input:
+		input_dir = net_input.get("movement") as Vector2
+	else:
+		input_dir = Input.get_vector(
+			"move_left", "move_right", "move_forward", "move_back"
+		)
 	if input_dir.length_squared() < 0.0001:
 		return Vector3.ZERO
 	var local := Vector3(input_dir.x, 0.0, input_dir.y)

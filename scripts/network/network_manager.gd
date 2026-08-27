@@ -27,6 +27,8 @@ const SteamTransportScript := preload("res://scripts/network/steam_transport.gd"
 const LanTransportScript := preload("res://scripts/network/lan_transport.gd")
 const SpellEffectSyncScript := preload("res://scripts/spells/spell_effect_sync.gd")
 const GameWorldScript := preload("res://scripts/game_world.gd")
+const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
 
 var transport: MultiplayerTransport
 var is_session_active: bool = false
@@ -37,6 +39,7 @@ var _session_mode: String = ""
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_configure_transport()
 	transport.status_changed.connect(_forward_transport_status)
 	_transport_ready = true
@@ -311,8 +314,47 @@ func disconnect_session() -> void:
 	# Autoload lookup needs an active tree (unit tests instantiate this off-tree).
 	if is_inside_tree():
 		SteamProximityVoiceHub.stop_session()
+	NetClockScript.stop()
 	if transport != null:
 		transport.disconnect_session()
+
+
+## Host End Game: tell guests to return to the menu, then tear the session down.
+## Never quits the process — that belongs on the desktop Exit / window-close path.
+func end_match_to_menu() -> void:
+	if not is_session_active:
+		return
+	if is_inside_tree():
+		get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if (
+		is_inside_tree()
+		and is_host()
+		and is_online()
+		and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+		and multiplayer.get_peers().size() > 0
+	):
+		rpc_host_ended_match.rpc()
+		var timer := get_tree().create_timer(0.2, true, true)
+		timer.timeout.connect(_finish_end_match.bind("Match ended."), CONNECT_ONE_SHOT)
+		return
+	_finish_end_match("Match ended.")
+
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_host_ended_match() -> void:
+	_finish_end_match("Host ended the match.")
+
+
+func _finish_end_match(reason: String) -> void:
+	if not is_session_active:
+		return
+	if is_inside_tree():
+		get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	disconnect_session()
+	session_ended.emit(reason)
+	status_changed.emit(reason)
 
 
 func spawn_players(
@@ -365,11 +407,10 @@ func spawn_player_for_peer(
 
 	var player := _instantiate_player_for_peer(peer_id)
 	player.name = str(peer_id)
-	# Authority must be set before enter-tree: PlayableCharacter._ready() decides
-	# camera ownership from is_multiplayer_authority(), and MultiplayerSynchronizer
-	# registers against the authority it sees when it enters the tree. Assigning it
-	# afterwards let every peer claim the first-person view of every body.
-	player.set_multiplayer_authority(peer_id)
+	if "owner_peer_id" in player:
+		player.set("owner_peer_id", peer_id)
+	# Host owns body state; the peer owns only Input (wired in PlayableCharacter._bind_rewindable).
+	player.set_multiplayer_authority(1)
 	players_root.add_child(player, true)
 	set_player_sync_enabled(player, true)
 	player.initialize_player(get_player_index_for_peer(peer_id))
@@ -501,7 +542,24 @@ func _prepare_spell_cast_wire(
 
 @rpc("authority", "call_local", "reliable")
 func _execute_spell_cast(caster_peer_id: int, spell_id: String, params: Dictionary) -> void:
-	_forward_to_main("apply_synced_spell_cast", [caster_peer_id, spell_id, params])
+	var main: Node = GameWorldScript.find_match_root(get_tree())
+	if main != null and main.has_method("apply_synced_spell_cast"):
+		_forward_to_main("apply_synced_spell_cast", [caster_peer_id, spell_id, params])
+		return
+	var player := _player_body_for_peer(caster_peer_id)
+	if player == null:
+		return
+	NetWorldEventScript.dispatch_spell(player, params)
+
+
+func _player_body_for_peer(peer_id: int) -> CharacterBody3D:
+	var main: Node = GameWorldScript.find_match_root(get_tree())
+	if main == null:
+		return null
+	var players := main.get_node_or_null("Players")
+	if players == null:
+		return null
+	return players.get_node_or_null(str(peer_id)) as CharacterBody3D
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -774,6 +832,9 @@ func _pack_character_configs_for_current_peers() -> Dictionary:
 
 
 static func set_player_sync_enabled(player_root: Node, enabled: bool) -> void:
+	var rs := player_root.get_node_or_null("RollbackSynchronizer") as Node
+	if rs != null:
+		rs.set("enable_prediction", enabled)
 	var sync := player_root.get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
 	if sync != null:
 		sync.public_visibility = enabled

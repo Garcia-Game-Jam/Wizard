@@ -7,6 +7,8 @@ enum State { IDLE, PATROL, CHASE, ALERT }
 ## Lookdev pose → eyes. Chase shows eyes; Patrol hides them.
 enum LookdevPose { PATROL, CHASE }
 
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
+
 
 ## Safe Node3D from a stored ref. Freed objects are not null — never `as` before this.
 static func live_node3d(node: Variant) -> Node3D:
@@ -102,6 +104,15 @@ static func horizontal_velocity_toward(
 	return Vector3(dir.x * speed, y_velocity, dir.z * speed)
 
 
+## Yaw that points local -Z along a flat world direction (Godot forward).
+static func yaw_from_flat(desired_flat: Vector3) -> float:
+	var flat := Vector3(desired_flat.x, 0.0, desired_flat.z)
+	if flat.length_squared() < 0.0001:
+		return 0.0
+	var dir := flat.normalized()
+	return atan2(-dir.x, -dir.z)
+
+
 ## Rotate current yaw toward a flat desired facing vector at speed_rad.
 static func rotate_yaw_toward(
 	current_yaw: float, desired_flat: Vector3, speed_rad: float, delta: float
@@ -109,8 +120,9 @@ static func rotate_yaw_toward(
 	var flat := Vector3(desired_flat.x, 0.0, desired_flat.z)
 	if flat.length_squared() < 0.0001:
 		return current_yaw
-	var target_yaw := Basis.looking_at(flat.normalized(), Vector3.UP).get_euler().y
-	return rotate_toward(current_yaw, target_yaw, maxf(speed_rad, 0.01) * delta)
+	return rotate_toward(
+		current_yaw, yaw_from_flat(flat), maxf(speed_rad, 0.01) * maxf(delta, 0.0)
+	)
 
 
 ## Max distance from the player for chase reposition (80% of aggro / chase_range).
@@ -409,14 +421,14 @@ static func apply_move(body: CharacterBody3D, delta: float) -> void:
 	if is_lookdev_live(body):
 		body.velocity.y = 0.0
 		var before := body.global_position
-		body.move_and_slide()
+		NetClockScript.move_character(body)
 		var moved := Vector3(
 			body.global_position.x - before.x, 0.0, body.global_position.z - before.z
 		)
 		if moved.length() < 0.0001:
 			_lookdev_translate(body, delta)
 		return
-	body.move_and_slide()
+	NetClockScript.move_character(body)
 
 
 static func _lookdev_translate(body: CharacterBody3D, delta: float) -> void:

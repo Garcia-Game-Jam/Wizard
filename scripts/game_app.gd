@@ -157,6 +157,9 @@ func enter_match() -> void:
 
 
 func return_to_main_menu() -> void:
+	if get_tree() != null:
+		get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	set_state(AppState.MAIN_MENU)
 
 

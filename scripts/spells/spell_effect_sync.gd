@@ -535,6 +535,59 @@ static func coerce_vector3(value: Variant) -> Vector3:
 	return Vector3.ZERO
 
 
+## Predicted ephemeral spawn for NetworkWeapon. Solo apply() reuses this for
+## fireball / flare; ward keeps a separate path for channel + placement nudge.
+static func spawn_predicted(player: CharacterBody3D, params: Dictionary) -> Node3D:
+	if player == null or params.is_empty():
+		return null
+	var effect_id := str(params.get(KEY_EFFECT_ID, ""))
+	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
+	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
+	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
+	var spawned: Variant = null
+	match effect_id:
+		EFFECT_FIREBALL:
+			spawned = SpellEphemeralFxScript.spawn_at(
+				player,
+				origin,
+				direction,
+				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
+					return FireballProjectileScript.spawn(
+						parent, spawn_origin, spawn_dir, player, false, charge
+					)
+			)
+		EFFECT_FLARE:
+			var duration := float(
+				params.get(KEY_DURATION, FlareEffectScript.DEFAULT_DURATION_SEC)
+			)
+			spawned = SpellEphemeralFxScript.spawn_at(
+				player,
+				origin,
+				direction,
+				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
+					var flare: Node = FlareEffectScript.spawn_launched(
+						parent, spawn_origin, spawn_dir, duration, true, player
+					)
+					if flare != null and flare.has_method("apply_charge_power"):
+						flare.call("apply_charge_power", charge)
+					return flare
+			)
+		EFFECT_WARD:
+			var linger := float(params.get(KEY_DURATION, DEFAULT_WARD_DURATION))
+			spawned = SpellEphemeralFxScript.spawn_at(
+				player,
+				origin,
+				direction,
+				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
+					return WardShieldScript.spawn(
+						parent, spawn_origin, spawn_dir, 1, linger
+					)
+			)
+		_:
+			return null
+	return spawned as Node3D
+
+
 static func apply(player: CharacterBody3D, params: Dictionary) -> void:
 	if player == null or params.is_empty():
 		return
@@ -711,42 +764,11 @@ static func _fireball_origin(player: CharacterBody3D) -> Vector3:
 
 
 static func _apply_fireball(player: CharacterBody3D, params: Dictionary) -> void:
-	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
-	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
-	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
-	SpellEphemeralFxScript.spawn_at(
-		player,
-		origin,
-		direction,
-		func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
-			return FireballProjectileScript.spawn(
-				parent, spawn_origin, spawn_dir, player, false, charge
-			)
-	)
+	spawn_predicted(player, params)
 
 
 static func _apply_flare(player: CharacterBody3D, params: Dictionary) -> void:
-	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
-	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
-	var duration := float(
-		params.get(KEY_DURATION, FlareEffectScript.DEFAULT_DURATION_SEC)
-	)
-	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
-	## Same ephemeral cast wire as fireball — every peer spawns + simulates locally.
-	SpellEphemeralFxScript.spawn_at(
-		player,
-		origin,
-		direction,
-		func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
-			var fly := true
-			var caster: Node3D = player
-			var flare: Node = FlareEffectScript.spawn_launched(
-				parent, spawn_origin, spawn_dir, duration, fly, caster
-			)
-			if flare != null and flare.has_method("apply_charge_power"):
-				flare.call("apply_charge_power", charge)
-			return flare
-	)
+	spawn_predicted(player, params)
 
 
 static func _apply_ward(player: CharacterBody3D, params: Dictionary) -> void:

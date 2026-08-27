@@ -16,7 +16,7 @@ Fights only change monsters and layout. Rewards only change what you can cast.
 
 ## Week-1 slice (playable, not polished)
 
-Three scripted dumps → grant **Ward** → three ice-caster dumps that want Ward. Starter kit is Fireball, Flare, Pull (one free hotbar slot). Respawn in the pit.
+Three scripted dumps → grant **Ward** → more charger/ember dumps. Starter kit is Fireball. Respawn in the pit. Do not sculpt live monsters in the scene tree; see the greybox freeze in [AGENTS.md](../../AGENTS.md).
 
 Boot: lobby Start loads [scenes/arena.tscn](../../scenes/arena.tscn) via `GameApp.MATCH_SCENE`. Host dumps from [scripts/arena/arena_encounters.gd](../../scripts/arena/arena_encounters.gd).
 

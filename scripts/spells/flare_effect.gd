@@ -4,8 +4,8 @@ extends Area3D
 
 ## Signal flare: GPU comet trail while flying, then a pulsing omni beacon.
 ## Slides on walls, floors, players, and monsters with drag += contact_drag.
-## Tune on the Flare root in scenes/spells/flare/flare.tscn (static lookdev).
-## Flight + wand launch previews live in scenes/spells/flare/workspace.tscn.
+## Tune on the Flare root in scenes/spells/evaluating/flare/flare.tscn (static lookdev).
+## Flight + wand launch previews live in scenes/spells/evaluating/flare/workspace.tscn.
 
 const DEFAULT_DURATION_SEC := 15.0
 
@@ -13,8 +13,9 @@ const FlareFlightScript := preload("res://scripts/spells/flare_flight.gd")
 const FlareParticlesScript := preload("res://scripts/spells/flare_particles.gd")
 const FireballLightingScript := preload("res://scripts/spells/fireball_lighting.gd")
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
-## Cached ammo knobs from scenes/spells/flare.tscn (source of truth for loadout).
+## Cached ammo knobs from scenes/spells/evaluating/flare/flare.tscn.
 static var _authored_ammo_cache: Dictionary = {}
 
 @export_group("Beacon")
@@ -190,6 +191,7 @@ static func spawn_launched(
 	## Place before add_child so `_ready` beacon is not at Match origin.
 	SpellEphemeralFxScript.add_child_at(parent, flare, origin)
 	flare.play_launch()
+	NetLivenessScript.after_spawn(flare)
 	return flare
 
 
@@ -247,7 +249,21 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
+	if NetLivenessScript.skip_engine_physics():
+		return
 	_step_flight(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_step_flight(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
 
 
 func _step_flight(delta: float) -> void:
@@ -657,7 +673,7 @@ func _on_finished() -> void:
 	_flying = false
 	_stop_tweens()
 	if _runtime:
-		queue_free()
+		NetLivenessScript.despawn_or_free(self)
 
 
 func _stop_tweens() -> void:

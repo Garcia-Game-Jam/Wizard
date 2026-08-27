@@ -23,15 +23,15 @@ const PLAYER_SCENE := "res://scenes/characters/playable_character.tscn"
 const WARD_SCENE := "res://scenes/spells/ward/ward.tscn"
 const CHARGER_SCENE := "res://scenes/monsters/charger.tscn"
 const EMBER_LOB_SCENE := "res://scenes/monsters/abilities/ember_lob_projectile.tscn"
-const ASH_ICE_SCENE := "res://scenes/monsters/abilities/ash_ice_projectile.tscn"
-const ASH_FROST_SCENE := "res://scenes/monsters/abilities/ash_frost_breath_cloud.tscn"
+const ASH_ICE_SCENE := "res://scenes/monsters/evaluating/abilities/ash_ice_projectile.tscn"
+const ASH_FROST_SCENE := "res://scenes/monsters/evaluating/abilities/ash_frost_breath_cloud.tscn"
 
 const MONSTER_SCENES: Array[Dictionary] = [
-	{"name": "Wretch", "path": "res://scenes/monsters/wretch.tscn"},
-	{"name": "Ash Wretch", "path": "res://scenes/monsters/ash_wretch.tscn"},
+	{"name": "Wretch", "path": "res://scenes/monsters/evaluating/wretch.tscn"},
+	{"name": "Ash Wretch", "path": "res://scenes/monsters/evaluating/ash_wretch.tscn"},
 	{"name": "Ember Wretch", "path": "res://scenes/monsters/ember_wretch.tscn"},
 	{"name": "Charger", "path": "res://scenes/monsters/charger.tscn"},
-	{"name": "Wretch Rat", "path": "res://scenes/monsters/wretch_rat.tscn"},
+	{"name": "Wretch Rat", "path": "res://scenes/monsters/evaluating/wretch_rat.tscn"},
 ]
 
 

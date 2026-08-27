@@ -18,6 +18,9 @@ const MODEL_SEARCH_PATHS: Array[String] = [
 static var _cached_model: Object
 static var _cached_model_path: String = ""
 static var _transcribe_mutex: Mutex = Mutex.new()
+## Unit tests: transcribe logs on the worker without constructing a Kaldi model.
+## Loading Vosk in --script then quit() ACCESS_VIOLATIONs inside libgdvosk.
+static var skip_native_engine: bool = false
 
 
 static func is_available() -> bool:
@@ -75,7 +78,15 @@ static func transcribe_samples(
 	grammar_phrases: PackedStringArray = PackedStringArray()
 ) -> Dictionary:
 	var empty := {"words": PackedStringArray(), "starts": PackedFloat32Array()}
-	if samples.is_empty() or sample_rate <= 0 or not is_available():
+	if samples.is_empty() or sample_rate <= 0:
+		return empty
+	if skip_native_engine:
+		SpellLogScript.debug(
+			"Gdvosk",
+			"skip native engine (samples=%d rate=%d)" % [samples.size(), sample_rate]
+		)
+		return empty
+	if not is_available():
 		return empty
 
 	_transcribe_mutex.lock()

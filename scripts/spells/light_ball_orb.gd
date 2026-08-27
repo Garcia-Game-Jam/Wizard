@@ -7,6 +7,7 @@ const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const HoveringOrbMotionScript := preload("res://scripts/spells/hovering_orb_motion.gd")
 const SpellWorldSyncScript := preload("res://scripts/spells/spell_world_sync.gd")
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const DEFAULT_DURATION_SEC := 30.0
 const ORB_RADIUS := 0.16
@@ -73,6 +74,7 @@ static func spawn_cast(
 	orb._target = snapped_pos
 	orb.global_position = snapped_pos
 	orb._hover_base = snapped_pos
+	NetLivenessScript.attach(orb)
 	return orb
 
 

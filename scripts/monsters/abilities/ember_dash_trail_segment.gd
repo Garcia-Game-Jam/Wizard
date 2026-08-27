@@ -3,9 +3,9 @@ extends Area3D
 
 ## Flat ground burn segment left by Ember Caster dash. Slow + DPS stub on overlap.
 
-const SegmentScript := preload("res://scripts/monsters/abilities/ember_dash_trail_segment.gd")
 const MonsterSpellHitScript := preload("res://scripts/combat/monster_spell_hit.gd")
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 const GROUND_Y := 0.045
 
@@ -28,59 +28,96 @@ static func spawn(
 	burn_dps: float,
 	burn_slow_multiplier: float,
 	burn_refresh_sec: float,
-	caster: Node3D = null
+	caster: Node3D = null,
+	visual_only: bool = false
 ) -> Area3D:
-	var seg: Area3D = SegmentScript.new()
+	if parent == null:
+		return null
+	var packed: PackedScene = load(
+		"res://scenes/monsters/abilities/ember_dash_trail_segment.tscn"
+	) as PackedScene
+	var seg: EmberDashTrailSegment = packed.instantiate() as EmberDashTrailSegment
 	seg._lifetime_sec = lifetime_sec
 	seg._burn_dps = burn_dps
 	seg._burn_slow_multiplier = burn_slow_multiplier
 	seg._burn_refresh_sec = burn_refresh_sec
 	seg._caster = caster
 	parent.add_child(seg)
-	seg._build_visual(width, length)
+	seg.apply_size(width, length)
 	seg.global_position = Vector3(world_position.x, GROUND_Y, world_position.z)
 	if direction.length_squared() > 0.0001:
 		var flat := Vector3(direction.x, 0.0, direction.z).normalized()
 		seg.rotation.y = atan2(flat.x, flat.z)
-	seg.monitoring = true
+	seg.monitoring = not visual_only
 	seg.monitorable = false
 	MonsterSpellHitScript.apply_mask(seg)
 	seg.set_physics_process(true)
+	if not visual_only:
+		var extra := {
+			"dir_x": direction.x,
+			"dir_y": direction.y,
+			"dir_z": direction.z,
+			"width": width,
+			"length": length,
+			"lifetime": lifetime_sec,
+		}
+		NetLivenessScript.replicate_world_fx(
+			"ember_dash",
+			Vector3(world_position.x, GROUND_Y, world_position.z),
+			extra
+		)
+	NetLivenessScript.after_spawn(seg)
 	return seg
 
 
-func _build_visual(width: float, length: float) -> void:
-	var mesh_inst := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(width, 0.02, maxf(length, 0.2))
-	mesh_inst.mesh = box
-	mesh_inst.position = Vector3(0.0, 0.01, box.size.z * 0.5)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.95, 0.12, 0.06, 0.82)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.15, 0.05)
-	mat.emission_energy_multiplier = 2.2
-	mesh_inst.material_override = mat
-	mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mesh_inst)
+func _ready() -> void:
+	if not body_entered.is_connected(_on_body_entered):
+		body_entered.connect(_on_body_entered)
 
-	var shape_node := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(width, 0.35, maxf(length, 0.2))
-	shape_node.shape = shape
-	shape_node.position = Vector3(0.0, 0.12, box.size.z * 0.5)
-	add_child(shape_node)
-	body_entered.connect(_on_body_entered)
+
+func apply_size(width: float, length: float) -> void:
+	var depth := maxf(length, 0.2)
+	var mesh_inst := get_node_or_null("%Mesh") as MeshInstance3D
+	if mesh_inst != null and mesh_inst.mesh is BoxMesh:
+		var box := (mesh_inst.mesh as BoxMesh).duplicate() as BoxMesh
+		box.size = Vector3(width, 0.02, depth)
+		mesh_inst.mesh = box
+		mesh_inst.position = Vector3(0.0, 0.01, depth * 0.5)
+	var shape_node := get_node_or_null("%HitShape") as CollisionShape3D
+	if shape_node != null and shape_node.shape is BoxShape3D:
+		var shape := (shape_node.shape as BoxShape3D).duplicate() as BoxShape3D
+		shape.size = Vector3(width, 0.35, depth)
+		shape_node.shape = shape
+		shape_node.position = Vector3(0.0, 0.12, depth * 0.5)
 
 
 func _physics_process(delta: float) -> void:
+	if NetLivenessScript.skip_engine_physics():
+		return
+	_tick_motion(delta)
+
+
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_tick_motion(delta)
+
+
+func _rollback_spawn() -> void:
+	NetLivenessScript.activate(self)
+	_age = 0.0
+
+
+func _rollback_despawn() -> void:
+	NetLivenessScript.deactivate(self)
+
+
+func _tick_motion(delta: float) -> void:
 	if _caster != null and not is_instance_valid(_caster):
 		_caster = null
 	_age += delta
 	if _age >= _lifetime_sec:
-		queue_free()
+		NetLivenessScript.despawn_or_free(self)
+		return
+	if not NetLivenessScript.can_query_overlaps(self):
 		return
 	for body in get_overlapping_bodies():
 		_apply_burn(body)
