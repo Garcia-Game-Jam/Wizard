@@ -68,7 +68,10 @@ func begin_session(context: Dictionary = {}) -> void:
 		return
 	_context = context.duplicate(true)
 	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
-	_session_dir = "%s/%s" % [SESSION_ROOT, stamp]
+	## PID keeps two instances on one machine (LAN test) in separate folders even
+	## when both matches start in the same second.
+	var role := str(_context.get("role", "p"))
+	_session_dir = "%s/%s_%s_%d" % [SESSION_ROOT, stamp, role, OS.get_process_id()]
 	if DirAccess.make_dir_recursive_absolute(_session_dir) != OK:
 		push_warning("NetDiag: could not create %s" % _session_dir)
 		return
