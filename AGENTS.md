@@ -46,13 +46,15 @@ Guards, all three of which must stay green:
 tick silently compounds with tickrate — that bug turned a 9 m/s hit into 40 m/s
 at 60 Hz. Use a per-second constant times `delta`.
 
-**`MOTION_MODE_FLOATING` only for slide surfaces, never merely for being
-airborne.** In FLOATING mode `move_and_slide` discards the *entire* motion
-vector — vertical included — when the body is pressed into a wall at speed, and
-leaves the into-wall velocity untouched. A wizard fireballed into the pit wall
-hung mid-air for 67 of 70 ticks; GROUNDED resolves the identical case correctly.
-Airborne bodies stay GROUNDED with `floor_snap_length = 0`. Guarded by
-`tests/unit/test_wall_slide_stall.gd`.
+**Characters are always `MOTION_MODE_GROUNDED` — never `MOTION_MODE_FLOATING`.**
+Players and NPCs alike, walking or airborne or knocked back or stunned. In
+FLOATING mode `move_and_slide` discards the *entire* motion vector — vertical
+included — when the body is pressed into a wall at speed, and leaves the
+into-wall velocity untouched. A wizard fireballed into the pit wall hung mid-air
+for 67 of 70 ticks (same in Jolt and Godot Physics); GROUNDED resolves the
+identical case correctly. **Airborne is expressed as `floor_snap_length = 0`,
+not a mode change.** `tests/unit/test_wall_slide_stall.gd` fails if any character
+script so much as names the constant.
 
 Known outstanding: `dash_speed = 20.0` exceeds the 60 Hz budget. Clamp or substep.
 

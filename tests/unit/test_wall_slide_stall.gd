@@ -29,27 +29,64 @@ const MIN_VERTICAL_TRAVEL := 1.0
 func run() -> int:
 	var failures := 0
 	failures += _test_airborne_mode_is_grounded()
+	failures += _test_no_source_selects_floating()
 	failures += _test_pressed_into_wall_keeps_moving()
 	return failures
 
 
 ## The direct contract: airborne must not select FLOATING.
 func _test_airborne_mode_is_grounded() -> int:
-	var body := _make_body(CharacterBody3D.MOTION_MODE_FLOATING)
-	## No world, so has_floor_below() is false -> treated as airborne.
-	var on_floor := SlideSurfaceScript.sync_motion_from_pose(body, false)
-	var mode := body.motion_mode
-	body.free()
 	var failures := 0
-	if on_floor:
-		push_error("sync_motion_from_pose reported floor with no world")
-		failures += 1
-	if mode == CharacterBody3D.MOTION_MODE_FLOATING:
-		push_error(
-			"Airborne body was put in MOTION_MODE_FLOATING; move_and_slide "
-			+ "drops all motion when it is pressed into a wall (mid-air stall)."
-		)
-		failures += 1
+	for entry in [
+		["sync_motion_from_pose", func(b: CharacterBody3D) -> void:
+			SlideSurfaceScript.sync_motion_from_pose(b)],
+		["prepare", func(b: CharacterBody3D) -> void: SlideSurfaceScript.prepare(b)],
+	]:
+		var body := _make_body(CharacterBody3D.MOTION_MODE_FLOATING)
+		## No world, so has_floor_below() is false -> treated as airborne.
+		(entry[1] as Callable).call(body)
+		var mode := body.motion_mode
+		body.free()
+		if mode == CharacterBody3D.MOTION_MODE_FLOATING:
+			push_error(
+				(
+					"%s left the body in MOTION_MODE_FLOATING; move_and_slide "
+					+ "drops all motion when pressed into a wall (mid-air stall)."
+				)
+				% entry[0]
+			)
+			failures += 1
+	return failures
+
+
+## No player or NPC may ever enter FLOATING. Nothing outside this test file may
+## even name the constant -- that is the cheapest way to keep the rule true.
+func _test_no_source_selects_floating() -> int:
+	var failures := 0
+	for path in [
+		"res://scripts/slide_surface.gd",
+		"res://scripts/characters/playable_character.gd",
+		"res://scripts/characters/player_stun.gd",
+		"res://scripts/characters/player_crouch.gd",
+		"res://scripts/characters/player_dash.gd",
+		"res://scripts/characters/player_air_control.gd",
+		"res://scripts/monsters/monster.gd",
+		"res://scripts/monsters/monster_ai.gd",
+		"res://scripts/monsters/charger.gd",
+	]:
+		var source := FileAccess.get_file_as_string(path)
+		if source.is_empty():
+			continue
+		for line in source.split("\n"):
+			var text := str(line).strip_edges()
+			if text.begins_with("#") or not text.contains("MOTION_MODE_FLOATING"):
+				continue
+			push_error(
+				"%s selects MOTION_MODE_FLOATING; characters must stay GROUNDED."
+				% path
+			)
+			failures += 1
+			break
 	return failures
 
 
@@ -71,7 +108,7 @@ func _test_pressed_into_wall_keeps_moving() -> int:
 	var min_y := START.y
 	var max_y := START.y
 	for _i in TICKS:
-		SlideSurfaceScript.sync_motion_from_pose(body, false)
+		SlideSurfaceScript.sync_motion_from_pose(body)
 		body.velocity.y -= GRAVITY * TICK_DELTA
 		body.move_and_slide()
 		min_y = minf(min_y, body.global_position.y)

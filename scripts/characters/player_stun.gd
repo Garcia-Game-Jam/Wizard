@@ -101,7 +101,7 @@ func after_slide(player: CharacterBody3D) -> void:
 	if SlideSurfaceScript.hit_walkable_floor(player):
 		_begin_post_land()
 		return
-	if player.is_on_floor() and not SlideSurfaceScript.should_slide(player):
+	if player.is_on_floor():
 		_begin_post_land()
 
 
