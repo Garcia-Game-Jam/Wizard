@@ -53,8 +53,8 @@ func _test_dumps_stay_on_charger_and_ember() -> int:
 
 
 func _test_starter_omits_ward() -> int:
-	if ArenaEncountersScript.STARTER_SPELL_IDS != ["fireball"]:
-		push_error("Arena starters must be fireball only")
+	if ArenaEncountersScript.STARTER_SPELL_IDS != ["stone_throw"]:
+		push_error("Arena starters must be stone_throw only")
 		return 1
 	return 0
 

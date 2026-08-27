@@ -5,6 +5,7 @@ extends RefCounted
 
 const APPRENTICE_STARTER_SPELLS: Array[String] = [
 	"fireball",
+	"stone_throw",
 	"flare",
 	"ward",
 	"haste",

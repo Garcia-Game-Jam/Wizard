@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://dtymt6tugqqxx" path="res://scripts/arena/arena_cover.gd" id="16_cover"]
 [ext_resource type="Script" uid="uid://grlb8nli07gx" path="res://scripts/arena/spawn_telegraph.gd" id="17_spot"]
 [ext_resource type="Resource" uid="uid://djudlmjak0msk" path="res://scenes/spells/ward/ward.tres" id="35_ward"]
+[ext_resource type="Resource" uid="uid://dstonethrow01" path="res://scenes/spells/stone_throw/stone_throw.tres" id="36_stone_throw"]
 
 [sub_resource type="Environment" id="Environment_arena"]
 background_mode = 1
@@ -326,7 +327,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
 
 [node name="SpellRegistry" type="Node" parent="." unique_id=232182131]
 script = ExtResource("6_registry")
-spells = Array[Resource]([ExtResource("15_fireball"), ExtResource("35_ward")])
+spells = Array[Resource]([ExtResource("15_fireball"), ExtResource("35_ward"), ExtResource("36_stone_throw")])
 
 [node name="VoiceSpellValidator" type="Node" parent="." unique_id=600817741]
 script = ExtResource("10_validator")
