@@ -243,6 +243,10 @@ func _test_identity_and_death_contract() -> int:
 	if arena.find("dump_node_name") < 0:
 		push_error("Dump children must use stable names, not scene-root names")
 		failures += 1
+	var spawn_body := _func_body(arena, "func _spawn_dump")
+	if spawn_body.find("commit_pose") < 0:
+		push_error("Dump spawn must commit rewind pose after the pad teleport")
+		failures += 1
 	var clear_body := _func_body(arena, "func _clear_monsters")
 	var detach := clear_body.find("remove_child")
 	var free_after := clear_body.find("queue_free")

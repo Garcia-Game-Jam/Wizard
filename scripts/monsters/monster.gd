@@ -16,6 +16,7 @@ const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_
 const MonsterPatrolScript := preload("res://scripts/monsters/monster_patrol.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const TestEnvScript := preload("res://scripts/test/test_env.gd")
 
 const DEFAULT_TINT := Color(0.72, 0.28, 0.22, 1.0)
 const DEFAULT_PLAYER_SOURCE := &"player"
@@ -502,6 +503,8 @@ func _interest_is_actionable(interest: MonsterInterest) -> bool:
 func _enter_idle() -> void:
 	_ai_state = MonsterAIScript.State.IDLE
 	_idle_timer = 0.0
+	if TestEnvScript.is_e2e():
+		_idle_timer = idle_duration_sec
 	_undetected_sec = 0.0
 	_alert_timer = 0.0
 	_clear_chase_move()

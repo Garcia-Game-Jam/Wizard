@@ -423,6 +423,8 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 		monster.global_position = spawn
 		monster.rotation = Vector3.ZERO
 		monster.set_multiplayer_authority(1)
+		## _ready enrolled rewind at the scene origin. Seed history at the pad.
+		NetLivenessScript.commit_pose(monster)
 		slot += 1
 
 

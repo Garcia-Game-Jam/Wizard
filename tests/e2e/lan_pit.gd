@@ -161,18 +161,42 @@ func _assert_dump_moved(role: String) -> bool:
 	if body == null:
 		_fail("Dump node vanished before motion check")
 		return false
+	var interpolator := body.get_node_or_null("TickInterpolator")
+	if interpolator != null:
+		interpolator.set("enabled", false)
+		if interpolator.has_method("process_settings"):
+			interpolator.call("process_settings")
 	var origin := _flat(body.global_position)
-	if not await _wait_until("dump moved", DUMP_MOVE_WAIT_SEC, func() -> bool:
-		var live := _monsters_root().get_node_or_null(dump_name) as Node3D
-		return live != null and _flat(live.global_position).distance_to(origin) >= DUMP_MOVE_MIN_M
-	):
-		return false
-	var moved := _monsters_root().get_node_or_null(dump_name) as Node3D
+	var tick0 := _net_tick()
+	print("E2E_POS %s start (%.2f, %.2f) tick=%d" % [role, origin.x, origin.y, tick0])
+	var deadline := Time.get_ticks_msec() + int(DUMP_MOVE_WAIT_SEC * 1000.0)
+	var live: Node3D = body
 	var dist := 0.0
-	if moved != null:
-		dist = _flat(moved.global_position).distance_to(origin)
-	print("E2E_MOVE %s %.2f" % [role, dist])
+	while Time.get_ticks_msec() < deadline:
+		live = _monsters_root().get_node_or_null(dump_name) as Node3D
+		if live != null:
+			dist = _flat(live.global_position).distance_to(origin)
+		await process_frame
+	var ticks := _net_tick() - tick0
+	var end := origin
+	if live != null:
+		end = _flat(live.global_position)
+		dist = end.distance_to(origin)
+	print("E2E_MOVE %s %.2f ticks=%d to=(%.2f, %.2f)" % [role, dist, ticks, end.x, end.y])
+	if ticks < 10:
+		_fail("Net clock stalled during dump motion (%d ticks)" % ticks)
+		return false
+	if dist < DUMP_MOVE_MIN_M:
+		_fail("Dump did not move (%.2f m in %d ticks)" % [dist, ticks])
+		return false
 	return true
+
+
+func _net_tick() -> int:
+	var nt := root.get_node_or_null("NetworkTime")
+	if nt == null:
+		return -1
+	return int(nt.get("tick"))
 
 
 func _flat(pos: Vector3) -> Vector2:
