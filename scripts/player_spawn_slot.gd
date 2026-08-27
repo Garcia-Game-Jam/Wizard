@@ -16,8 +16,7 @@ const RING_NAME := "SlotSelectRing"
 const PREVIEW_NAME := "RolePreview"
 const SPAWN_SLOT_GROUP := "player_spawn_slot"
 const PlayerSpawnLayoutScript := preload("res://scripts/player_spawn_layout.gd")
-## Runtime load() — avoid preload() of apprentice/headmaster (circular with PlayableCharacter).
-const APPRENTICE_SCENE_PATH := "res://scenes/characters/apprentice.tscn"
+const PLAYER_SCENE_PATH := "res://scenes/characters/player.tscn"
 
 @export var role: Role = Role.APPRENTICE:
 	set(value):
@@ -216,7 +215,7 @@ func _ensure_role_preview() -> void:
 		return
 	if existing != null:
 		existing.free()
-	var packed: PackedScene = load(APPRENTICE_SCENE_PATH) as PackedScene
+	var packed: PackedScene = load(PLAYER_SCENE_PATH) as PackedScene
 	if packed == null:
 		push_warning("PlayerSpawnSlot: missing preview scene for role %s" % role)
 		return

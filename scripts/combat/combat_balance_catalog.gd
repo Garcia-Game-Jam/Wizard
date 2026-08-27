@@ -19,7 +19,7 @@ const AshFrostBreathFlightScript := preload(
 )
 const HealthScript := preload("res://scripts/combat/health.gd")
 
-const PLAYER_SCENE := "res://scenes/characters/playable_character.tscn"
+const PLAYER_SCENE := "res://scenes/characters/player.tscn"
 const WARD_SCENE := "res://scenes/spells/ward/ward.tscn"
 const CHARGER_SCENE := "res://scenes/monsters/charger.tscn"
 const EMBER_LOB_SCENE := "res://scenes/monsters/abilities/ember_lob_projectile.tscn"

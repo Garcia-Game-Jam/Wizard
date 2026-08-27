@@ -1,4 +1,4 @@
-class_name PlayableCharacter
+class_name Player
 extends Character
 
 const DEFAULT_WALK_SPEED := 5.0
@@ -15,8 +15,8 @@ const TargetHighlightScript := preload("res://scripts/spells/target_highlight.gd
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 const PlayerDashScript := preload("res://scripts/characters/player_dash.gd")
 const PlayerCrouchScript := preload("res://scripts/characters/player_crouch.gd")
-const PlayableCharacterPreviewScript := preload(
-	"res://scripts/characters/playable_character_preview.gd"
+const PlayerPreviewScript := preload(
+	"res://scripts/characters/player_preview.gd"
 )
 const SpellManaScript := preload("res://scripts/spells/spell_mana.gd")
 const PlayerEmberBurnScript := preload("res://scripts/characters/player_ember_burn.gd")
@@ -134,8 +134,8 @@ var _ward_channel: RefCounted = WardSlotChannelScript.new()
 
 func _ready() -> void:
 	super._ready()
-	if PlayableCharacterPreviewScript.should_use_preview_mode(self):
-		PlayableCharacterPreviewScript.enter_editor_preview_mode(self)
+	if PlayerPreviewScript.should_use_preview_mode(self):
+		PlayerPreviewScript.enter_editor_preview_mode(self)
 		return
 
 	add_to_group("player")
@@ -148,8 +148,7 @@ func _ready() -> void:
 		_wand = get_node_or_null("Head/CameraPivot/FirstPersonCamera/Wand") as PlayerWand
 	if _wand != null:
 		_wand.cache_idle_transform()
-	_character_color = GameState.get_snail_color(player_index)
-	_apply_character_color(_character_color)
+	_apply_character_color(GameState.get_player_color(player_index))
 	_setup_view_camera()
 	_bind_rewindable()
 
@@ -169,7 +168,7 @@ func _setup_view_camera() -> void:
 	if _multiplayer_peer_active():
 		local_peer = multiplayer.get_unique_id()
 	TomeDebug.log(
-		"PlayableCharacter",
+		"Player",
 		"'%s' view=%s authority=%d local_peer=%d"
 		% [
 			name,
@@ -214,7 +213,7 @@ func _get_net_input() -> Object:
 func _bind_rewindable() -> void:
 	if Engine.is_editor_hint():
 		return
-	if PlayableCharacterPreviewScript.should_use_preview_mode(self):
+	if PlayerPreviewScript.should_use_preview_mode(self):
 		return
 	if not GameState.is_multiplayer and owner_peer_id <= 0:
 		return
@@ -234,13 +233,7 @@ func _multiplayer_peer_active() -> bool:
 
 func initialize_player(index: int) -> void:
 	player_index = index
-	_character_color = GameState.get_snail_color(player_index)
-	_apply_character_color(_character_color)
-	_on_player_initialized()
-
-
-func _on_player_initialized() -> void:
-	pass
+	_apply_character_color(GameState.get_player_color(player_index))
 
 
 func configure_interaction(

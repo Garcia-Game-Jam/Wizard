@@ -43,7 +43,7 @@ func _test_lane_primitives() -> int:
 
 func _test_profile_split() -> int:
 	var failures := 0
-	var probe := PlayableCharacter.new()
+	var probe := Player.new()
 	var playable_state := probe.net_state_paths()
 	probe.free()
 	var playable_input := PlayerNetInput.net_input_paths()

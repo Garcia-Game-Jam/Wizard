@@ -1,13 +1,13 @@
 class_name PlayerAirControl
 extends RefCounted
 
-## Air strafing for PlayableCharacter. WASD steers horizontal velocity while
+## Air strafing for Player. WASD steers horizontal velocity while
 ## airborne (previously: zero air control — velocity.x/z were frozen once you
 ## left the floor). Steering strength starts at a percentage of normal
 ## move_speed the instant you leave the ground and decays the longer you stay
 ## airborne, floored at a minimum percentage — so jump-puzzle platforming
 ## still rewards a good takeoff over endlessly correcting mid-air.
-## Tunables live on PlayableCharacter; defaults below are fallbacks for tests.
+## Tunables live on Player; defaults below are fallbacks for tests.
 
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 const PlayerCrouchScript := preload("res://scripts/characters/player_crouch.gd")
@@ -30,7 +30,7 @@ static func config_from(player: CharacterBody3D) -> Dictionary:
 
 
 static func _export_float(player: Object, property: StringName, default: float) -> float:
-	if player is PlayableCharacter:
+	if player is Player:
 		return float(player.get(property))
 	var value: Variant = player.get(property)
 	if value == null:

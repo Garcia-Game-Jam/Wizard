@@ -1,7 +1,7 @@
 class_name PlayerStun
 extends Node
 
-## Authored under PlayableCharacter/Stun. Locks move + cast, applies a launch
+## Authored under Player/Stun. Locks move + cast, applies a launch
 ## velocity, then stays stunned after landing. Movement is move_and_slide.
 
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")

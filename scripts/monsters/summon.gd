@@ -646,7 +646,6 @@ func _face_horizontal_at_speed(desired: Vector3, delta: float, speed_rad: float)
 func _refresh_appearance() -> void:
 	_ensure_mesh_refs()
 	if _body_mesh != null and _head_mesh != null:
-		_character_color = body_tint
 		_apply_character_color(body_tint)
 	_apply_eye_glow_from_health()
 

@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Writes Combat Balance dock edits back onto authored .tscn / .tres files.
 
-const PLAYER_SCENE := "res://scenes/characters/playable_character.tscn"
+const PLAYER_SCENE := "res://scenes/characters/player.tscn"
 const WARD_SCENE := "res://scenes/spells/ward/ward.tscn"
 const FIREBALL_SCENE := "res://scenes/spells/fireball/fireball.tscn"
 

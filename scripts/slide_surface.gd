@@ -91,7 +91,7 @@ static func apply_ground_move(
 		and on_floor
 		and not PlayerCrouchScript.is_crouching(player)
 	):
-		player.velocity.y = PlayableCharacter.JUMP_VELOCITY
+		player.velocity.y = Player.JUMP_VELOCITY
 		player.floor_snap_length = 0.0
 		on_floor = false
 	elif on_floor and player.velocity.y <= 0.05:

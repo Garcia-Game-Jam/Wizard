@@ -1,8 +1,8 @@
 class_name PlayerDash
 extends RefCounted
 
-## Foot dash for PlayableCharacter (Headmaster + Apprentice).
-## Tunables live on PlayableCharacter; defaults below are fallbacks for tests.
+## Foot dash for Player.
+## Tunables live on Player; defaults below are fallbacks for tests.
 
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 const PlayerCrouchScript := preload("res://scripts/characters/player_crouch.gd")
@@ -55,7 +55,7 @@ static func config_from(player: CharacterBody3D) -> Dictionary:
 
 
 static func _export_float(player: Object, property: StringName, default: float) -> float:
-	if player is PlayableCharacter:
+	if player is Player:
 		return float(player.get(property))
 	var value: Variant = player.get(property)
 	if value == null:

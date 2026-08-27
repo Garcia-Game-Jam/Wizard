@@ -10,8 +10,7 @@ func run() -> int:
 	failures += _test_reset_for_new_game()
 	failures += _test_prepare_match()
 	failures += _test_get_team_for_peer()
-	failures += _test_get_snail_color_wraps()
-	failures += _test_is_snail_tracks_form()
+	failures += _test_get_player_color_wraps()
 	return failures
 
 
@@ -22,16 +21,12 @@ func _make_state() -> GameStateScript:
 func _test_reset_for_new_game() -> int:
 	var state := _make_state()
 	state.is_multiplayer = true
-	state.local_player_form = GameStateScript.PlayerForm.HUMAN
 	state.run_seed = 42
 
 	state.reset_for_new_game()
 
 	if state.is_multiplayer:
 		push_error("Expected solo reset to clear is_multiplayer")
-		return 1
-	if state.local_player_form != GameStateScript.PlayerForm.SNAIL:
-		push_error("Expected solo reset to restore snail form")
 		return 1
 	if state.run_seed < 0:
 		push_error("Expected solo reset to assign a run seed")
@@ -66,9 +61,6 @@ func _test_prepare_match() -> int:
 	if restored.role != GameStateScript.PlayerRole.APPRENTICE:
 		push_error("Expected prepare_match to store character configs")
 		return 1
-	if state.local_player_form != GameStateScript.PlayerForm.SNAIL:
-		push_error("Expected multiplayer start to begin in snail form")
-		return 1
 	return 0
 
 
@@ -101,24 +93,11 @@ func _test_get_team_for_peer() -> int:
 	return 0
 
 
-func _test_get_snail_color_wraps() -> int:
+func _test_get_player_color_wraps() -> int:
 	var state := _make_state()
-	var first := state.get_snail_color(0)
-	var wrapped := state.get_snail_color(GameStateScript.SNAIL_COLORS.size())
+	var first := state.get_player_color(0)
+	var wrapped := state.get_player_color(GameStateScript.PLAYER_COLORS.size())
 	if first != wrapped:
-		push_error("Expected snail color palette to wrap by player index")
-		return 1
-	return 0
-
-
-func _test_is_snail_tracks_form() -> int:
-	var state := _make_state()
-	state.local_player_form = GameStateScript.PlayerForm.SNAIL
-	if not state.is_snail():
-		push_error("Expected SNAIL form to report is_snail() true")
-		return 1
-	state.local_player_form = GameStateScript.PlayerForm.HUMAN
-	if state.is_snail():
-		push_error("Expected HUMAN form to report is_snail() false")
+		push_error("Expected player color palette to wrap by player index")
 		return 1
 	return 0

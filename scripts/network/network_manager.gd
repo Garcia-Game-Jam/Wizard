@@ -15,7 +15,7 @@ signal session_ended(reason: String)
 signal steam_lobby_invite_received(lobby_id: int)
 signal players_spawned
 
-const APPRENTICE_SCENE := preload("res://scenes/characters/apprentice.tscn")
+const PLAYER_SCENE := preload("res://scenes/characters/player.tscn")
 const DEFAULT_HORROR_CONFIG := preload("res://resources/match/default_horror_config.tres")
 
 const LAN_HOST_PORT := 7777
@@ -308,7 +308,6 @@ func disconnect_session() -> void:
 	_session_mode = ""
 	lobby.reset()
 	MatchStateManager.reset()
-	TrailRegistry.reset()
 	if Engine.get_main_loop() != null:
 		GameState.reset_for_new_game()
 	# Autoload lookup needs an active tree (unit tests instantiate this off-tree).
@@ -409,7 +408,7 @@ func spawn_player_for_peer(
 	player.name = str(peer_id)
 	if "owner_peer_id" in player:
 		player.set("owner_peer_id", peer_id)
-	# Host owns body state; the peer owns only Input (wired in PlayableCharacter._bind_rewindable).
+	# Host owns body state; the peer owns only Input (wired in Player._bind_rewindable).
 	player.set_multiplayer_authority(1)
 	players_root.add_child(player, true)
 	set_player_sync_enabled(player, true)
@@ -618,20 +617,6 @@ func _request_match_victory(winner_peer_id: int) -> void:
 @rpc("authority", "call_local", "reliable")
 func _rpc_match_victory(winner_peer_id: int) -> void:
 	_forward_to_main("trigger_match_victory", [winner_peer_id])
-
-
-@rpc("any_peer", "call_remote", "unreliable")
-func _submit_trail_sample(seq: int, x: float, z: float) -> void:
-	if not multiplayer.is_server() or not MatchStateManager.allows_gameplay_actions():
-		return
-	TrailRegistry.host_accept_sample(multiplayer.get_remote_sender_id(), seq, x, z)
-
-
-@rpc("authority", "call_local", "unreliable")
-func _broadcast_trail_sample(peer_id: int, seq: int, x: float, z: float, time_msec: int) -> void:
-	if not MatchStateManager.allows_gameplay_actions():
-		return
-	TrailRegistry.client_apply_sample(peer_id, seq, x, z, time_msec)
 
 
 func uses_steam_session() -> bool:
@@ -863,4 +848,4 @@ func _forward_to_main(method: StringName, args: Array = []) -> void:
 
 
 func _instantiate_player_for_peer(_peer_id: int) -> CharacterBody3D:
-	return APPRENTICE_SCENE.instantiate() as CharacterBody3D
+	return PLAYER_SCENE.instantiate() as CharacterBody3D

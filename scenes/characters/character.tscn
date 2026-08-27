@@ -28,7 +28,7 @@ metallic = 0.05
 roughness = 0.62
 
 [node name="Character" type="CharacterBody3D" unique_id=1969475288]
-editor_description = "3D character shell: Body + Head. Edit here; use apprentice_workspace for lit preview."
+editor_description = "3D character shell: Body + Head. Edit here; type scenes override look and collision."
 script = ExtResource("1_character")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=294740946]
