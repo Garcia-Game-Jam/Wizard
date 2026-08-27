@@ -29,10 +29,12 @@ THRESHOLDS = {
     "rb_depth.p99": 3.0,
     "tickloop_ms.p99": 6.0,
     "clock_stretch.spread": 0.35,
-    "tick_factor.backward_pct": 2.0,
+    "tick_factor.regress_pct": 2.0,
     "stuck_airborne_pct": 5.0,
     "grounded_vy_abs.p95": 1.0,
     "on_floor_flips": 10.0,
+    "render_freeze_pct": 1.0,
+    "render_reversal_pct": 2.0,
 }
 
 DIAG_ROOT_CANDIDATES = (
@@ -82,16 +84,17 @@ def _frame_summary(rows: list[dict[str, str]]) -> dict[str, float]:
     rb = _floats(rows, "rb_depth")
     stretch = _floats(rows, "clock_stretch")
     phys_steps = _floats(rows, "phys_steps")
-    # tick_factor should rise 0->1 then reset. A step in (-0.9, -0.02) is
-    # interpolation going backwards mid-tick = the sub-tick stutter.
+    # tick_factor rises 0->1 then resets (big negative step). A *small* negative
+    # step (-0.25 < d < -0.01) is a mid-rise regression = interpolation going
+    # backwards. A reset (d <= -0.25) is normal and not counted.
     tf_delta = _floats(rows, "tick_factor_delta")
     tf = _floats(rows, "tick_factor")
-    tf_backward = sum(1 for d in tf_delta if -0.9 < d < -0.02)
+    tf_regress = sum(1 for d in tf_delta if -0.25 < d < -0.01)
     tf_pinned = sum(1 for i, v in enumerate(tf)
                     if v > 0.98 and i < len(tf_delta) and abs(tf_delta[i]) < 0.001)
     n = max(len(rows), 1)
     extra = {
-        "tick_factor.backward_pct": 100.0 * tf_backward / n,
+        "tick_factor.regress_pct": 100.0 * tf_regress / n,
         "tick_factor.pinned_pct": 100.0 * tf_pinned / n,
     }
     return extra | {
@@ -163,10 +166,60 @@ def _pawn_check(rows: list[dict[str, str]]) -> dict[str, float]:
     return out
 
 
+def _render_check(rows: list[dict[str, str]]) -> dict[str, float]:
+    """Smoothness of the on-screen (interpolated) pose. This is the metric that
+    matches what the player's eye sees during a knock-up."""
+    if not rows:
+        return {}
+    by_pawn: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        by_pawn.setdefault(row.get("pawn", "?"), []).append(row)
+
+    out: dict[str, float] = {"render_frames": float(len(rows))}
+    for name, pr in sorted(by_pawn.items()):
+        pr.sort(key=lambda r: int(r["frame"]))
+        deltas: list[tuple[float, float, float, float]] = []  # dx,dy,dz,dt_s
+        for a, b in zip(pr, pr[1:]):
+            try:
+                dt = (float(b["t_ms"]) - float(a["t_ms"])) / 1000.0
+                d = (float(b["px"]) - float(a["px"]),
+                     float(b["py"]) - float(a["py"]),
+                     float(b["pz"]) - float(a["pz"]))
+            except (KeyError, ValueError):
+                continue
+            if dt > 0:
+                deltas.append((*d, dt))
+        if len(deltas) < 3:
+            continue
+        mags = [math.dist((0, 0, 0), d[:3]) for d in deltas]
+        n_moving = max(sum(1 for m in mags if m > 0.003), 1)  # ~0.4 u/s at 144fps
+        # freeze: a near-still frame flanked by motion
+        freezes = sum(1 for i in range(1, len(mags) - 1)
+                      if mags[i] < 0.0005 and mags[i - 1] > 0.005 and mags[i + 1] > 0.005)
+        # reversal: consecutive move vectors point opposite (dot < 0), both real
+        reversals = 0
+        jerks: list[float] = []
+        for i in range(1, len(deltas)):
+            p, q = deltas[i - 1], deltas[i]
+            vp = tuple(c / p[3] for c in p[:3])
+            vq = tuple(c / q[3] for c in q[:3])
+            jerks.append(math.dist(vp, vq))
+            if mags[i - 1] > 0.005 and mags[i] > 0.005:
+                if sum(a * b for a, b in zip(p[:3], q[:3])) < 0:
+                    reversals += 1
+        tag = f"render_{name}"
+        out[f"{tag}.jerk.p95"] = _pct(jerks, 95)
+        out[f"{tag}.jerk.max"] = max(jerks) if jerks else 0.0
+        out[f"{tag}.render_freeze_pct"] = 100.0 * freezes / len(mags)
+        out[f"{tag}.render_reversal_pct"] = 100.0 * reversals / n_moving
+    return out
+
+
 def _print_session(session: Path) -> bool:
     frames = _read_csv(session / "frame.csv")
     events = _read_csv(session / "events.csv")
     pawns = _read_csv(session / "pawn.csv")
+    render = _read_csv(session / "render.csv")
     meta = {}
     if (session / "meta.json").exists():
         meta = json.loads((session / "meta.json").read_text())
@@ -184,8 +237,9 @@ def _print_session(session: Path) -> bool:
 
     summary = _frame_summary(frames)
     summary.update(_pawn_check(pawns))
+    summary.update(_render_check(render))
     for key, value in summary.items():
-        print(f"  {key:24s} {value:10.3f}")
+        print(f"  {key:30s} {value:10.3f}")
 
     print("  rb_depth histogram: " + str(dict(sorted(
         Counter(int(float(r["rb_depth"])) for r in frames if "rb_depth" in r).items()

@@ -9,6 +9,8 @@ extends Node
 ##                attributable instead of guessed from net_tick
 ##   pawn.csv   - per fresh tick per pawn: position, vy, is_on_floor (the
 ##                floor-state check that hypothesis 1 hinges on)
+##   render.csv - per render frame, the interpolated (on-screen) pose of each
+##                player pawn. Sub-tick stutter/freeze/warp lives here only.
 ##   meta.json  - self-describing header (backend + config + machine)
 ##
 ## Backend-neutral: all netcode reads go through NetProbe. Toggle with the
@@ -24,6 +26,10 @@ const FRAME_HEADER := (
 )
 const EVENT_HEADER := "t_ms,frame,net_tick,event,detail"
 const PAWN_HEADER := "t_ms,net_tick,pawn,owner,px,py,pz,vy,on_floor,speed"
+## Per render frame, the displayed (interpolated) pose of each player pawn. This
+## is what the player's eye tracks; sub-tick stutter/freeze/warp lives here and
+## nowhere else. pawn.csv is per tick and cannot show it.
+const RENDER_HEADER := "t_ms,frame,net_tick,pawn,px,py,pz"
 
 var _armed := false
 var _capturing := false
@@ -31,8 +37,10 @@ var _session_dir := ""
 var _frame_file: FileAccess = null
 var _event_file: FileAccess = null
 var _pawn_file: FileAccess = null
+var _render_file: FileAccess = null
 var _frame_rows: PackedStringArray = []
 var _pawn_rows: PackedStringArray = []
+var _render_rows: PackedStringArray = []
 var _context: Dictionary = {}
 var _probe: NetProbe = null
 
@@ -87,10 +95,12 @@ func begin_session(context: Dictionary = {}) -> void:
 	_frame_file = _open_csv("frame.csv", FRAME_HEADER)
 	_event_file = _open_csv("events.csv", EVENT_HEADER)
 	_pawn_file = _open_csv("pawn.csv", PAWN_HEADER)
+	_render_file = _open_csv("render.csv", RENDER_HEADER)
 	if _frame_file == null:
 		return
 	_frame_rows.clear()
 	_pawn_rows.clear()
+	_render_rows.clear()
 	_write_meta()
 	_capturing = true
 	_frame_ms_peak = 0.0
@@ -110,12 +120,13 @@ func end_session() -> void:
 	set_process(false)
 	set_physics_process(false)
 	_flush()
-	for file in [_frame_file, _event_file, _pawn_file]:
+	for file in [_frame_file, _event_file, _pawn_file, _render_file]:
 		if file != null:
 			file.close()
 	_frame_file = null
 	_event_file = null
 	_pawn_file = null
+	_render_file = null
 	_clear_overlay()
 	print("[NetDiag] capture closed -> %s" % _session_dir)
 	_session_dir = ""
@@ -165,9 +176,9 @@ func _process(delta: float) -> void:
 	var loop: Dictionary = _probe.pop_tick_loop()
 	_last_tickloop_us = int(loop.get("us", 0))
 
-	## tick_factor should sweep 0->1 monotonically between ticks then reset. A
-	## negative delta that is not a tick reset (< -0.5) is interpolation going
-	## backwards = the sub-tick stutter that sync_to_physics is meant to remove.
+	## tick_factor sweeps 0->1 between ticks then resets. Logged raw; the analyzer
+	## separates a legitimate reset from a mid-rise regression (small backward
+	## step) -- render.csv is the real smoothness signal.
 	var tick_factor := float(clock.get("tick_factor", 0.0))
 	var tf_delta := tick_factor - _prev_tick_factor
 	_prev_tick_factor = tick_factor
@@ -195,12 +206,30 @@ func _process(delta: float) -> void:
 		_probe.peer_count(),
 	])
 	_phys_steps = 0
-	if _frame_rows.size() >= FLUSH_EVERY:
+	_sample_render(tick)
+	if _frame_rows.size() >= FLUSH_EVERY or _render_rows.size() >= FLUSH_EVERY * 4:
 		_flush()
 
 	_frame_ms_peak = maxf(_frame_ms_peak * 0.95, frame_ms)
 	_rb_depth_peak = maxi(int(_rb_depth_peak * 0.9), rb_depth)
 	_update_overlay(tick, rb_depth, float(clock.get("stretch", 1.0)))
+
+
+## The displayed pose of each player pawn this render frame. TickInterpolator
+## has already written its interpolated value onto the node by the time _process
+## runs, so global_position here is exactly what is on screen.
+func _sample_render(tick: int) -> void:
+	if _render_file == null:
+		return
+	var t_ms := Time.get_ticks_msec()
+	var frame := Engine.get_process_frames()
+	for node in get_tree().get_nodes_in_group("player"):
+		if not (node is Node3D):
+			continue
+		var pos := (node as Node3D).global_position
+		_render_rows.append("%d,%d,%d,%s,%.4f,%.4f,%.4f" % [
+			t_ms, frame, tick, node.name, pos.x, pos.y, pos.z,
+		])
 
 
 func _flush() -> void:
@@ -214,6 +243,11 @@ func _flush() -> void:
 			_pawn_file.store_line(line)
 		_pawn_file.flush()
 		_pawn_rows.clear()
+	if _render_file != null and not _render_rows.is_empty():
+		for line in _render_rows:
+			_render_file.store_line(line)
+		_render_file.flush()
+		_render_rows.clear()
 
 
 func _open_csv(basename: String, header: String) -> FileAccess:
