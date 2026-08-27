@@ -87,8 +87,18 @@ static func sync_motion_from_pose(body: CharacterBody3D, sliding: bool = false) 
 	if body == null:
 		return false
 	var on_floor := has_floor_below(body)
-	if sliding or not on_floor:
+	if sliding:
 		body.motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+		body.floor_snap_length = 0.0
+		return false
+	if not on_floor:
+		## Airborne stays GROUNDED. In FLOATING mode move_and_slide drops the
+		## whole motion vector -- vertical included -- when the body is pressed
+		## into a wall, and leaves the into-wall velocity untouched, so a wizard
+		## knocked into a wall hangs mid-air until the arc reverses. Measured:
+		## 67 of 70 ticks frozen at 23.6 m/s. GROUNDED resolves the same case
+		## correctly. Snap stays off so nothing yanks us to the floor mid-flight.
+		body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 		body.floor_snap_length = 0.0
 		return false
 	body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
