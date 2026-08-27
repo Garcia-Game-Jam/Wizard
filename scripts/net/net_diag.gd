@@ -5,7 +5,7 @@ extends Node
 ## Per match, writes user://diag/<stamp>_<role>_<pid>/:
 ##   frame.csv  - one row per rendered frame (real frame time, rollback depth,
 ##                tick-loop cost, clock health, physics-step count)
-##   events.csv - named markers (clock_start, encounter_begin, ...) so spikes are
+##   events.csv - named markers (clock_start, encounter_begin, dump_spawn, ...) so spikes are
 ##                attributable instead of guessed from net_tick
 ##   pawn.csv   - per fresh tick per pawn: position, vy, is_on_floor (the
 ##                floor-state check that hypothesis 1 hinges on)

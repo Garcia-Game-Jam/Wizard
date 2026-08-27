@@ -72,13 +72,31 @@ def _floats(rows: list[dict[str, str]], key: str) -> list[float]:
     return out
 
 
+def _event_label(ev: dict[str, str]) -> str:
+    name = ev.get("event", "")
+    detail = (ev.get("detail") or "").strip()
+    return f"{name} {detail}".strip() if detail else name
+
+
 def _nearest_event(events: list[dict[str, str]], t_ms: float) -> str:
     best, best_dt = "-", 1e18
     for ev in events:
         dt = t_ms - float(ev["t_ms"])
         if 0 <= dt < best_dt:
-            best, best_dt = ev["event"], dt
+            best, best_dt = _event_label(ev), dt
     return f"{best} (+{best_dt / 1000:.1f}s)" if best != "-" else "-"
+
+
+def _print_dump_events(events: list[dict[str, str]]) -> None:
+    rows = [
+        ev for ev in events
+        if (ev.get("event") or "").startswith(("encounter_begin", "dump_"))
+    ]
+    if not rows:
+        return
+    print("  dump events:")
+    for ev in rows:
+        print(f"    tick={ev.get('net_tick', '?'):>6}  {_event_label(ev)}")
 
 
 def _frame_summary(rows: list[dict[str, str]]) -> dict[str, float]:
@@ -258,6 +276,7 @@ def _print_session(session: Path) -> bool:
         t_ms = float(row["t_ms"])
         print(f"    {float(row['frame_ms']):7.1f}ms  rb={row['rb_depth']:>2}  "
               f"tick={row['net_tick']:>6}  {_nearest_event(events, t_ms)}")
+    _print_dump_events(events)
 
     ok = True
     for pattern, ceiling in THRESHOLDS.items():

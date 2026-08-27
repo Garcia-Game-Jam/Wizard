@@ -39,8 +39,14 @@ python tools/analyze_netdiag.py <session_dir> [<session_dir> ...]
 PASS/FAIL is against `THRESHOLDS` in `tools/analyze_netdiag.py`. Read the
 summary, not just RESULT:
 
-- `frame_ms.max` is reported, not gated — a ~140 ms spike at `encounter_begin`
-  is the dump hitch, not ongoing lag. Use `frame_ms.p99`.
+- `frame_ms.max` is reported, not gated. Live dump scenes (charger, ember)
+  are `preload`ed with the arena, so `dump_spawn` `load=` should be noise.
+  A remaining spike at `encounter_begin` is instantiate / first draw, not
+  disk. Use `frame_ms.p99` for ongoing lag.
+- Dump split (no new columns): `dump_cleared` / `dump_spawn` (`load=`
+  `inst=` `enroll=` microseconds) / `dump_done` / deferred `dump_rewind`
+  (rollback ticks). `rb_depth=1` on a long frame means it is not the rewind
+  spike (`rb_depth.max` in the 30s is usually a different frame).
 - `step.max` is reported; the gate is owned-pawn `step.p95` vs capsule radius
   (0.237 m). Dash can spike a single tick over the radius.
 - `stuck_airborne_pct` on `[rem]` is ignored. Guests do not `move_and_slide`

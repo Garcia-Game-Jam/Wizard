@@ -306,11 +306,14 @@ func rpc_show_telegraph(encounter_index: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func rpc_begin_fight(encounter_index: int) -> void:
+	var t0 := Time.get_ticks_usec()
 	NetDiag.mark("encounter_begin", str(encounter_index))
 	_clear_monsters()
 	if spawn_telegraph != null and spawn_telegraph.has_method("clear_pads"):
 		spawn_telegraph.call("clear_pads")
+	NetDiag.mark("dump_cleared", "%d_us" % (Time.get_ticks_usec() - t0))
 	_spawn_dump(encounter_index, ArenaEncountersScript.dump_for(encounter_index))
+	NetDiag.mark("dump_done", "%d %d_us" % [encounter_index, Time.get_ticks_usec() - t0])
 	_wave_live = true
 	_staging = Staging.NONE
 	_refresh_hud_prompt()
@@ -406,6 +409,7 @@ func _warn_wide_rollback() -> void:
 	if perf == null or not perf.has_method("get_rollback_ticks"):
 		return
 	var ticks := int(perf.call("get_rollback_ticks"))
+	NetDiag.mark("dump_rewind", str(ticks))
 	if ticks > ROLLBACK_WIDE_TICKS:
 		push_warning("Arena: dump resimulated %d ticks (netfox rewind)" % ticks)
 
@@ -415,13 +419,13 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 	for entry in dump:
 		var kind := str(entry.get("kind", ""))
 		var pad := int(entry.get("pad", 0))
-		var path := ArenaEncountersScript.scene_path_for(kind)
-		if path.is_empty() or not ResourceLoader.exists(path):
+		var t_load := Time.get_ticks_usec()
+		var packed := ArenaEncountersScript.packed_scene_for(kind)
+		var load_us := Time.get_ticks_usec() - t_load
+		if packed == null:
 			push_warning("Arena: missing monster scene for %s" % kind)
 			continue
-		var packed := load(path) as PackedScene
-		if packed == null:
-			continue
+		var t_inst := Time.get_ticks_usec()
 		var monster := packed.instantiate() as Node3D
 		if monster == null:
 			continue
@@ -438,8 +442,13 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 		monster.global_position = spawn
 		monster.rotation = Vector3.ZERO
 		monster.set_multiplayer_authority(1)
+		var inst_us := Time.get_ticks_usec() - t_inst
 		## _ready enrolled rewind at the scene origin. Seed history at the pad.
+		var t_enroll := Time.get_ticks_usec()
 		NetLivenessScript.commit_pose(monster)
+		NetDiag.mark("dump_spawn", "%s load=%d inst=%d enroll=%d" % [
+			kind, load_us, inst_us, Time.get_ticks_usec() - t_enroll,
+		])
 		slot += 1
 
 
