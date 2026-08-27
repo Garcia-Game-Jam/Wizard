@@ -43,6 +43,7 @@ RollbackLivenessServer="*res://addons/netfox/servers/rollback-liveness-server.gd
 InterpolationServer="*res://addons/netfox/servers/interpolation-server.gd"
 WindowTiler="*res://addons/netfox.extras/window-tiler.gd"
 NetworkSimulator="*res://addons/netfox.extras/network-simulator.gd"
+NetDiag="*res://scripts/net/net_diag.gd"
 
 [debug]
 

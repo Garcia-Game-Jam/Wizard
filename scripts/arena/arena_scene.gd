@@ -46,6 +46,7 @@ func _ready() -> void:
 		return
 
 	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
+	NetDiag.begin_session({"scenario": "arena", "role": _diag_role()})
 	pause_menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	if voice_validator != null:
 		voice_validator.apply_settings_from_manager()
@@ -75,6 +76,16 @@ func _ready() -> void:
 
 	if _is_run_host():
 		_between_timer = FIRST_FIGHT_DELAY_SEC
+
+
+func _exit_tree() -> void:
+	NetDiag.end_session()
+
+
+func _diag_role() -> String:
+	if not GameState.is_multiplayer:
+		return "solo"
+	return "host" if multiplayer.is_server() else "guest"
 
 
 func _process(delta: float) -> void:
