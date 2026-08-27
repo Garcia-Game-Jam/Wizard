@@ -31,6 +31,7 @@ const BY_EFFECT := {
 	"haste": PLAYER_BOUND,
 	"flashlight_toggle": PLAYER_BOUND,
 	"fireball": EPHEMERAL,
+	"stone_throw": EPHEMERAL,
 	"flare": EPHEMERAL,
 	"ward": EPHEMERAL,
 	"light_ball": WORLD_OBJECT,

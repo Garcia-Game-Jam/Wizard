@@ -6,6 +6,7 @@ extends RefCounted
 ## targeted). Ephemeral spawns use SpellEphemeralFx; lasting props use SpellWorldSync.
 
 const FireballProjectileScript := preload("res://scripts/spells/fireball_projectile.gd")
+const StoneThrowProjectileScript := preload("res://scripts/spells/stone_throw_projectile.gd")
 const FlareEffectScript := preload("res://scripts/spells/flare_effect.gd")
 const WardShieldScript := preload("res://scripts/spells/ward_shield.gd")
 const LightBallOrbScript := preload("res://scripts/spells/light_ball_orb.gd")
@@ -28,6 +29,7 @@ const KEY_CHARGE_FACTOR := "charge_factor"
 
 const EFFECT_HASTE := "haste"
 const EFFECT_FIREBALL := "fireball"
+const EFFECT_STONE_THROW := "stone_throw"
 const EFFECT_FLARE := "flare"
 const EFFECT_WARD := "ward"
 const EFFECT_FLASHLIGHT_TOGGLE := "flashlight_toggle"
@@ -73,7 +75,7 @@ static func build_params(spell: SpellDefinition, player: CharacterBody3D) -> Dic
 		KEY_CHARGE_FACTOR: _player_charge_factor(player),
 	}
 	match spell.effect_id:
-		EFFECT_FIREBALL, EFFECT_FLARE, EFFECT_WARD:
+		EFFECT_FIREBALL, EFFECT_STONE_THROW, EFFECT_FLARE, EFFECT_WARD:
 			params[KEY_ORIGIN] = _fireball_origin(player)
 			params[KEY_DIRECTION] = _fireball_direction(player)
 			if spell.effect_id == EFFECT_WARD:
@@ -300,7 +302,7 @@ static func pack_for_network(params: Dictionary) -> Dictionary:
 		return {}
 	var wire := {KEY_EFFECT_ID: str(local.get(KEY_EFFECT_ID, ""))}
 	match str(wire[KEY_EFFECT_ID]):
-		EFFECT_FIREBALL, EFFECT_FLARE, EFFECT_WARD:
+		EFFECT_FIREBALL, EFFECT_STONE_THROW, EFFECT_FLARE, EFFECT_WARD:
 			var origin := coerce_vector3(local.get(KEY_ORIGIN, Vector3.ZERO))
 			var direction := coerce_vector3(local.get(KEY_DIRECTION, Vector3.FORWARD))
 			SpellEphemeralFxScript.pack_ray(wire, origin, direction)
@@ -372,7 +374,7 @@ static func unpack_from_network(wire: Dictionary) -> Dictionary:
 	var effect_id := str(wire.get(KEY_EFFECT_ID, ""))
 	var params := {KEY_EFFECT_ID: effect_id}
 	match effect_id:
-		EFFECT_FIREBALL, EFFECT_FLARE, EFFECT_WARD:
+		EFFECT_FIREBALL, EFFECT_STONE_THROW, EFFECT_FLARE, EFFECT_WARD:
 			var ray := SpellEphemeralFxScript.unpack_ray(wire)
 			params[KEY_ORIGIN] = ray[SpellEphemeralFxScript.KEY_ORIGIN]
 			params[KEY_DIRECTION] = ray[SpellEphemeralFxScript.KEY_DIRECTION]
@@ -457,6 +459,7 @@ static func is_network_format(params: Dictionary) -> bool:
 	if (
 		(
 			effect_id == EFFECT_FIREBALL
+			or effect_id == EFFECT_STONE_THROW
 			or effect_id == EFFECT_FLARE
 			or effect_id == EFFECT_WARD
 		)
@@ -499,6 +502,7 @@ static func resolve_network_params(
 			_append_dispell_target(params, player)
 	if (
 		spell.effect_id != EFFECT_FIREBALL
+		and spell.effect_id != EFFECT_STONE_THROW
 		and spell.effect_id != EFFECT_FLARE
 		and spell.effect_id != EFFECT_WARD
 	):
@@ -556,6 +560,16 @@ static func spawn_predicted(player: CharacterBody3D, params: Dictionary) -> Node
 						parent, spawn_origin, spawn_dir, player, false, charge
 					)
 			)
+		EFFECT_STONE_THROW:
+			spawned = SpellEphemeralFxScript.spawn_at(
+				player,
+				origin,
+				direction,
+				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
+					return StoneThrowProjectileScript.spawn(
+						parent, spawn_origin, spawn_dir, player, false
+					)
+			)
 		EFFECT_FLARE:
 			var duration := float(
 				params.get(KEY_DURATION, FlareEffectScript.DEFAULT_DURATION_SEC)
@@ -599,6 +613,8 @@ static func apply(player: CharacterBody3D, params: Dictionary) -> void:
 			)
 		EFFECT_FIREBALL:
 			_apply_fireball(player, params)
+		EFFECT_STONE_THROW:
+			_apply_stone_throw(player, params)
 		EFFECT_FLARE:
 			_apply_flare(player, params)
 		EFFECT_WARD:
@@ -764,6 +780,10 @@ static func _fireball_origin(player: CharacterBody3D) -> Vector3:
 
 
 static func _apply_fireball(player: CharacterBody3D, params: Dictionary) -> void:
+	spawn_predicted(player, params)
+
+
+static func _apply_stone_throw(player: CharacterBody3D, params: Dictionary) -> void:
 	spawn_predicted(player, params)
 
 

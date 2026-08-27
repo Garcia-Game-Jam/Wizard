@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://cstoneobj01"]
+
+[ext_resource type="ArrayMesh" path="res://assets/props/stone_mesh.res" id="1_mesh"]
+[ext_resource type="Shape3D" path="res://assets/props/stone_collision.res" id="2_shape"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone"]
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.36593145, 0.36991182, 0.39773694, 1)
+
+[node name="Stone" type="StaticBody3D" unique_id=942653689]
+editor_description = "Low-poly greybox rock. Mesh/collision are baked by StoneMeshBuilder — regenerate via tools/generate_stone_mesh.gd, do not hand-edit either resource."
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=139825872]
+mesh = ExtResource("1_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_stone")
+
+[node name="Collision" type="CollisionShape3D" parent="." unique_id=1895926295]
+shape = ExtResource("2_shape")

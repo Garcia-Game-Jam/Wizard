@@ -117,6 +117,8 @@ func get_charge_time_sec() -> float:
 		return 0.0
 	if effect_id == "fireball":
 		return FireballProjectile.authored_charge_time_sec()
+	if effect_id == "stone_throw":
+		return StoneThrowProjectile.authored_charge_time_sec()
 	return maxf(charge_time_sec, 0.0)
 
 
@@ -125,6 +127,8 @@ func get_base_damage() -> float:
 		return damage
 	if effect_id == "fireball":
 		return FireballProjectile.DEFAULT_HIT_DAMAGE
+	if effect_id == "stone_throw":
+		return StoneThrowProjectile.DEFAULT_HIT_DAMAGE
 	return 0.0
 
 
@@ -246,6 +250,8 @@ func get_cast_success_text() -> String:
 			text = "You surge forward — movement speed increased!"
 		"fireball":
 			text = "A blazing fireball launches from your wand!"
+		"stone_throw":
+			text = "You hurl a stone forward, knocking back whatever it hits!"
 		"flare":
 			text = "A signal flare streaks toward your aim and bursts into a lasting beacon!"
 		"ward":
@@ -288,6 +294,12 @@ func get_codex_effect_detail() -> String:
 				"Hold to charge a fireball at your wand tip, then release to launch. "
 				+ "Let go early and it fizzles into a smoky wisp. "
 				+ "Shots explode on impact and knock players back."
+			)
+		"stone_throw":
+			text = (
+				"Hold to wind up, then release to throw a stone straight ahead. "
+				+ "Let go early and it fizzles. "
+				+ "It deals damage and knocks back whatever it hits."
 			)
 		"flare":
 			text = (

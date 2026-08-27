@@ -5,6 +5,7 @@ extends PanelContainer
 
 const PREVIEW_SCENES := {
 	"fireball": preload("res://scenes/spells/fireball/fireball.tscn"),
+	"stone_throw": preload("res://scenes/spells/stone_throw/stone_throw.tscn"),
 	"flare": preload("res://scenes/spells/evaluating/flare/flare.tscn"),
 	"ward": preload("res://scenes/spells/ward/ward.tscn"),
 }

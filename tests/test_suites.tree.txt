@@ -3,3 +3,4 @@ res://tests/unit/test_spell_validation_async.gd
 res://tests/unit/test_spell_pipeline.gd
 res://tests/unit/test_player_spawn_authority.gd
 res://tests/unit/test_ui_scaffolding_chrome.gd
+res://tests/unit/test_stone_throw_projectile.gd

@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://cstonethrow01"]
+
+[ext_resource type="Script" uid="uid://d3cv5t40q0v1c" path="res://scripts/spells/stone_throw_projectile.gd" id="1_stone"]
+[ext_resource type="ArrayMesh" path="res://assets/props/stone_mesh.res" id="2_mesh"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_hit"]
+radius = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stone"]
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.36593145, 0.36991182, 0.39773694, 1)
+
+[node name="StoneThrow" type="Area3D" unique_id=1898685587]
+editor_description = "Select THIS StoneThrow root. Cast timing is charge hold. Reuses the assets/props/stone_mesh.res rock, scaled down and spun in flight."
+collision_layer = 0
+monitorable = false
+script = ExtResource("1_stone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=732600528]
+shape = SubResource("SphereShape3D_hit")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=2165499]
+transform = Transform3D(0.4163976, -0.048331067, 0.026684921, 0.05211986, 0.41112298, -0.068682075, -0.018247204, 0.071398534, 0.41354272, 0, 0, 0)
+cast_shadow = 0
+mesh = ExtResource("2_mesh")
+surface_material_override/0 = SubResource("StandardMaterial3D_stone")

@@ -9,7 +9,7 @@ const KIND_ASH := "ash"
 
 const UNLOCK_QUEUE: Array[String] = ["ward"]
 
-const STARTER_SPELL_IDS: Array[String] = ["fireball"]
+const STARTER_SPELL_IDS: Array[String] = ["stone_throw"]
 
 const COVER_RESTAGE_BASE := 0.5
 const COVER_RESTAGE_STEP := 0.25
