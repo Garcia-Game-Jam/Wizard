@@ -20,13 +20,17 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+# p95/max ceilings, loose first pass. Keys are matched as substrings against the
+# summary so pawn-specific keys (pawn_1[rem].stuck_airborne_pct) are covered.
 THRESHOLDS = {
     "frame_ms.p99": 20.0,
     "frame_ms.max": 50.0,
     "rb_depth.p99": 3.0,
     "tickloop_ms.p99": 6.0,
     "clock_stretch.spread": 0.35,
-    "grounded_vy_abs.max": 2.0,
+    "stuck_airborne_pct": 5.0,
+    "grounded_vy_abs.p95": 1.0,
+    "on_floor_flips": 10.0,
 }
 
 DIAG_ROOT_CANDIDATES = (
@@ -97,27 +101,40 @@ def _frame_summary(rows: list[dict[str, str]]) -> dict[str, float]:
 def _pawn_check(rows: list[dict[str, str]]) -> dict[str, float]:
     if not rows:
         return {}
-    grounded_vy = []
-    flips = 0
-    prev_floor: dict[str, int] = {}
+    by_pawn: dict[str, list[dict[str, str]]] = {}
     for row in rows:
-        try:
-            on_floor = int(row["on_floor"])
-            vy = float(row["vy"])
-        except (KeyError, ValueError):
-            continue
-        name = row.get("pawn", "?")
-        if name in prev_floor and prev_floor[name] != on_floor:
-            flips += 1
-        prev_floor[name] = on_floor
-        if on_floor:
-            grounded_vy.append(abs(vy))
-    return {
-        "pawn_ticks": float(len(rows)),
-        "grounded_vy_abs.p95": _pct(grounded_vy, 95),
-        "grounded_vy_abs.max": max(grounded_vy) if grounded_vy else 0.0,
-        "on_floor_flips": float(flips),
-    }
+        by_pawn.setdefault(row.get("pawn", "?"), []).append(row)
+
+    out: dict[str, float] = {"pawn_ticks": float(len(rows))}
+    for name, pr in sorted(by_pawn.items()):
+        owner = pr[0].get("owner", "?")
+        tag = f"pawn_{name}[{'own' if owner == '1' else 'rem'}]"
+        flips = 0
+        grounded_vy: list[float] = []
+        airborne = 0
+        small_vy_airborne = 0  # airborne but nearly no vertical speed = stuck, not a jump
+        prev = None
+        for row in pr:
+            try:
+                on_floor = int(row["on_floor"])
+                vy = float(row["vy"])
+            except (KeyError, ValueError):
+                continue
+            if prev is not None and prev != on_floor:
+                flips += 1
+            prev = on_floor
+            if on_floor:
+                grounded_vy.append(abs(vy))
+            else:
+                airborne += 1
+                if abs(vy) < 1.5:
+                    small_vy_airborne += 1
+        n = len(pr)
+        out[f"{tag}.airborne_pct"] = 100.0 * airborne / n
+        out[f"{tag}.stuck_airborne_pct"] = 100.0 * small_vy_airborne / n
+        out[f"{tag}.grounded_vy_abs.p95"] = _pct(grounded_vy, 95)
+        out[f"{tag}.on_floor_flips"] = float(flips)
+    return out
 
 
 def _print_session(session: Path) -> bool:
@@ -156,12 +173,12 @@ def _print_session(session: Path) -> bool:
               f"tick={row['net_tick']:>6}  {_nearest_event(events, t_ms)}")
 
     ok = True
-    for key, ceiling in THRESHOLDS.items():
-        got = summary.get(key, float("nan"))
-        if got == got and got > ceiling:
-            ok = False
-        flag = "ok  " if not (got == got and got > ceiling) else "OVER"
-        print(f"  [{flag}] {key} = {got:.3f} (<= {ceiling})")
+    for pattern, ceiling in THRESHOLDS.items():
+        for key in sorted(k for k in summary if pattern in k):
+            got = summary[key]
+            over = got == got and got > ceiling
+            ok = ok and not over
+            print(f"  [{'OVER' if over else 'ok  '}] {key} = {got:.3f} (<= {ceiling})")
     print(f"  RESULT: {'PASS' if ok else 'FAIL'}")
     return ok
 
