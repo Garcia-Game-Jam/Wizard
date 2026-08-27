@@ -9,7 +9,7 @@ const SpawnTelegraphScript := preload("res://scripts/arena/spawn_telegraph.gd")
 func run() -> int:
 	var failures := 0
 	failures += _test_six_dumps_are_distinct()
-	failures += _test_ward_exams_use_ash()
+	failures += _test_dumps_stay_on_charger_and_ember()
 	failures += _test_starter_omits_ward()
 	failures += _test_cover_keeps_player_spawns_clear()
 	failures += _test_restage_skips_first_fight()
@@ -38,14 +38,17 @@ func _test_six_dumps_are_distinct() -> int:
 	return 0
 
 
-func _test_ward_exams_use_ash() -> int:
-	for i in range(3, 6):
-		var kinds: Array[String] = []
+func _test_dumps_stay_on_charger_and_ember() -> int:
+	var allowed: Dictionary = {
+		ArenaEncountersScript.KIND_CHARGER: true,
+		ArenaEncountersScript.KIND_EMBER: true,
+	}
+	for i in 6:
 		for entry in ArenaEncountersScript.dump_for(i):
-			kinds.append(str(entry.get("kind", "")))
-		if not kinds.has(ArenaEncountersScript.KIND_ASH):
-			push_error("Fight %d should include an ice caster so Ward is the clean answer" % (i + 1))
-			return 1
+			var kind := str(entry.get("kind", ""))
+			if not allowed.has(kind):
+				push_error("Fight %d spawned unevaluated kind '%s'" % [i + 1, kind])
+				return 1
 	return 0
 
 

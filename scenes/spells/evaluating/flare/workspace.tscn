@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cflarews001"]
 
 [ext_resource type="Script" uid="uid://c0xg8tdso30ll" path="res://scripts/spells/flare_workspace.gd" id="1_workspace"]
-[ext_resource type="PackedScene" uid="uid://cflare001" path="res://scenes/spells/flare/flare.tscn" id="2_flare"]
+[ext_resource type="PackedScene" uid="uid://cflare001" path="res://scenes/spells/evaluating/flare/flare.tscn" id="2_flare"]
 [ext_resource type="Script" uid="uid://bwfkxaq0pdehv" path="res://scripts/spells/flare_effect.gd" id="4_sd1n6"]
 [ext_resource type="PackedScene" uid="uid://bplayerwand1" path="res://scenes/characters/player_wand.tscn" id="4_wand"]
 

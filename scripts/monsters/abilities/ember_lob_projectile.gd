@@ -30,8 +30,12 @@ static func spawn(
 	parent: Node,
 	origin: Vector3,
 	target: Node3D,
-	caster: Node3D = null
+	caster: Node3D = null,
+	visual_only: bool = false,
+	aim: Vector3 = Vector3.ZERO
 ) -> EmberLobProjectile:
+	if parent == null:
+		return null
 	var packed: PackedScene = load(
 		"res://scenes/monsters/abilities/ember_lob_projectile.tscn"
 	) as PackedScene
@@ -39,67 +43,31 @@ static func spawn(
 	parent.add_child(proj)
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = origin
-	proj.setup(target, caster)
+	var aim_point := aim
+	if aim_point == Vector3.ZERO and target != null:
+		aim_point = target.global_position
+	proj.setup(target, caster, aim_point)
+	if visual_only:
+		proj.monitoring = false
+		proj.monitorable = false
+	else:
+		var extra := {"aim_x": aim_point.x, "aim_y": aim_point.y, "aim_z": aim_point.z}
+		NetLivenessScript.replicate_world_fx("ember_lob", proj.global_position, extra)
 	NetLivenessScript.after_spawn(proj)
 	return proj
 
 
-func setup(target: Node3D, caster: Node3D = null) -> void:
+func setup(target: Node3D, caster: Node3D = null, aim_point: Vector3 = Vector3.ZERO) -> void:
 	_target = target
 	_caster = caster
 	monitoring = true
 	monitorable = false
 	MonsterSpellHitScript.apply_mask(self)
-	var shape := CollisionShape3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = 0.18
-	shape.shape = sphere
-	add_child(shape)
-	body_entered.connect(_on_body_entered)
-
-	var mesh := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.16
-	ball.height = 0.32
-	mesh.mesh = ball
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 0.35, 0.08)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.25, 0.05)
-	mat.emission_energy_multiplier = 4.0
-	mesh.material_override = mat
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mesh)
-
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.4, 0.1)
-	light.light_energy = 3.5
-	light.omni_range = 3.5
-	light.shadow_enabled = false
-	add_child(light)
-
-	var smoke := GPUParticles3D.new()
-	smoke.amount = 18
-	smoke.lifetime = 0.45
-	smoke.emitting = true
-	var pmat := ParticleProcessMaterial.new()
-	pmat.direction = Vector3(0, 1, 0)
-	pmat.spread = 40.0
-	pmat.initial_velocity_min = 0.4
-	pmat.initial_velocity_max = 1.2
-	pmat.gravity = Vector3(0, 1.5, 0)
-	pmat.scale_min = 0.08
-	pmat.scale_max = 0.18
-	pmat.color = Color(0.25, 0.22, 0.2, 0.65)
-	smoke.process_material = pmat
-	var smesh := SphereMesh.new()
-	smesh.radius = 0.06
-	smesh.height = 0.12
-	smoke.draw_pass_1 = smesh
-	add_child(smoke)
-
-	var aim := target.global_position if target != null else global_position + Vector3.FORWARD
+	if not body_entered.is_connected(_on_body_entered):
+		body_entered.connect(_on_body_entered)
+	var aim := aim_point
+	if aim == Vector3.ZERO:
+		aim = target.global_position if target != null else global_position + Vector3.FORWARD
 	_velocity = EmberLobFlightScript.initial_lob_velocity(global_position, aim)
 	set_physics_process(true)
 

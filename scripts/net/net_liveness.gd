@@ -14,10 +14,28 @@ static func skip_engine_physics() -> bool:
 	return NetClockScript.is_ticking() and not Engine.is_editor_hint()
 
 
+## Rollback still ticks deactivated / visual-only areas. Godot errors if we
+## query overlaps while monitoring is off.
+static func can_query_overlaps(node: Node) -> bool:
+	if node == null or not node.is_inside_tree():
+		return false
+	if node is Area3D:
+		return (node as Area3D).monitoring
+	return true
+
+
 static func after_spawn(node: Node3D) -> void:
 	if node == null or not node.is_inside_tree() or not NetClockScript.is_ticking():
 		return
 	NetRewindableMoverScript.apply_projectile(node)
+
+
+static func replicate_world_fx(kind: String, origin: Vector3, extra: Dictionary) -> void:
+	## Guests do not see PredictiveSynchronizer spawns. This is the replica door.
+	## load() avoids a parse cycle with NetThreatFx -> ember scenes -> NetLiveness.
+	(load("res://scripts/net/net_threat_fx.gd") as GDScript).call(
+		"broadcast", kind, origin, extra
+	)
 
 
 static func attach(node: Node, profile: String = "") -> void:

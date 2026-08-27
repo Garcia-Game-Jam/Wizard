@@ -11,6 +11,13 @@ static func is_ticking() -> bool:
 	return bool(nt.call("is_initial_sync_done"))
 
 
+static func tick_delta() -> float:
+	var nt := _network_time()
+	if nt != null and is_ticking():
+		return float(nt.get("ticktime"))
+	return 1.0 / 60.0
+
+
 static func is_session_multiplayer() -> bool:
 	var tree := Engine.get_main_loop()
 	if not (tree is SceneTree):
@@ -35,6 +42,12 @@ static func stop() -> void:
 	if nt == null:
 		return
 	nt.stop()
+	var history := _autoload("NetworkHistoryServer")
+	if history != null and history.has_method("clear_history"):
+		history.call("clear_history")
+	var rollback := _autoload("NetworkRollback")
+	if rollback != null and rollback.has_method("reset_session"):
+		rollback.call("reset_session")
 
 
 static func move_character(body: CharacterBody3D) -> void:
@@ -59,14 +72,15 @@ static func _disable_auto_events() -> void:
 
 
 static func _network_time() -> Node:
-	var tree := Engine.get_main_loop()
-	if not (tree is SceneTree):
-		return null
-	return (tree as SceneTree).root.get_node_or_null("NetworkTime")
+	return _autoload("NetworkTime")
 
 
 static func _network_events() -> Node:
+	return _autoload("NetworkEvents")
+
+
+static func _autoload(node_name: String) -> Node:
 	var tree := Engine.get_main_loop()
 	if not (tree is SceneTree):
 		return null
-	return (tree as SceneTree).root.get_node_or_null("NetworkEvents")
+	return (tree as SceneTree).root.get_node_or_null(node_name)

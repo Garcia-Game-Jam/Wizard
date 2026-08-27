@@ -9,6 +9,7 @@ enum HandSide { RIGHT, LEFT }
 
 const WINDUP_SEC_DEFAULT := 0.55
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
+const FxScenesScript := preload("res://scripts/fx/fx_scenes.gd")
 
 @export var ability_id: String = ""
 @export var display_name: String = "Ability"
@@ -239,30 +240,7 @@ func _find_monster() -> Monster:
 
 
 func _build_default_windup_fx() -> Node3D:
-	var root := Node3D.new()
-	root.name = "WindupFx"
-	var sphere := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.08
-	mesh.height = 0.16
-	sphere.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(telegraph_color.r, telegraph_color.g, telegraph_color.b, 0.7)
-	mat.emission_enabled = true
-	mat.emission = telegraph_color
-	mat.emission_energy_multiplier = 3.5
-	sphere.material_override = mat
-	sphere.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(sphere)
-	var light := OmniLight3D.new()
-	light.light_color = telegraph_color
-	light.light_energy = 2.4
-	light.omni_range = 1.2
-	light.shadow_enabled = false
-	root.add_child(light)
-	return root
+	return FxScenesScript.blob(telegraph_color)
 
 
 func _exit_tree() -> void:

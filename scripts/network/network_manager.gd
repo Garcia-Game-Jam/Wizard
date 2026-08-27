@@ -39,6 +39,7 @@ var _session_mode: String = ""
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_configure_transport()
 	transport.status_changed.connect(_forward_transport_status)
 	_transport_ready = true
@@ -316,6 +317,44 @@ func disconnect_session() -> void:
 	NetClockScript.stop()
 	if transport != null:
 		transport.disconnect_session()
+
+
+## Host End Game: tell guests to return to the menu, then tear the session down.
+## Never quits the process — that belongs on the desktop Exit / window-close path.
+func end_match_to_menu() -> void:
+	if not is_session_active:
+		return
+	if is_inside_tree():
+		get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if (
+		is_inside_tree()
+		and is_host()
+		and is_online()
+		and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+		and multiplayer.get_peers().size() > 0
+	):
+		rpc_host_ended_match.rpc()
+		var timer := get_tree().create_timer(0.2, true, true)
+		timer.timeout.connect(_finish_end_match.bind("Match ended."), CONNECT_ONE_SHOT)
+		return
+	_finish_end_match("Match ended.")
+
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_host_ended_match() -> void:
+	_finish_end_match("Host ended the match.")
+
+
+func _finish_end_match(reason: String) -> void:
+	if not is_session_active:
+		return
+	if is_inside_tree():
+		get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	disconnect_session()
+	session_ended.emit(reason)
+	status_changed.emit(reason)
 
 
 func spawn_players(

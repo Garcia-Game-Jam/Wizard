@@ -33,7 +33,7 @@ static func spawn_toward_point(
 	side_sign: float = 1.0
 ) -> AshIceProjectile:
 	var packed: PackedScene = load(
-		"res://scenes/monsters/abilities/ash_ice_projectile.tscn"
+		"res://scenes/monsters/evaluating/abilities/ash_ice_projectile.tscn"
 	) as PackedScene
 	var proj: AshIceProjectile = packed.instantiate() as AshIceProjectile
 	parent.add_child(proj)

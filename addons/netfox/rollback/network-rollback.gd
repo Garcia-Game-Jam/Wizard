@@ -354,6 +354,20 @@ func _get_rollback_tag() -> String:
 	else:
 		return "_"
 
+
+## NetworkTime.stop() zeros the clock; this must follow or spawn_tick / history
+## stay on the previous match's tick and every record is out-of-bounds.
+func reset_session() -> void:
+	_tick = 0
+	_resim_from = 0
+	_rollback_from = -1
+	_rollback_to = -1
+	_is_rollback = false
+	_earliest_input = -1
+	_earliest_state = -1
+	_simulated_nodes.clear()
+	_mutated_nodes.clear()
+
 func _rollback() -> void:
 	if not enabled:
 		return

@@ -7,16 +7,6 @@
 [ext_resource type="Script" path="res://scripts/monsters/abilities/ember_dash_ability.gd" id="5_dash"]
 [ext_resource type="Script" path="res://scripts/monsters/monster_caster_combat.gd" id="6_caster"]
 
-[sub_resource type="SphereMesh" id="SphereMesh_hand"]
-radius = 0.06
-height = 0.12
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hand"]
-resource_local_to_scene = true
-albedo_color = Color(0.85, 0.38, 0.12, 1)
-metallic = 0.05
-roughness = 0.62
-
 [node name="EmberWretch" instance=ExtResource("1_monster")]
 editor_description = "Ember Caster. Caster combat: charge spells, stay in range, halo→dash→lob combo."
 script = ExtResource("2_ember")
@@ -33,21 +23,15 @@ touch_damage = 9.0
 max_health = 50.0
 
 [node name="Hands" type="Node3D" parent="Body"]
-editor_description = "Ember-only cast hands. Right = Lob, Left = Halo."
+editor_description = "Cast sockets. Right = Lob, Left = Halo. Markers, not extra meshes."
 
-[node name="RightHand" type="MeshInstance3D" parent="Body/Hands"]
+[node name="RightHand" type="Marker3D" parent="Body/Hands"]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.26, 0.02, 0)
-mesh = SubResource("SphereMesh_hand")
-surface_material_override/0 = SubResource("StandardMaterial3D_hand")
-cast_shadow = 1
 
-[node name="LeftHand" type="MeshInstance3D" parent="Body/Hands"]
+[node name="LeftHand" type="Marker3D" parent="Body/Hands"]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26, 0.02, 0)
-mesh = SubResource("SphereMesh_hand")
-surface_material_override/0 = SubResource("StandardMaterial3D_hand")
-cast_shadow = 1
 
 [node name="Abilities" type="Node3D" parent="."]
 editor_description = "Ability 1 RightHand Ember Lob. Ability 2 LeftHand Ember Halo. Ability 3 Ember Dash reposition."

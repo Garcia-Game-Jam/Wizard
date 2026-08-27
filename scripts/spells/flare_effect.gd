@@ -4,8 +4,8 @@ extends Area3D
 
 ## Signal flare: GPU comet trail while flying, then a pulsing omni beacon.
 ## Slides on walls, floors, players, and monsters with drag += contact_drag.
-## Tune on the Flare root in scenes/spells/flare/flare.tscn (static lookdev).
-## Flight + wand launch previews live in scenes/spells/flare/workspace.tscn.
+## Tune on the Flare root in scenes/spells/evaluating/flare/flare.tscn (static lookdev).
+## Flight + wand launch previews live in scenes/spells/evaluating/flare/workspace.tscn.
 
 const DEFAULT_DURATION_SEC := 15.0
 
@@ -15,7 +15,7 @@ const FireballLightingScript := preload("res://scripts/spells/fireball_lighting.
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
-## Cached ammo knobs from scenes/spells/flare.tscn (source of truth for loadout).
+## Cached ammo knobs from scenes/spells/evaluating/flare/flare.tscn.
 static var _authored_ammo_cache: Dictionary = {}
 
 @export_group("Beacon")

@@ -104,6 +104,15 @@ static func horizontal_velocity_toward(
 	return Vector3(dir.x * speed, y_velocity, dir.z * speed)
 
 
+## Yaw that points local -Z along a flat world direction (Godot forward).
+static func yaw_from_flat(desired_flat: Vector3) -> float:
+	var flat := Vector3(desired_flat.x, 0.0, desired_flat.z)
+	if flat.length_squared() < 0.0001:
+		return 0.0
+	var dir := flat.normalized()
+	return atan2(-dir.x, -dir.z)
+
+
 ## Rotate current yaw toward a flat desired facing vector at speed_rad.
 static func rotate_yaw_toward(
 	current_yaw: float, desired_flat: Vector3, speed_rad: float, delta: float
@@ -111,8 +120,9 @@ static func rotate_yaw_toward(
 	var flat := Vector3(desired_flat.x, 0.0, desired_flat.z)
 	if flat.length_squared() < 0.0001:
 		return current_yaw
-	var target_yaw := Basis.looking_at(flat.normalized(), Vector3.UP).get_euler().y
-	return rotate_toward(current_yaw, target_yaw, maxf(speed_rad, 0.01) * delta)
+	return rotate_toward(
+		current_yaw, yaw_from_flat(flat), maxf(speed_rad, 0.01) * maxf(delta, 0.0)
+	)
 
 
 ## Max distance from the player for chase reposition (80% of aggro / chase_range).

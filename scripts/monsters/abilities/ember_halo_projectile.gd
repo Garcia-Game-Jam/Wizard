@@ -32,8 +32,11 @@ static func spawn(
 	parent: Node,
 	origin: Vector3,
 	toward: Vector3,
-	caster: Node3D = null
+	caster: Node3D = null,
+	visual_only: bool = false
 ) -> EmberHaloProjectile:
+	if parent == null:
+		return null
 	var packed: PackedScene = load(
 		"res://scenes/monsters/abilities/ember_halo_projectile.tscn"
 	) as PackedScene
@@ -42,6 +45,12 @@ static func spawn(
 	proj.process_mode = Node.PROCESS_MODE_ALWAYS
 	proj.global_position = Vector3(origin.x, origin.y, origin.z)
 	proj.setup(toward, caster)
+	if visual_only:
+		proj.monitoring = false
+		proj.monitorable = false
+	else:
+		var extra := {"toward_x": toward.x, "toward_y": toward.y, "toward_z": toward.z}
+		NetLivenessScript.replicate_world_fx("ember_halo", proj.global_position, extra)
 	NetLivenessScript.after_spawn(proj)
 	return proj
 
@@ -56,42 +65,16 @@ func setup(toward: Vector3, caster: Node3D = null) -> void:
 	monitoring = true
 	monitorable = false
 	MonsterSpellHitScript.apply_mask(self)
-
-	_shape = CollisionShape3D.new()
-	_cyl_shape = CylinderShape3D.new()
-	_cyl_shape.height = 2.5
-	_cyl_shape.radius = _radius
-	_shape.shape = _cyl_shape
-	add_child(_shape)
-
-	_mesh = MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = EmberHaloFlightScript.inner_radius(_radius)
-	torus.outer_radius = _radius
-	torus.rings = 16
-	torus.ring_segments = 24
-	_mesh.mesh = torus
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.2, 0.08, 0.75)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.25, 0.1)
-	mat.emission_energy_multiplier = 3.2
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_mesh.material_override = mat
-	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	## TorusMesh is authored around +Y, so it already lies flat on the XZ ground plane.
-	_mesh.rotation_degrees = Vector3.ZERO
-	add_child(_mesh)
-
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.3, 0.1)
-	light.light_energy = 2.2
-	light.omni_range = 2.5
-	light.shadow_enabled = false
-	add_child(light)
-
+	_shape = get_node_or_null("%HitShape") as CollisionShape3D
+	if _shape != null and _shape.shape is CylinderShape3D:
+		_cyl_shape = (_shape.shape as CylinderShape3D).duplicate() as CylinderShape3D
+		_cyl_shape.height = 2.5
+		_cyl_shape.radius = _radius
+		_shape.shape = _cyl_shape
+	_mesh = get_node_or_null("%Mesh") as MeshInstance3D
+	if _mesh != null and _mesh.mesh is TorusMesh:
+		_mesh.mesh = (_mesh.mesh as TorusMesh).duplicate()
+	_sync_radius_visual()
 	set_physics_process(true)
 
 
@@ -150,7 +133,7 @@ func _sync_radius_visual() -> void:
 
 
 func _resolve_overlaps() -> void:
-	if _finished:
+	if _finished or not NetLivenessScript.can_query_overlaps(self):
 		return
 	for body in get_overlapping_bodies():
 		if not body is Node3D:

@@ -29,6 +29,10 @@ var charge_factor: float = 0.0
 var wand_raised: bool = false
 ## Frame-rate pulse so a dash press is not missed between 30 Hz ticks.
 var _dash_queued: bool = false
+## Same for jump — a tap can fall between gathers if we only sample held.
+var _jump_queued: bool = false
+## Jump is an edge. Held space must not re-fire every tick (floor-snap hover).
+var _jump_was_held: bool = false
 
 
 static func net_input_paths() -> Array[String]:
@@ -44,25 +48,44 @@ func _ready() -> void:
 		nt.before_tick_loop.connect(_on_before_tick_loop)
 
 
+func _exit_tree() -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var nt := tree.root.get_node_or_null("NetworkTime")
+	if nt != null and nt.before_tick_loop.is_connected(_on_before_tick_loop):
+		nt.before_tick_loop.disconnect(_on_before_tick_loop)
+
+
 func _input(event: InputEvent) -> void:
-	if not is_multiplayer_authority():
+	if not is_inside_tree() or not is_multiplayer_authority():
 		return
 	if event.is_action_pressed("dash") and not event.is_echo():
 		queue_dash()
+	if event.is_action_pressed("jump") and not event.is_echo():
+		queue_jump()
 
 
 func queue_dash() -> void:
 	_dash_queued = true
 
 
+func queue_jump() -> void:
+	_jump_queued = true
+
+
 func _on_before_tick_loop() -> void:
-	if is_multiplayer_authority():
-		_gather()
+	if not is_inside_tree() or not is_multiplayer_authority():
+		return
+	_gather()
 
 
 func _gather() -> void:
 	movement = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	jump = Input.is_action_pressed("jump")
+	var jump_held := Input.is_action_pressed("jump")
+	jump = _jump_queued or (jump_held and not _jump_was_held)
+	_jump_queued = false
+	_jump_was_held = jump_held
 	dash = _dash_queued
 	_dash_queued = false
 	crouch = Input.is_action_pressed("crouch")

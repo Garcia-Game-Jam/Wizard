@@ -1,12 +1,45 @@
-[gd_scene format=3 uid="uid://bs0gfhfiubeo5"]
+[gd_scene load_steps=5 format=3 uid="uid://bs0gfhfiubeo5"]
 
 [ext_resource type="Script" uid="uid://dng36b6375x7i" path="res://scripts/monsters/abilities/ember_halo_projectile.gd" id="1_script"]
 
-[node name="EmberHaloProjectile" type="Area3D" unique_id=1123388607]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -48.923237)
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_hit"]
+height = 2.5
+radius = 0.35
+
+[sub_resource type="TorusMesh" id="TorusMesh_halo"]
+inner_radius = 0.2975
+outer_radius = 0.35
+rings = 16
+ring_segments = 24
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_halo"]
+shading_mode = 0
+transparency = 1
+albedo_color = Color(1, 0.2, 0.08, 0.75)
+emission_enabled = true
+emission = Color(1, 0.25, 0.1, 1)
+emission_energy_multiplier = 3.2
+cull_mode = 2
+
+[node name="EmberHaloProjectile" type="Area3D"]
 collision_layer = 0
 collision_mask = 3
 monitorable = false
 script = ExtResource("1_script")
-max_radius = 1.0
-expand_per_meter = 0.05
+
+[node name="HitShape" type="CollisionShape3D" parent="."]
+unique_name_in_owner = true
+shape = SubResource("CylinderShape3D_hit")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+cast_shadow = 0
+mesh = SubResource("TorusMesh_halo")
+surface_material_override/0 = SubResource("StandardMaterial3D_halo")
+
+[node name="Light" type="OmniLight3D" parent="."]
+unique_name_in_owner = true
+light_color = Color(1, 0.3, 0.1, 1)
+light_energy = 2.2
+omni_range = 2.5
+shadow_enabled = false

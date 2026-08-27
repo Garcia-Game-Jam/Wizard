@@ -87,6 +87,11 @@ static func interpolate_paths(profile: String) -> Array[String]:
 	return paths
 
 
+## Local first-person: blend tick poses, but do not lerp look (mouse is frame-rate).
+static func local_playable_interpolate_paths() -> Array[String]:
+	return [":position"]
+
+
 static func _packed(values: PackedStringArray) -> Array[String]:
 	var paths: Array[String] = []
 	for value in values:

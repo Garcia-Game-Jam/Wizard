@@ -202,17 +202,17 @@ func _ensure_default_spells() -> void:
 	## Fallback if scene exports were cleared — load authored resources by path.
 	var paths := [
 		"res://scenes/spells/fireball/fireball.tres",
-		"res://scenes/spells/flare/flare.tres",
+		"res://scenes/spells/evaluating/flare/flare.tres",
 		"res://scenes/spells/ward/ward.tres",
-		"res://scenes/spells/haste/haste.tres",
-		"res://scenes/spells/light/light.tres",
-		"res://scenes/spells/light_ball/light_ball.tres",
-		"res://scenes/spells/target/target.tres",
-		"res://scenes/spells/pull/pull.tres",
-		"res://scenes/spells/follow/follow.tres",
-		"res://scenes/spells/stop/stop.tres",
-		"res://scenes/spells/dispell/dispell.tres",
-		"res://scenes/spells/clone/clone.tres",
+		"res://scenes/spells/evaluating/haste/haste.tres",
+		"res://scenes/spells/evaluating/light/light.tres",
+		"res://scenes/spells/evaluating/light_ball/light_ball.tres",
+		"res://scenes/spells/evaluating/target/target.tres",
+		"res://scenes/spells/evaluating/pull/pull.tres",
+		"res://scenes/spells/evaluating/follow/follow.tres",
+		"res://scenes/spells/evaluating/stop/stop.tres",
+		"res://scenes/spells/evaluating/dispell/dispell.tres",
+		"res://scenes/spells/evaluating/clone/clone.tres",
 	]
 	var loaded: Array[SpellDefinition] = []
 	for path in paths:

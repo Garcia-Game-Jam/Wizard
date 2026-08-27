@@ -15,6 +15,8 @@ func run() -> int:
 	failures += _test_post_decay_bleeds_speed_toward_target()
 	failures += _test_post_decay_stops_once_target_reached()
 	failures += _test_dash_pulse_survives_until_gather()
+	failures += _test_jump_pulse_survives_until_gather()
+	failures += _test_held_jump_is_one_tick()
 	return failures
 
 
@@ -143,5 +145,30 @@ func _test_dash_pulse_survives_until_gather() -> int:
 		return 1
 	if second:
 		push_error("Expected dash pulse to consume after one gather")
+		return 1
+	return 0
+
+
+func _test_jump_pulse_survives_until_gather() -> int:
+	var net_input := PlayerNetInput.new()
+	net_input.queue_jump()
+	net_input._gather()
+	var first := net_input.jump
+	net_input._gather()
+	var second := net_input.jump
+	net_input.free()
+	if not first:
+		push_error("Expected a queued jump press to land on the next gather")
+		return 1
+	if second:
+		push_error("Expected jump pulse to consume after one gather")
+		return 1
+	return 0
+
+
+func _test_held_jump_is_one_tick() -> int:
+	var src := FileAccess.get_file_as_string("res://scripts/net/player_net_input.gd")
+	if src.find("_jump_was_held") < 0:
+		push_error("Held jump must be an edge or floor-snap keeps grounded hover")
 		return 1
 	return 0

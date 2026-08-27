@@ -37,7 +37,7 @@ static func spawn(
 	caster: Node3D = null
 ) -> AshFrostBreathCloud:
 	var packed: PackedScene = load(
-		"res://scenes/monsters/abilities/ash_frost_breath_cloud.tscn"
+		"res://scenes/monsters/evaluating/abilities/ash_frost_breath_cloud.tscn"
 	) as PackedScene
 	var cloud: AshFrostBreathCloud = packed.instantiate() as AshFrostBreathCloud
 	parent.add_child(cloud)
@@ -143,6 +143,8 @@ func _tick_motion(delta: float) -> void:
 
 
 func _resolve_overlaps() -> void:
+	if not NetLivenessScript.can_query_overlaps(self):
+		return
 	for body in get_overlapping_bodies():
 		if not body is Node3D:
 			continue

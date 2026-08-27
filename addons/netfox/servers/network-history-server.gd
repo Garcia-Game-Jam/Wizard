@@ -33,6 +33,18 @@ var _sync_state_snapshots := _HistoryBuffer.new(_sync_history_size)
 
 static var _logger := NetfoxLogger._for_netfox("NetworkHistoryServer")
 
+
+## Drop all recorded ticks. Call when NetworkTime stops so the next match
+## does not record into a ring still indexed from the previous session.
+func clear_history() -> void:
+	_rb_input_history = _PerObjectHistory.new(_rb_history_size)
+	_rb_state_history = _PerObjectHistory.new(_rb_history_size)
+	_sync_history = _PerObjectHistory.new(_sync_history_size)
+	_rb_input_snapshots = _HistoryBuffer.new(_rb_history_size)
+	_rb_state_snapshots = _HistoryBuffer.new(_rb_history_size)
+	_sync_state_snapshots = _HistoryBuffer.new(_sync_history_size)
+	_ignored_subjects.clear()
+
 ## Register a rollback state property
 func register_rollback_state(node: Node, property: NodePath) -> void:
 	_rb_state_properties.add(node, property)

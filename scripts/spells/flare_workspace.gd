@@ -5,7 +5,7 @@ extends Node3D
 ## Tune the instanced Flare child, then Launch Flare on this root for flight preview.
 
 const FlareEffectScript := preload("res://scripts/spells/flare_effect.gd")
-const FlareSpell := preload("res://scenes/spells/flare/flare.tres")
+const FlareSpell := preload("res://scenes/spells/evaluating/flare/flare.tres")
 
 @export_group("Launch preview")
 ## Hide the lookdev Flare instance while a launch preview rocket is in the air.

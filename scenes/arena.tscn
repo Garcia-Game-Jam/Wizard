@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://carenascn001" path="res://scripts/arena/arena_scene.gd" id="1_arena"]
 [ext_resource type="Script" uid="uid://bkvka4fuy7rl2" path="res://scripts/spells/spell_registry.gd" id="6_registry"]
-[ext_resource type="Resource" uid="uid://678bsder6qrs" path="res://scenes/spells/haste/haste.tres" id="8_haste"]
 [ext_resource type="Script" uid="uid://bfnrfxnwjg02y" path="res://scripts/ui/aim_cursor.gd" id="9_aim"]
 [ext_resource type="Script" uid="uid://crdov1cq8kly5" path="res://scripts/ui/game_hud.gd" id="9_hud"]
 [ext_resource type="PackedScene" uid="uid://cfpo0lb3smm3y" path="res://scenes/ui/player_menu.tscn" id="9_player_menu"]
@@ -14,14 +13,6 @@
 [ext_resource type="Resource" uid="uid://dud80ue7p23rt" path="res://scenes/spells/fireball/fireball.tres" id="15_fireball"]
 [ext_resource type="Script" uid="uid://dtymt6tugqqxx" path="res://scripts/arena/arena_cover.gd" id="16_cover"]
 [ext_resource type="Script" uid="uid://grlb8nli07gx" path="res://scripts/arena/spawn_telegraph.gd" id="17_spot"]
-[ext_resource type="Resource" uid="uid://dqc3frk775rdr" path="res://scenes/spells/light/light.tres" id="25_light"]
-[ext_resource type="Resource" uid="uid://yhkf2aamt6r7" path="res://scenes/spells/light_ball/light_ball.tres" id="26_light_ball"]
-[ext_resource type="Resource" uid="uid://dex1n2eif1prk" path="res://scenes/spells/target/target.tres" id="27_target"]
-[ext_resource type="Resource" uid="uid://cnbmfykshgjy" path="res://scenes/spells/pull/pull.tres" id="29_pull"]
-[ext_resource type="Resource" uid="uid://b2tj23aicq5ks" path="res://scenes/spells/follow/follow.tres" id="30_follow"]
-[ext_resource type="Resource" uid="uid://dm0b3twvh1yuv" path="res://scenes/spells/dispell/dispell.tres" id="31_dispell"]
-[ext_resource type="Resource" uid="uid://c300xtr2mgchs" path="res://scenes/spells/flare/flare.tres" id="33_flare"]
-[ext_resource type="Resource" uid="uid://uuo4bgv3b66" path="res://scenes/spells/stop/stop.tres" id="34_stop"]
 [ext_resource type="Resource" uid="uid://djudlmjak0msk" path="res://scenes/spells/ward/ward.tres" id="35_ward"]
 
 [sub_resource type="Environment" id="Environment_arena"]
@@ -270,6 +261,7 @@ mesh = SubResource("Mesh_beam")
 
 [node name="Beam3" type="MeshInstance3D" parent="SpawnTelegraph" unique_id=787445874]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.5, 10)
+visible = false
 material_override = SubResource("Mat_beam")
 cast_shadow = 0
 mesh = SubResource("Mesh_beam")
@@ -334,7 +326,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
 
 [node name="SpellRegistry" type="Node" parent="." unique_id=232182131]
 script = ExtResource("6_registry")
-spells = Array[Resource]([ExtResource("8_haste"), ExtResource("15_fireball"), ExtResource("33_flare"), ExtResource("35_ward"), ExtResource("25_light"), ExtResource("26_light_ball"), ExtResource("27_target"), ExtResource("29_pull"), ExtResource("30_follow"), ExtResource("34_stop"), ExtResource("31_dispell")])
+spells = Array[Resource]([ExtResource("15_fireball"), ExtResource("35_ward")])
 
 [node name="VoiceSpellValidator" type="Node" parent="." unique_id=600817741]
 script = ExtResource("10_validator")

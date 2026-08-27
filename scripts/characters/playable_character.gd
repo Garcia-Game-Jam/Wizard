@@ -777,7 +777,9 @@ func apply_rat_explode_hit(hit_dir: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if NetClockScript.is_ticking():
+	## Clock ticking without a RollbackSynchronizer (solo, leftover sync) must
+	## still simulate here — _rollback_tick never runs.
+	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
 		_sync_remote_tells()
 		if is_local_owner():
 			_update_interaction_prompt()

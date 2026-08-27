@@ -27,7 +27,7 @@ const PLAYER_SPAWN_POSITIONS: Array[Vector3] = [
 const SCENE_BY_KIND := {
 	KIND_CHARGER: "res://scenes/monsters/charger.tscn",
 	KIND_EMBER: "res://scenes/monsters/ember_wretch.tscn",
-	KIND_ASH: "res://scenes/monsters/ash_wretch.tscn",
+	KIND_ASH: "res://scenes/monsters/evaluating/ash_wretch.tscn",
 }
 
 
@@ -43,15 +43,15 @@ static func dump_for(encounter_index: int) -> Array[Dictionary]:
 			dump.append(_spawn(KIND_CHARGER, 0))
 			dump.append(_spawn(KIND_EMBER, 2))
 		3:
-			dump.append(_spawn(KIND_ASH, 1))
-			dump.append(_spawn(KIND_ASH, 3))
+			dump.append(_spawn(KIND_EMBER, 1))
+			dump.append(_spawn(KIND_CHARGER, 3))
 		4:
-			dump.append(_spawn(KIND_CHARGER, 0))
-			dump.append(_spawn(KIND_ASH, 2))
+			dump.append(_spawn(KIND_CHARGER, 2))
+			dump.append(_spawn(KIND_EMBER, 0))
 		_:
 			dump.append(_spawn(KIND_EMBER, 0))
 			dump.append(_spawn(KIND_EMBER, 1))
-			dump.append(_spawn(KIND_ASH, 3))
+			dump.append(_spawn(KIND_CHARGER, 3))
 	return dump
 
 

@@ -10,6 +10,7 @@ const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -304,6 +305,17 @@ func rpc_fight_resolved(snapshot: Dictionary, granted_spell_id: String) -> void:
 	_refresh_hud_prompt()
 
 
+func broadcast_threat_fx(kind: String, origin: Vector3, extra: Dictionary) -> void:
+	if not GameState.is_multiplayer or not _is_run_host():
+		return
+	rpc_threat_fx.rpc(kind, origin, extra)
+
+
+@rpc("authority", "call_remote", "reliable")
+func rpc_threat_fx(kind: String, origin: Vector3, extra: Dictionary) -> void:
+	NetThreatFxScript.apply(kind, origin, extra)
+
+
 func _grant_spell_to_local(spell_id: String) -> void:
 	if _local_player == null or not is_instance_valid(_local_player):
 		return
@@ -399,6 +411,7 @@ func _spawn_dump(dump: Array[Dictionary]) -> void:
 			monster.set("patrol_radius", 12.0)
 		monsters_root.add_child(monster)
 		monster.global_position = spawn
+		monster.rotation = Vector3.ZERO
 		monster.set_multiplayer_authority(1)
 
 
@@ -453,10 +466,9 @@ func _refresh_hud_prompt() -> void:
 
 func _on_quit_to_menu() -> void:
 	SettingsManager.stop_mic_test()
-	NetworkManager.disconnect_session()
+	if get_tree() != null:
+		get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var app := get_tree().get_first_node_in_group("game_app")
-	if app != null and app.has_method("return_to_main_menu"):
-		app.call_deferred("return_to_main_menu")
-	else:
+	NetworkManager.end_match_to_menu()
+	if get_tree().get_first_node_in_group("game_app") == null:
 		get_tree().call_deferred("change_scene_to_file", "res://scenes/game_app.tscn")

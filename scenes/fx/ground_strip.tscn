@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3 uid="uid://cfxstrip001"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_strip"]
+size = Vector3(0.5, 0.02, 0.35)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_strip"]
+shading_mode = 0
+transparency = 1
+albedo_color = Color(0.95, 0.12, 0.06, 0.82)
+emission_enabled = true
+emission = Color(1, 0.15, 0.05, 1)
+emission_energy_multiplier = 2.2
+
+[node name="GroundStrip" type="Node3D"]
+editor_description = "Greybox ground burn. Ember trail instances the combat scene which includes this mesh."
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0.175)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_strip")
+surface_material_override/0 = SubResource("StandardMaterial3D_strip")

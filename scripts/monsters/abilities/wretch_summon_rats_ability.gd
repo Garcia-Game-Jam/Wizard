@@ -4,7 +4,7 @@ extends "res://scripts/monsters/monster_ability.gd"
 
 ## Right-hand ambient summon: slow green orb drops to the ground, then a rat appears.
 
-const WretchRatScene := preload("res://scenes/monsters/wretch_rat.tscn")
+const WretchRatScene := preload("res://scenes/monsters/evaluating/wretch_rat.tscn")
 const WretchSummonDropOrbScript := preload(
 	"res://scripts/monsters/abilities/wretch_summon_drop_orb.gd"
 )

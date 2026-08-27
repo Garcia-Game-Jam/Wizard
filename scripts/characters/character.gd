@@ -34,6 +34,8 @@ const NET_STATE_PATHS: PackedStringArray = [
 	":_knockback_vel",
 	":_knockback_timer",
 	"Health:current_health",
+	":_eyes_chasing",
+	":eye_glow_color",
 ]
 
 @export_group("Appearance")
@@ -351,10 +353,19 @@ func _apply_eye_glow_from_health() -> void:
 
 func _set_chase_eyes_active(active: bool) -> void:
 	_eyes_chasing = active
+	_apply_eye_visibility()
+
+
+func _apply_replicated_eyes() -> void:
+	_apply_eye_visibility()
+	_apply_eye_glow_from_health()
+
+
+func _apply_eye_visibility() -> void:
 	if _eyes_root == null:
 		_cache_eyes()
 	if _eyes_root != null:
-		_eyes_root.visible = active
+		_eyes_root.visible = _eyes_chasing
 
 
 func get_snail_color() -> Color:

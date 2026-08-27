@@ -12,6 +12,7 @@ func run() -> int:
 	failures += _test_compute_player_index_for_host_only()
 	failures += _test_compute_player_index_for_three_peers()
 	failures += _test_disconnect_session_delegates_to_transport()
+	failures += _test_end_match_to_menu_does_not_quit()
 	failures += _test_collect_lobby_peer_ids()
 	failures += _test_client_player_index_from_lobby_roster()
 	failures += _test_format_lobby_player_label()
@@ -104,6 +105,21 @@ func _test_disconnect_session_delegates_to_transport() -> int:
 		return 1
 	if fake.disconnect_calls != 1:
 		push_error("Expected disconnect_session to delegate to transport")
+		return 1
+	return 0
+
+
+func _test_end_match_to_menu_does_not_quit() -> int:
+	var manager := NetworkManagerScript.new()
+	var fake := _FakeTransport.new()
+	manager.transport = fake
+	manager.is_session_active = true
+	manager.end_match_to_menu()
+	if manager.is_session_active:
+		push_error("Expected end_match_to_menu to clear the session")
+		return 1
+	if fake.disconnect_calls != 1:
+		push_error("Expected end_match_to_menu to tear down the transport")
 		return 1
 	return 0
 

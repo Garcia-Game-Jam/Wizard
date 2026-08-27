@@ -4,7 +4,7 @@ extends RefCounted
 ## each owns one Health child, spends only its own pool, and dies once.
 
 const PlayerScene := preload("res://scenes/characters/playable_character.tscn")
-const WretchScene := preload("res://scenes/monsters/wretch.tscn")
+const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
 
 
 func run() -> int:

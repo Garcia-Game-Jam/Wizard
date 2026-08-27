@@ -36,9 +36,9 @@ static func apply_playable(root: Node, owner_peer_id: int, local_view: bool = fa
 	)
 	var ti := _ensure_interpolator(root, Profiles.PLAYABLE)
 	if local_view and ti != null:
-		## Local mouse look must not be tick-interpolated.
-		var local_paths: Array[String] = [":position"]
-		ti.set("properties", local_paths)
+		## Blend XZ/Y between ticks so walk is not 30 Hz. Do not lerp look —
+		## that fights mouse. Jump still comes from Input:jump on the tick.
+		ti.set("properties", Profiles.local_playable_interpolate_paths())
 		if ti.has_method("process_settings"):
 			ti.call("process_settings")
 	if rs != null and rs.has_method("process_settings"):
@@ -97,7 +97,7 @@ static func commit_world_pose(root: Node) -> void:
 		return
 	if rollback_of(root) == null:
 		return
-	var tick := _rollback_tick()
+	var tick := _clock_tick()
 	if tick < 0:
 		return
 	var nr := _autoload("NetworkRollback")
@@ -149,7 +149,9 @@ static func _ensure_rollback(
 			rs.set("root", root)
 			## Default spawn_tick is -1; _ready would set tick+1, which is outside
 			## the history ring and logs "Dropping seeded state". Seed the live tick.
-			var tick := _rollback_tick()
+			## NetworkTime.tick, not NetworkRollback.tick — the latter stays on
+			## the last sim tick after stop() and poisons the next match.
+			var tick := _clock_tick()
 			if tick >= 0:
 				rs.set("spawn_tick", tick)
 			root.add_child(rs)
@@ -229,11 +231,11 @@ static func _strip_multiplayer_synchronizer(root: Node) -> void:
 		sync.queue_free()
 
 
-static func _rollback_tick() -> int:
-	var nr := _autoload("NetworkRollback")
-	if nr == null:
+static func _clock_tick() -> int:
+	var nt := _autoload("NetworkTime")
+	if nt == null:
 		return -1
-	return int(nr.get("tick"))
+	return int(nt.get("tick"))
 
 
 static func _history_server() -> Node:

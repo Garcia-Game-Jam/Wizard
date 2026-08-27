@@ -16,6 +16,11 @@ func _ready():
 	_rng.randomize()
 	NetworkTime.before_tick_loop.connect(_before_tick_loop)
 
+
+func _exit_tree():
+	if NetworkTime.before_tick_loop.is_connected(_before_tick_loop):
+		NetworkTime.before_tick_loop.disconnect(_before_tick_loop)
+
 ## Check whether this weapon can be fired.
 func can_fire() -> bool:
 	return _can_fire()
