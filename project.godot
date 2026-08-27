@@ -192,6 +192,7 @@ general/clear_settings=false
 general/supress_identity_peer_disconnected_warning=true
 events/enabled=false
 time/tickrate=30
+time/sync_to_physics=true
 time/max_ticks_per_frame=8
 time/suppress_offline_peer_warning=true
 rollback/enabled=true
