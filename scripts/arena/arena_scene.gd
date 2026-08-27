@@ -12,11 +12,6 @@ const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 const TestEnvScript := preload("res://scripts/test/test_env.gd")
-## ponytail: do not preload these from ArenaEncounters. LAN E2E is --script
-## and parses that table before autoloads, so charger.tscn compiled monster.gd
-## without GameState. Arena scene loads after GameState exists.
-const ChargerDumpScene := preload("res://scenes/monsters/charger.tscn")
-const EmberDumpScene := preload("res://scenes/monsters/ember_wretch.tscn")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -34,6 +29,7 @@ var _staging: Staging = Staging.NONE
 var _staging_timer := 0.0
 var _pending_encounter := 0
 var _cover_misses := 0
+var _dump_scenes: Dictionary = {}
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
@@ -51,6 +47,9 @@ func _ready() -> void:
 		return
 
 	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
+	## After autoloads exist. Const-preloading charger.tscn from ArenaEncounters
+	## broke LAN E2E (--script parses that table before GameState).
+	_warm_live_dump_scenes()
 	NetDiag.begin_session({"scenario": "arena", "role": _diag_role()})
 	pause_menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	if voice_validator != null:
@@ -419,14 +418,18 @@ func _warn_wide_rollback() -> void:
 		push_warning("Arena: dump resimulated %d ticks (netfox rewind)" % ticks)
 
 
+func _warm_live_dump_scenes() -> void:
+	for kind in [ArenaEncountersScript.KIND_CHARGER, ArenaEncountersScript.KIND_EMBER]:
+		var packed := ArenaEncountersScript.packed_scene_for(kind)
+		if packed != null:
+			_dump_scenes[kind] = packed
+
+
 func _dump_packed_scene(kind: String) -> PackedScene:
-	match kind:
-		ArenaEncountersScript.KIND_CHARGER:
-			return ChargerDumpScene
-		ArenaEncountersScript.KIND_EMBER:
-			return EmberDumpScene
-		_:
-			return ArenaEncountersScript.packed_scene_for(kind)
+	var held: Variant = _dump_scenes.get(kind)
+	if held is PackedScene:
+		return held
+	return ArenaEncountersScript.packed_scene_for(kind)
 
 
 func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:

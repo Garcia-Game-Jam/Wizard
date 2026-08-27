@@ -40,7 +40,7 @@ PASS/FAIL is against `THRESHOLDS` in `tools/analyze_netdiag.py`. Read the
 summary, not just RESULT:
 
 - `frame_ms.max` is reported, not gated. Live dump scenes (charger, ember)
-  are `preload`ed on the arena scene, so `dump_spawn` `load=` should be noise.
+  are `load()`ed when the arena starts, so `dump_spawn` `load=` should be noise.
   A remaining spike at `encounter_begin` is instantiate / first draw, not
   disk. Use `frame_ms.p99` for ongoing lag.
 - Dump split (no new columns): `dump_cleared` / `dump_spawn` (`load=`
