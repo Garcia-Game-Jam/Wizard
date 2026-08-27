@@ -32,6 +32,7 @@ var _crosshair_outer_switch: CheckButton
 var _crosshair_dot_switch: CheckButton
 var _crosshair_preview: Control
 var _dev_allow_any_lobby_size_checkbox: CheckBox
+var _netfox_debug_logs_checkbox: CheckBox
 var _session: SettingsEditSessionScript = SettingsEditSessionScript.new()
 var _exit_style_normal: StyleBoxFlat
 var _exit_style_dirty: StyleBoxFlat
@@ -86,6 +87,7 @@ func _ready() -> void:
 	_input_device_option.item_selected.connect(_on_input_device_selected)
 	_output_device_option.item_selected.connect(_on_output_device_selected)
 	_dev_allow_any_lobby_size_checkbox.toggled.connect(_on_dev_flags_changed)
+	_netfox_debug_logs_checkbox.toggled.connect(_on_dev_flags_changed)
 	NetworkManager.lobby_roster_changed.connect(_on_lobby_roster_changed)
 	_populate_from_settings()
 
@@ -170,6 +172,7 @@ func _cache_node_refs() -> void:
 	_lobby_voice_hint = _audio_vbox.get_node("LobbyVoiceHint")
 	_player_voice_list = _audio_vbox.get_node_or_null("PlayerVoiceList") as VBoxContainer
 	_dev_allow_any_lobby_size_checkbox = _dev_vbox.get_node("DevAllowAnyLobbySizeCheckBox")
+	_netfox_debug_logs_checkbox = _dev_vbox.get_node("NetfoxDebugLogsCheckBox")
 
 
 func _populate_from_settings() -> void:
@@ -205,9 +208,10 @@ func _populate_from_settings() -> void:
 	_crosshair_dot_switch.set_pressed_no_signal(SettingsManager.crosshair_show_dot)
 	_refresh_crosshair_preview()
 	_refresh_lobby_voice_switch()
-	_dev_allow_any_lobby_size_checkbox.button_pressed = (
+	_dev_allow_any_lobby_size_checkbox.set_pressed_no_signal(
 		SettingsManager.dev_allow_any_lobby_size
 	)
+	_netfox_debug_logs_checkbox.set_pressed_no_signal(SettingsManager.netfox_debug_logs)
 
 
 func _populate_display_mode_options() -> void:
@@ -300,6 +304,7 @@ func _apply_to_manager() -> void:
 	SettingsManager.dev_allow_any_lobby_size = (
 		_dev_allow_any_lobby_size_checkbox.button_pressed
 	)
+	SettingsManager.netfox_debug_logs = _netfox_debug_logs_checkbox.button_pressed
 	SettingsManager.apply_audio_settings()
 	SettingsManager.apply_display_settings()
 
@@ -412,6 +417,7 @@ func _on_dev_flags_changed(_on: bool) -> void:
 	SettingsManager.dev_allow_any_lobby_size = (
 		_dev_allow_any_lobby_size_checkbox.button_pressed
 	)
+	SettingsManager.netfox_debug_logs = _netfox_debug_logs_checkbox.button_pressed
 	_refresh_footer()
 
 

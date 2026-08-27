@@ -198,6 +198,9 @@ rollback/enable_input_broadcast=false
 rollback/enable_diff_states=true
 extras/auto_tile_windows=false
 autoconnect/enabled=false
+logging/log_level=4
+logging/netfox_log_level=4
+logging/netfox_extras_log_level=4
 
 [physics]
 
