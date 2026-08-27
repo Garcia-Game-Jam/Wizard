@@ -95,10 +95,11 @@ def _print_session(session: Path) -> bool:
 
     print(f"\n=== {session.name} ===")
     ctx = meta.get("context", {})
-    nf = meta.get("netfox", {})
-    print(f"  role={ctx.get('role', '?')} scenario={ctx.get('scenario', '?')} "
-          f"sync_to_physics={nf.get('sync_to_physics')} tickrate={nf.get('tickrate')} "
-          f"phys_tps={meta.get('physics_ticks_per_second')}")
+    cfg = meta.get("backend_config", {})
+    print(f"  backend={meta.get('backend', '?')} role={ctx.get('role', '?')} "
+          f"scenario={ctx.get('scenario', '?')}")
+    if cfg:
+        print("  config: " + " ".join(f"{k}={v}" for k, v in cfg.items()))
     if not rows:
         print("  (no frame.csv rows)")
         return False
