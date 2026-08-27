@@ -35,6 +35,9 @@ THRESHOLDS = {
     "on_floor_flips": 10.0,
     "render_freeze_pct": 1.0,
     "render_reversal_pct": 2.0,
+    # Per-tick displacement must stay under the player capsule radius (0.237 m),
+    # or the body can penetrate geometry and stall. See docs/netcode/diagnostics.md.
+    "step.max": 0.237,
 }
 
 DIAG_ROOT_CANDIDATES = (

@@ -22,6 +22,32 @@
 
 When extending the palette or tokens, update the guide, JSON, and `ui_palette.gd` together.
 
+## Collision + movement speed (netcode-critical)
+
+**No CSG collision in the live pit.** `use_collision` on a CSG node bakes a
+*concave trimesh*, which has no interior — once a body's shape crosses a face
+there is no depenetration direction and `move_and_slide` resolves to zero
+displacement until velocity happens to point back out. Arena geometry is
+`StaticBody3D` + **convex** shapes (`BoxShape3D` for the rectangular pit). CSG is
+an authoring tool; bake it before it ships.
+
+**A body may not travel further than its own collision radius in one tick.**
+Player capsule radius is 0.237 m, so at 60 Hz the ceiling is ~14 m/s. Exceeding
+it lets the body penetrate geometry; rollback then resimulates *from inside the
+wall* every tick, and the pawn appears to freeze mid-air on the other peer.
+Guards, all three of which must stay green:
+
+- `NetClock.move_character` warns in debug builds when a body out-runs its radius
+  (every character moves through it, so this catches the whole class).
+- `analyze_netdiag.py` fails a capture whose `step.max` exceeds the radius.
+- `tests/unit/test_knockback_bleed.gd` asserts knockback is tickrate-independent.
+
+**Per-tick impulses must be delta-scaled.** A flat `velocity += x * 0.35` per
+tick silently compounds with tickrate — that bug turned a 9 m/s hit into 40 m/s
+at 60 Hz. Use a per-second constant times `delta`.
+
+Known outstanding: `dash_speed = 20.0` exceeds the 60 Hz budget. Clamp or substep.
+
 ## Other conventions
 
 - **Scene tree as source of truth** — prefer authored scene hierarchy over invisible script-only wiring. Sockets and abilities, not greybox sculpture in scripts.

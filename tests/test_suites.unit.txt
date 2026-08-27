@@ -11,6 +11,7 @@ res://tests/unit/test_player_character_config.gd
 res://tests/unit/test_role_loadout.gd
 res://tests/unit/test_character_health.gd
 res://tests/unit/test_player_dash.gd
+res://tests/unit/test_knockback_bleed.gd
 res://tests/unit/test_player_crouch.gd
 res://tests/unit/test_player_air_control.gd
 res://tests/unit/test_simple_voice_chat_peers.gd
