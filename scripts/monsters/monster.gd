@@ -277,8 +277,8 @@ func _enter_dump_corpse() -> void:
 		_saved_dump_layer = collision_layer
 	collision_layer = 0
 	collision_mask = 0
-	_set_living_meshes_visible(false)
 	death_corpse = MonsterCorpse.spawn_dump_prop(self, _last_hit_dir)
+	_set_living_meshes_visible(false)
 	if is_knocked() and is_instance_valid(death_corpse):
 		death_corpse.apply_hit_knock(velocity)
 

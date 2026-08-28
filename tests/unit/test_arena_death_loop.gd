@@ -204,6 +204,7 @@ func _test_charger_death_is_same_node() -> int:
 	charger.kill()
 	var clone := charger.death_corpse
 	var body := charger.get_node_or_null("%Body") as Node3D
+	var clone_body := clone.get_node_or_null("Body") as Node3D if clone != null else null
 	var ok := (
 		is_instance_valid(charger)
 		and charger.get_instance_id() == id
@@ -214,6 +215,8 @@ func _test_charger_death_is_same_node() -> int:
 		and clone.collision_layer == 1
 		and clone.is_in_group(Character.CORPSE_GROUP)
 		and (body == null or not body.visible)
+		and clone_body != null
+		and clone_body.visible
 	)
 	holder.queue_free()
 	if not ok:
