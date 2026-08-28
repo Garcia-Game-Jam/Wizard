@@ -229,9 +229,9 @@ func _test_monsters_ignore_ghosts() -> int:
 	holder.add_child(ghost)
 	## Scene chase_range is 3 m — keep the living player inside it, farther than the ghost.
 	charger.chase_range = 8.0
-	charger.global_position = Vector3.ZERO
-	ghost.global_position = Vector3(0.4, 0.0, 0.0)
-	live.global_position = Vector3(2.5, 0.0, 0.0)
+	charger.global_position = Vector3(80.0, 0.0, 80.0)
+	ghost.global_position = Vector3(80.4, 0.0, 80.0)
+	live.global_position = Vector3(82.5, 0.0, 80.0)
 	ghost.kill()
 	var sight := MonsterSightSense.new()
 	sight.require_line_of_sight = false
