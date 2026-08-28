@@ -4,7 +4,7 @@ extends RefCounted
 ## Detonate connect: combat groups by root distance. Not Area3D overlap.
 ## ponytail: O(bodies in groups) per detonate; upgrade if dump size makes it hot.
 
-const GROUPS: PackedStringArray = ["monster", "combat_target", "player"]
+const GROUPS: PackedStringArray = ["monster", "combat_target", "player", "corpse"]
 
 
 static func bodies_near(
@@ -21,7 +21,10 @@ static func bodies_near(
 				continue
 			if seen.has(node) or not (node is Node3D):
 				continue
-			if not Character.is_node_alive(node):
+			if (
+				not Character.is_node_alive(node)
+				and not node.is_in_group(Character.CORPSE_GROUP)
+			):
 				continue
 			var body := node as Node3D
 			if body.global_position.distance_squared_to(origin) > radius_sq:
@@ -55,12 +58,32 @@ static func apply_at(
 static func _apply_to(
 	body: Node, origin: Vector3, from: Variant, payload: CombatPayload, skip: Node
 ) -> void:
-	if body == null or body == skip or not (body is Character):
+	if body == null or body == skip:
 		return
-	if not Character.is_node_alive(body):
+	if body is MonsterCorpse:
+		_apply_knock_only(body as Node3D, origin, payload)
 		return
-	var character := body as Character
-	character.apply(from, _aim_knock(payload, origin, character.global_position))
+	if not (body is Character):
+		return
+	if Character.is_node_alive(body):
+		var character := body as Character
+		character.apply(from, _aim_knock(payload, origin, character.global_position))
+		return
+	if body.is_in_group(Character.CORPSE_GROUP):
+		_apply_knock_only(body as Node3D, origin, payload)
+
+
+static func _apply_knock_only(body: Node3D, origin: Vector3, payload: CombatPayload) -> void:
+	## Corpses take Knock only. Damage/Stun/Burn stay on living Character.apply.
+	var aimed := _aim_knock(payload, origin, body.global_position)
+	for effect in aimed.effects:
+		if not (effect is Knock):
+			continue
+		var impulse := (effect as Knock).impulse
+		if body is MonsterCorpse:
+			(body as MonsterCorpse).apply_hit_knock(impulse)
+		elif body is Character:
+			(body as Character).apply_knockback(impulse, impulse)
 
 
 static func _aim_knock(

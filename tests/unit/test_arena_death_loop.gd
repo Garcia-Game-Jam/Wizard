@@ -21,6 +21,10 @@ func run() -> int:
 	failures += _test_charger_death_is_same_node()
 	failures += _test_quiet_slump_unless_knock()
 	failures += _test_killing_knock_lands_on_corpse()
+	failures += _test_ghost_copies_pawn_velocity()
+	failures += _test_stone_knocks_corpses_fireball_does_not()
+	failures += _test_ram_launches_corpse_without_stun()
+	failures += _test_walk_nudges_corpse()
 	failures += _test_splash_skips_dead_player()
 	failures += _test_monsters_ignore_ghosts()
 	failures += _test_ghost_forward_matches_living()
@@ -301,6 +305,127 @@ func _test_killing_knock_lands_on_corpse() -> int:
 		return 1
 	if not clone_ok:
 		push_error("Killing knock must land on the player corpse, not the ghost")
+		return 1
+	return 0
+
+
+func _test_ghost_copies_pawn_velocity() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(player)
+	var carry := Vector3(5.0, 0.0, 0.0)
+	player.velocity = carry
+	player.kill()
+	var clone := player.death_corpse
+	var ok := (
+		clone != null
+		and clone.linear_velocity.is_equal_approx(carry)
+		and player.velocity.is_equal_approx(Vector3.ZERO)
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Ghost enter must copy pawn velocity onto the clone, then zero the pawn")
+		return 1
+	return 0
+
+
+func _test_stone_knocks_corpses_fireball_does_not() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var tree := holder.get_tree()
+	var charger := ChargerScene.instantiate() as Charger
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(charger)
+	holder.add_child(player)
+	charger.global_position = Vector3.ZERO
+	player.global_position = Vector3(0.4, 0.0, 0.0)
+	charger.kill()
+	player.kill()
+	var dump := charger.death_corpse
+	var clone := player.death_corpse
+	if dump == null or clone == null:
+		holder.queue_free()
+		push_error("Expected dump and player corpses for splash knock")
+		return 1
+	dump.linear_velocity = Vector3.ZERO
+	clone.linear_velocity = Vector3.ZERO
+	player.velocity = Vector3.ZERO
+	var fire := CombatPayload.new()
+	fire.effects.append(Damage.with(8.0))
+	CombatSplash.apply_at(tree, Vector3.ZERO, 2.0, null, fire)
+	var fire_ok := (
+		dump.linear_velocity.is_equal_approx(Vector3.ZERO)
+		and clone.linear_velocity.is_equal_approx(Vector3.ZERO)
+		and player.velocity.is_equal_approx(Vector3.ZERO)
+		and is_equal_approx(player.current_health, 0.0)
+	)
+	var stone := CombatPayload.new()
+	stone.effects.append(Damage.with(8.0))
+	var knock := Knock.new()
+	knock.from_impact = true
+	knock.impulse = Vector3(9.0, 3.5, 0.0)
+	stone.effects.append(knock)
+	CombatSplash.apply_at(tree, Vector3(-1.0, 0.0, 0.0), 3.0, null, stone)
+	var stone_ok := (
+		dump.linear_velocity.length() > 1.0
+		and clone.linear_velocity.length() > 1.0
+		and player.velocity.is_equal_approx(Vector3.ZERO)
+	)
+	holder.queue_free()
+	if not fire_ok:
+		push_error("Fireball Damage-only splash must not shove corpses or the ghost")
+		return 1
+	if not stone_ok:
+		push_error("Stone knock splash must shove corpses and leave the ghost still")
+		return 1
+	return 0
+
+
+func _test_ram_launches_corpse_without_stun() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var rammer := ChargerScene.instantiate() as Charger
+	var victim := ChargerScene.instantiate() as Charger
+	holder.add_child(rammer)
+	holder.add_child(victim)
+	victim.kill()
+	var clone := victim.death_corpse
+	if clone == null:
+		holder.queue_free()
+		push_error("Expected dump clone for ram launch")
+		return 1
+	clone.linear_velocity = Vector3.ZERO
+	rammer.call("_try_hit_corpse", clone)
+	var ok := clone.linear_velocity.y > 1.0 and clone.linear_velocity.length() > 2.0
+	holder.queue_free()
+	if not ok:
+		push_error("Charger ram must launch a corpse (vel %s)" % clone.linear_velocity)
+		return 1
+	return 0
+
+
+func _test_walk_nudges_corpse() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var charger := ChargerScene.instantiate() as Charger
+	holder.add_child(charger)
+	charger.kill()
+	var clone := charger.death_corpse
+	if clone == null:
+		holder.queue_free()
+		push_error("Expected dump clone for walk nudge")
+		return 1
+	clone.linear_velocity = Vector3.ZERO
+	clone.apply_walk_nudge(Vector3.RIGHT)
+	var xz := Vector3(clone.linear_velocity.x, 0.0, clone.linear_velocity.z).length()
+	holder.queue_free()
+	if xz < MonsterCorpse.WALK_NUDGE_MPS - 0.05:
+		push_error("Walk nudge must add horizontal speed (xz=%.2f)" % xz)
 		return 1
 	return 0
 

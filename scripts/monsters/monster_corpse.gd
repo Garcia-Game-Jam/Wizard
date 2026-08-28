@@ -8,6 +8,7 @@ const DEFAULT_LINGER_SEC := 30.0
 const DEFAULT_FADE_SEC := 3.0
 const DEFAULT_IMPULSE_SCALE := 1.35
 const TORQUE_STRENGTH := 1.6
+const WALK_NUDGE_MPS := 1.6
 
 const MonsterCorpseScript := preload("res://scripts/monsters/monster_corpse.gd")
 
@@ -62,6 +63,62 @@ func _arm_ragdoll(impulse: Vector3, layer: int, in_corpse_group: bool) -> void:
 func apply_hit_knock(impulse: Vector3) -> void:
 	linear_velocity = impulse
 	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
+
+
+func apply_walk_nudge(dir: Vector3) -> void:
+	var flat := Vector3(dir.x, 0.0, dir.z)
+	if flat.length_squared() < 0.0001:
+		return
+	linear_velocity += flat.normalized() * WALK_NUDGE_MPS
+
+
+## After a living slide. ponytail: O(slide collisions) per mover.
+static func nudge_from_slide(walker: CharacterBody3D) -> void:
+	if walker == null:
+		return
+	for i in walker.get_slide_collision_count():
+		var col := walker.get_slide_collision(i)
+		var hit := col.get_collider()
+		if not (hit is MonsterCorpse):
+			continue
+		var n := col.get_normal()
+		var push := Vector3(-n.x, 0.0, -n.z)
+		if push.length_squared() < 0.0001:
+			push = Vector3(walker.velocity.x, 0.0, walker.velocity.z)
+		(hit as MonsterCorpse).apply_walk_nudge(push)
+
+
+static func resolve_from(node: Node) -> MonsterCorpse:
+	var n := node
+	while n != null:
+		if n is MonsterCorpse:
+			return n as MonsterCorpse
+		n = n.get_parent()
+	return null
+
+
+static func ram_if_new(corpse: MonsterCorpse, hits: Dictionary, vel: Vector3) -> void:
+	if corpse == null:
+		return
+	var id := corpse.get_instance_id()
+	if hits.has(id):
+		return
+	hits[id] = true
+	corpse.apply_hit_knock(vel)
+
+
+static func ram_nearby(from: Node3D, range: float, hits: Dictionary, vel: Vector3) -> void:
+	if from == null or not from.is_inside_tree() or range <= 0.0:
+		return
+	var range_sq := range * range
+	for node in from.get_tree().get_nodes_in_group(Character.CORPSE_GROUP):
+		var corpse := resolve_from(node)
+		if corpse == null:
+			continue
+		var dx := corpse.global_position.x - from.global_position.x
+		var dz := corpse.global_position.z - from.global_position.z
+		if dx * dx + dz * dz <= range_sq:
+			ram_if_new(corpse, hits, vel)
 
 
 func _collect_materials() -> void:

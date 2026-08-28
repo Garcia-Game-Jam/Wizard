@@ -8,7 +8,7 @@ Connect (who) then apply (what). A hit is a list of effect Resources. `Character
 
 | Connect | When | Who |
 |---------|------|-----|
-| Splash | One detonate | Combat groups within `splash_radius` of the impact point (root distance) |
+| Splash | One detonate | Combat groups within `splash_radius` of the impact point (root distance). Group `corpse` gets **Knock only** (no Damage/Stun/Burn). |
 | Tick overlap | Every tick in a volume | `Area3D` overlapping bodies (ember trail, halo) |
 | Direct | One named body | Charger ram |
 

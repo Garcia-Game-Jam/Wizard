@@ -623,7 +623,11 @@ func _try_ram_contacts() -> void:
 		var col := get_slide_collision(i)
 		var collider := col.get_collider()
 		if collider is Node:
-			_try_hit_player(collider as Node)
+			var corpse := MonsterCorpse.resolve_from(collider as Node)
+			if corpse != null:
+				MonsterCorpse.ram_if_new(corpse, _tick_ram_hits, _ram_launch_velocity())
+			else:
+				_try_hit_player(collider as Node)
 		if (
 			_charge.can_read_walls()
 			and ChargerChargeScript.is_wall_collider(collider, col.get_normal())
@@ -640,6 +644,7 @@ func _try_ram_contacts() -> void:
 func _try_ram_proximity_hit() -> void:
 	if _target_is_valid() and _flat_to_target().length() <= RAM_HIT_RANGE:
 		_try_hit_player(_charge_target)
+		MonsterCorpse.ram_nearby(self, RAM_HIT_RANGE, _tick_ram_hits, _ram_launch_velocity())
 		return
 	if not is_inside_tree():
 		return
@@ -656,6 +661,7 @@ func _try_ram_proximity_hit() -> void:
 		)
 		if flat.length() <= RAM_HIT_RANGE:
 			_try_hit_player(body)
+	MonsterCorpse.ram_nearby(self, RAM_HIT_RANGE, _tick_ram_hits, _ram_launch_velocity())
 
 
 func _try_editor_wall_stun() -> void:
@@ -674,6 +680,12 @@ func _try_editor_wall_stun() -> void:
 	var hit_dist := MonsterSightSense.occlude_distance(world, from, ahead, exclude)
 	if hit_dist + 0.02 < from.distance_to(ahead):
 		_begin_wall_stun()
+
+
+func _try_hit_corpse(body: Node) -> void:
+	MonsterCorpse.ram_if_new(
+		MonsterCorpse.resolve_from(body), _tick_ram_hits, _ram_launch_velocity()
+	)
 
 
 func _try_hit_player(body: Node) -> void:
@@ -699,13 +711,13 @@ func _begin_player_gore_pose() -> void:
 	)
 
 
-func _launch_player(player: Node3D) -> void:
+func _ram_launch_velocity() -> Vector3:
 	var away := _charge.locked_dir
 	if away.length_squared() < 0.0001:
 		away = _locked_forward()
 	var wall_h := ChargerLaunchScript.wall_height_from_node(self)
 	var cell_size := ChargerLaunchScript.cell_size_from_node(self)
-	var vel := ChargerLaunchScript.knockup_velocity(
+	return ChargerLaunchScript.knockup_velocity(
 		away,
 		gravity,
 		wall_h,
@@ -713,7 +725,10 @@ func _launch_player(player: Node3D) -> void:
 		ChargerLaunchScript.horiz_speed(knockup_cells, cell_size),
 		_rng
 	)
-	_apply_player_hit(player, vel)
+
+
+func _launch_player(player: Node3D) -> void:
+	_apply_player_hit(player, _ram_launch_velocity())
 
 
 func _apply_player_hit(player: Node, launch_vel: Vector3) -> void:
