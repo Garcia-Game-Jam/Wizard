@@ -18,8 +18,8 @@ static func enter(player: Player) -> void:
 		player.saved_collision_layer = player.collision_layer
 	player.collision_layer = 0
 	player.velocity = Vector3.ZERO
-	if not is_instance_valid(player.player_corpse) and not player._pad_rez_pending:
-		player.player_corpse = MonsterCorpse.spawn_player_prop(
+	if not is_instance_valid(player.death_corpse) and not player._pad_rez_pending:
+		player.death_corpse = MonsterCorpse.spawn_player_prop(
 			player, player._last_hit_dir
 		)
 	_apply_visuals(player, true)
@@ -28,9 +28,9 @@ static func enter(player: Player) -> void:
 static func exit(player: Player) -> void:
 	if player == null:
 		return
-	if is_instance_valid(player.player_corpse):
-		player.player_corpse.queue_free()
-	player.player_corpse = null
+	if is_instance_valid(player.death_corpse):
+		player.death_corpse.queue_free()
+	player.death_corpse = null
 	var layer := player.saved_collision_layer
 	player.collision_layer = 1 if layer == 0 else layer
 	_apply_visuals(player, false)

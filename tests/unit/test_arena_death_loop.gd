@@ -202,17 +202,22 @@ func _test_charger_death_is_same_node() -> int:
 	holder.add_child(charger)
 	var id := charger.get_instance_id()
 	charger.kill()
+	var clone := charger.death_corpse
+	var body := charger.get_node_or_null("%Body") as Node3D
 	var ok := (
 		is_instance_valid(charger)
 		and charger.get_instance_id() == id
 		and charger.is_death_physics()
-		and charger.collision_layer == 1
-		and charger.is_in_group(Character.CORPSE_GROUP)
-		and _corpse_child(holder) == null
+		and charger.collision_layer == 0
+		and clone != null
+		and clone is RigidBody3D
+		and clone.collision_layer == 1
+		and clone.is_in_group(Character.CORPSE_GROUP)
+		and (body == null or not body.visible)
 	)
 	holder.queue_free()
 	if not ok:
-		push_error("Dead charger must limp on the same node, layer 1, group corpse")
+		push_error("Dead charger must stay in tree and flop as a RigidBody clone")
 		return 1
 	return 0
 
@@ -229,10 +234,22 @@ func _test_quiet_slump_unless_knock() -> int:
 	knocked.apply_knockback(Vector3.RIGHT)
 	var knock_speed := Vector3(knocked.velocity.x, 0.0, knocked.velocity.z).length()
 	knocked.kill()
-	var slump_speed := Vector3(slump.velocity.x, 0.0, slump.velocity.z).length()
-	var death_speed := Vector3(knocked.velocity.x, 0.0, knocked.velocity.z).length()
+	var slump_body := slump.death_corpse
+	var knocked_body := knocked.death_corpse
+	var slump_speed := 0.0
+	var death_speed := 0.0
+	if slump_body != null:
+		slump_speed = Vector3(
+			slump_body.linear_velocity.x, 0.0, slump_body.linear_velocity.z
+		).length()
+	if knocked_body != null:
+		death_speed = Vector3(
+			knocked_body.linear_velocity.x, 0.0, knocked_body.linear_velocity.z
+		).length()
 	var ok := (
-		slump_speed <= Character.DEATH_SLUMP_HORIZONTAL + 0.05
+		slump_body != null
+		and knocked_body != null
+		and slump_speed < 1.0
 		and knock_speed >= Character.KNOCKBACK_HORIZONTAL - 0.05
 		and death_speed >= knock_speed - 0.05
 		and death_speed <= knock_speed + 0.05
@@ -266,7 +283,10 @@ func _test_killing_knock_lands_on_corpse() -> int:
 	player_hit.effects.append(Knock.with(shove))
 	player.apply(null, player_hit)
 	var clone := _corpse_child(holder)
-	var dump_ok := charger.velocity.is_equal_approx(shove)
+	var dump_ok := (
+		charger.death_corpse != null
+		and charger.death_corpse.linear_velocity.is_equal_approx(shove)
+	)
 	var clone_ok := (
 		clone != null
 		and clone is RigidBody3D
@@ -274,7 +294,7 @@ func _test_killing_knock_lands_on_corpse() -> int:
 	)
 	holder.queue_free()
 	if not dump_ok:
-		push_error("Killing knock must replace dump slump (%s)" % charger.velocity)
+		push_error("Killing knock must replace dump slump (%s)" % charger.death_corpse)
 		return 1
 	if not clone_ok:
 		push_error("Killing knock must land on the player corpse, not the ghost")

@@ -139,19 +139,31 @@ func _start_fade() -> void:
 
 ## Duplicate meshes + capsule. Do not reparent Head — the camera lives there.
 static func spawn_player_prop(player: Node3D, hit_dir: Vector3) -> MonsterCorpse:
-	if player == null or not player.is_inside_tree():
+	return spawn_prop(player, hit_dir, false)
+
+
+## Dump death: same rigid flop as the player corpse. Living node stays for rewind.
+static func spawn_dump_prop(monster: Node3D, hit_dir: Vector3) -> MonsterCorpse:
+	return spawn_prop(monster, hit_dir, true)
+
+
+static func spawn_prop(source: Node3D, hit_dir: Vector3, include_head: bool) -> MonsterCorpse:
+	if source == null or not source.is_inside_tree():
 		return null
-	var parent_node := player.get_parent()
+	var parent_node := source.get_parent()
 	if parent_node == null:
 		return null
 	var corpse := RigidBody3D.new()
-	corpse.name = "%sCorpse" % player.name
+	corpse.name = "%sCorpse" % source.name
 	corpse.set_script(MonsterCorpseScript)
 	parent_node.add_child(corpse)
-	corpse.global_transform = player.global_transform
-	_duplicate_node(player.get_node_or_null("%CollisionShape3D"), corpse)
-	_duplicate_node(player.get_node_or_null("%Body"), corpse)
-	_duplicate_node(player.get_node_or_null("%HeadMesh"), corpse)
+	corpse.global_transform = source.global_transform
+	_duplicate_node(source.get_node_or_null("%CollisionShape3D"), corpse)
+	_duplicate_node(source.get_node_or_null("%Body"), corpse)
+	if include_head:
+		_duplicate_node(source.get_node_or_null("%Head"), corpse)
+	else:
+		_duplicate_node(source.get_node_or_null("%HeadMesh"), corpse)
 	if corpse.has_method("begin_player_limp"):
 		corpse.call("begin_player_limp", hit_dir)
 	return corpse as MonsterCorpse

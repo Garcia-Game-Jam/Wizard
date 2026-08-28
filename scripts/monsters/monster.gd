@@ -117,6 +117,7 @@ var _cast_prefer_index: int = 0
 var _chase_move: MonsterChaseMove = null
 var _lookdev_aggro: Node3D = null
 var _sim_delta: float = 0.0
+var _saved_dump_layer: int = 1
 
 func _ready() -> void:
 	super._ready()
@@ -256,8 +257,45 @@ func restore_after_revive() -> void:
 	_enter_idle()
 
 
+func _death_uses_capsule_limp() -> bool:
+	return false
+
+
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
+	_enter_dump_corpse()
+
+
+func _on_stop_death_physics() -> void:
+	_exit_dump_corpse()
+
+
+func _enter_dump_corpse() -> void:
+	if is_instance_valid(death_corpse):
+		return
+	if collision_layer != 0:
+		_saved_dump_layer = collision_layer
+	collision_layer = 0
+	collision_mask = 0
+	_set_living_meshes_visible(false)
+	death_corpse = MonsterCorpse.spawn_dump_prop(self, _last_hit_dir)
+	if is_knocked() and is_instance_valid(death_corpse):
+		death_corpse.apply_hit_knock(velocity)
+
+
+func _exit_dump_corpse() -> void:
+	if is_instance_valid(death_corpse):
+		death_corpse.queue_free()
+	death_corpse = null
+	collision_layer = 1 if _saved_dump_layer == 0 else _saved_dump_layer
+	collision_mask = 1
+	_set_living_meshes_visible(true)
+
+
+func _set_living_meshes_visible(show: bool) -> void:
+	for node in [get_node_or_null("%Body"), get_node_or_null("%Head")]:
+		if node is Node3D:
+			(node as Node3D).visible = show
 
 
 ## Drop every AI intent so nothing keeps ticking between death and free.

@@ -104,7 +104,6 @@ var dash_slide_grace_remaining: float = 0.0
 var net_wand_raised: bool = false
 var net_charge_factor: float = 0.0
 var net_flashlight: bool = false
-var player_corpse: MonsterCorpse = null
 var saved_collision_layer: int = 1
 
 var _spell_loadout: Node

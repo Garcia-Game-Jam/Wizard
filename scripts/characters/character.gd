@@ -102,6 +102,8 @@ const NET_STATE_PATHS: PackedStringArray = [
 
 var net_phase: int = 0
 var net_telegraph: float = 0.0
+## RigidBody clone while dead (player ghost + dump flop). Not rewindable.
+var death_corpse: MonsterCorpse = null
 var _knockback_vel: Vector3 = Vector3.ZERO
 var _knockback_timer: float = 0.0
 var _host_apply_depth: int = 0
@@ -426,6 +428,8 @@ func rollback_tick_death_if_active(delta: float) -> bool:
 func _tick_death_physics(delta: float) -> void:
 	if _death_bones != null:
 		return
+	if not _death_uses_capsule_limp():
+		return
 	_death_ang_vel = tick_capsule_limp(self, _death_ang_vel, delta, _death_gravity())
 
 
@@ -530,9 +534,8 @@ func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
 		_last_hit_dir = dir.normalized()
 	if impulse.length_squared() < 0.0001:
 		impulse = _knockback_impulse(dir)
-	var corpse: Variant = get("player_corpse") if "player_corpse" in self else null
-	if is_instance_valid(corpse) and corpse.has_method("apply_hit_knock"):
-		corpse.call("apply_hit_knock", impulse)
+	if is_instance_valid(death_corpse) and death_corpse.has_method("apply_hit_knock"):
+		death_corpse.apply_hit_knock(impulse)
 		return
 	if not is_alive() and not is_death_physics():
 		return
