@@ -8,7 +8,7 @@ Connect (who) then apply (what). A hit is a list of effect Resources. `Character
 
 | Connect | When | Who |
 |---------|------|-----|
-| Splash | One detonate | Combat groups within `splash_radius` of the impact point (root distance) |
+| Splash | One detonate | Combat groups within `splash_radius` of the impact point (root distance). Group `corpse` gets **Knock only** (no Damage/Stun/Burn). |
 | Tick overlap | Every tick in a volume | `Area3D` overlapping bodies (ember trail, halo) |
 | Direct | One named body | Charger ram |
 
@@ -42,7 +42,7 @@ Slow and burn are Character rewind fields, enrolled in `Character.NET_STATE_PATH
 
 ## Two spawn doors
 
-Player fireball and stone throw spawn through NetworkWeapon (caster-predicted). Ember threats spawn through `NetLiveness.replicate_world_fx`. Do not merge those doors. After spawn, both already call `NetLiveness.after_spawn`. Combat is shared (`CombatSplash` + payload); flight stays per scene.
+Player fireball and stone throw spawn through NetworkWeapon (caster-predicted). Ember threats spawn through `NetLiveness.replicate_world_fx`. Do not merge those doors. After spawn, both already call `NetLiveness.after_spawn`. Combat is shared (`CombatSplash` + payload); flight stays per scene. NetworkWeapon `simulate_from_tick` is pose catch-up only — it must not apply the payload; `_rollback_tick` / `_physics_process` apply once.
 
 ## Live lists
 

@@ -52,6 +52,8 @@ var _hit_shape: SphereShape3D
 var _collision: CollisionShape3D
 var _mesh: MeshInstance3D
 var _finished := false
+## Catch-up from NetworkWeapon must not spend the payload — rollback will.
+var _combat_enabled := true
 
 
 static func spawn(
@@ -178,10 +180,12 @@ func simulate_from_tick(fired_tick: int) -> void:
 		return
 	var now := int(time_node.get("tick"))
 	var tick_time := float(time_node.get("ticktime"))
-	for t in range(fired_tick, now):
+	_combat_enabled = false
+	for _tick in range(fired_tick, now):
 		if _finished:
 			break
-		_simulate_flight(tick_time, t == now - 1)
+		_simulate_flight(tick_time, false)
+	_combat_enabled = true
 
 
 func apply_net_launch(origin: Vector3, direction: Vector3, _charge_factor: float = 1.0) -> void:
@@ -272,7 +276,7 @@ func _finish(apply_splash: bool, is_fresh: bool, hit: Node = null) -> void:
 	_finished = true
 	var world_parent := get_parent()
 	var impact_pos := global_position
-	if apply_splash:
+	if apply_splash and _combat_enabled:
 		_apply_splash_at(impact_pos, hit)
 	_clear_projectile_visuals()
 	if is_fresh:

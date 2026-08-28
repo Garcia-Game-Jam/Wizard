@@ -405,10 +405,13 @@ static func is_lookdev_live(node: Node) -> bool:
 
 static func apply_gravity(body: CharacterBody3D, delta: float, gravity: float) -> void:
 	## Lookdev editor has no reliable floor contact — hold Y so LOS stays valid.
+	## Do not zero a positive Y on the floor: that ate stone knock-up in solo.
 	if body == null:
 		return
 	var v := body.velocity
-	if is_lookdev_live(body) or body.is_on_floor():
+	if is_lookdev_live(body):
+		v.y = 0.0
+	elif body.is_on_floor() and v.y <= 0.05:
 		v.y = 0.0
 	else:
 		v.y -= gravity * delta

@@ -104,7 +104,6 @@ var dash_slide_grace_remaining: float = 0.0
 var net_wand_raised: bool = false
 var net_charge_factor: float = 0.0
 var net_flashlight: bool = false
-var player_corpse: MonsterCorpse = null
 var saved_collision_layer: int = 1
 
 var _spell_loadout: Node
@@ -868,13 +867,14 @@ func _simulate_move(delta: float, is_fresh: bool, net_input: Object) -> void:
 	PlayerCrouchScript.tick(self, net_input, delta)
 	var dash_active := PlayerDashScript.is_active(self)
 	var crouch_coasting := PlayerCrouchScript.is_coasting(self)
+	## Walk overwrites xz; keep knock like dash so a grounded shove survives.
 	SlideSurfaceScript.apply_ground_move(
 		self,
 		head,
 		gravity,
 		delta,
 		_speed_boost_multiplier,
-		dash_active or crouch_coasting,
+		dash_active or crouch_coasting or is_knocked(),
 		dash_active,
 		net_input
 	)

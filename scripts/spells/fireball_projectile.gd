@@ -249,6 +249,8 @@ var _collision: CollisionShape3D
 var _glow_tween: Tween
 var _caster: Node3D
 var _finished := false
+## Catch-up from NetworkWeapon must not spend the payload — rollback will.
+var _combat_enabled := true
 var _preview_material_ready := false
 ## 0..1 visual scale driven by charge (trails + impact FX).
 var _charge_fx_scale := 1.0
@@ -379,8 +381,6 @@ func _ready() -> void:
 	_ensure_ember_sparks(true)
 	_position_trail_emitters()
 
-	if not body_entered.is_connected(_on_body_entered):
-		body_entered.connect(_on_body_entered)
 	set_physics_process(true)
 
 
@@ -729,10 +729,12 @@ func simulate_from_tick(fired_tick: int) -> void:
 		return
 	var now := int(time_node.get("tick"))
 	var tick_time := float(time_node.get("ticktime"))
-	for t in range(fired_tick, now):
+	_combat_enabled = false
+	for _tick in range(fired_tick, now):
 		if _finished:
 			break
-		_simulate_flight(tick_time, t == now - 1)
+		_simulate_flight(tick_time, false)
+	_combat_enabled = true
 
 
 func _simulate_flight(delta: float, is_fresh: bool) -> void:
@@ -831,7 +833,7 @@ func _finish(blocked_by: Node = null, apply_splash: bool = false, is_fresh: bool
 	var world_parent := get_parent()
 	var impact_pos := global_position
 	var ward := _ward_from_node(blocked_by) if blocked_by != null else null
-	if apply_splash and ward == null:
+	if apply_splash and _combat_enabled and ward == null:
 		_apply_splash_at(impact_pos, blocked_by)
 	_clear_projectile_visuals()
 	if is_fresh:
@@ -947,18 +949,6 @@ func _clear_projectile_visuals() -> void:
 		_travel_light.light_energy = 0.0
 	visible = false
 	set_process(false)
-
-
-func _on_body_entered(body: Node3D) -> void:
-	var ward := _ward_from_node(body)
-	if ward != null:
-		_finish(ward, true)
-		return
-	if _try_hit_player(body):
-		return
-	if body == _caster:
-		return
-	_finish(body, true)
 
 
 func _try_hit_player(body: Node3D, is_fresh: bool = true) -> bool:

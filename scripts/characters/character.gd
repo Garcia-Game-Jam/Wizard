@@ -20,11 +20,10 @@ const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const DEFAULT_MAX_HEALTH := 100.0
 
 const KNOCKBACK_TIMER_SEC := 0.35
-## Sustained shove during the knockback window, in units of _knockback_vel per
-## second. MUST be delta-scaled: applying a flat per-tick fraction compounds
-## with tickrate and turns the bleed into a velocity amplifier (a 9 m/s hit
-## reached 40 m/s at 60 Hz and buried the body in the pit wall).
-const KNOCKBACK_BLEED_PER_SEC := 10.5
+## Extra shove after the hit, in units of _knockback_vel per second.
+## 0 = impulse only. If you turn this back on, it must stay delta-scaled
+## (a flat per-tick fraction turned a 9 m/s hit into 40 m/s at 60 Hz).
+const KNOCKBACK_BLEED_PER_SEC := 0.0
 const KNOCKBACK_DECAY := 28.0
 const KNOCKBACK_HORIZONTAL := 9.0
 const KNOCKBACK_UP := 3.5
@@ -32,6 +31,11 @@ const DEATH_IMPULSE_SCALE := 1.35
 const DEATH_GRAVITY := 18.0
 const DEATH_SPIN_RAD := 9.0
 const DEATH_SPIN_DAMP := 5.0
+const DEATH_SLUMP_HORIZONTAL := 1.2
+const DEATH_SLUMP_UP := 0.6
+const DEATH_SLUMP_SPIN := 3.2
+const DEATH_LIMP_DAMP := 7.0
+const CORPSE_GROUP := &"corpse"
 const EYE_EMISSION_ENERGY := 5.5
 const EYE_LIGHT_ENERGY := 2.6
 ## Eye glow at 0 HP: near-black, slightly tinted from authored color.
@@ -98,6 +102,8 @@ const NET_STATE_PATHS: PackedStringArray = [
 
 var net_phase: int = 0
 var net_telegraph: float = 0.0
+## RigidBody clone while dead (player ghost + dump flop). Not rewindable.
+var death_corpse: MonsterCorpse = null
 var _knockback_vel: Vector3 = Vector3.ZERO
 var _knockback_timer: float = 0.0
 var _host_apply_depth: int = 0
@@ -238,6 +244,10 @@ func apply_speed_boost(duration: float, multiplier: float) -> void:
 	_speed_boost_timer = duration
 
 
+func is_knocked() -> bool:
+	return _knockback_timer > 0.0
+
+
 func apply_burn(dps: float, duration_sec: float, _from: Variant = null) -> void:
 	if not _status_authority_ok():
 		return
@@ -363,23 +373,17 @@ func begin_death_physics() -> void:
 	_saved_floor_snap = floor_snap_length
 	floor_snap_length = 0.0
 	if _death_uses_capsule_limp():
+		add_to_group(CORPSE_GROUP)
 		_death_bones = _physical_bone_simulator()
 		if _death_bones != null:
 			_death_bones.physical_bones_start_simulation()
 			_death_ang_vel = Vector3.ZERO
 		else:
-			velocity += _knockback_impulse(_last_hit_dir) * DEATH_IMPULSE_SCALE
-			if _death_should_tumble():
-				var axis := Vector3(
-					randf_range(-1.0, 1.0),
-					randf_range(-0.35, 0.35),
-					randf_range(-1.0, 1.0)
-				)
-				if axis.length_squared() < 0.0001:
-					axis = Vector3.FORWARD
-				_death_ang_vel = axis.normalized() * DEATH_SPIN_RAD
+			if _knockback_timer <= 0.0:
+				velocity += death_slump_velocity(_last_hit_dir)
+				_death_ang_vel = death_tumble_spin(DEATH_SLUMP_SPIN)
 			else:
-				_death_ang_vel = Vector3.ZERO
+				_death_ang_vel = death_tumble_spin(DEATH_SPIN_RAD)
 	set_physics_process(true)
 
 
@@ -393,6 +397,8 @@ func stop_death_physics() -> void:
 	_death_ang_vel = Vector3.ZERO
 	floor_snap_length = _saved_floor_snap
 	velocity = Vector3.ZERO
+	if is_in_group(CORPSE_GROUP):
+		remove_from_group(CORPSE_GROUP)
 	_on_stop_death_physics()
 
 
@@ -422,11 +428,47 @@ func rollback_tick_death_if_active(delta: float) -> bool:
 func _tick_death_physics(delta: float) -> void:
 	if _death_bones != null:
 		return
-	velocity.y -= _death_gravity() * delta
-	NetClockScript.move_character(self)
-	if _death_ang_vel.length_squared() > 0.0001:
-		rotate_object_local(_death_ang_vel.normalized(), _death_ang_vel.length() * delta)
-		_death_ang_vel = _death_ang_vel.move_toward(Vector3.ZERO, DEATH_SPIN_DAMP * delta)
+	if not _death_uses_capsule_limp():
+		return
+	_death_ang_vel = tick_capsule_limp(self, _death_ang_vel, delta, _death_gravity())
+
+
+## Shared limp step for dump pawns and the player corpse clone.
+static func tick_capsule_limp(
+	body: CharacterBody3D, ang_vel: Vector3, delta: float, gravity: float
+) -> Vector3:
+	if body == null:
+		return ang_vel
+	var flat := Vector3(body.velocity.x, 0.0, body.velocity.z)
+	flat = flat.move_toward(Vector3.ZERO, DEATH_LIMP_DAMP * delta)
+	body.velocity.x = flat.x
+	body.velocity.z = flat.z
+	body.velocity.y -= gravity * delta
+	NetClockScript.move_character(body)
+	if ang_vel.length_squared() < 0.0001:
+		return Vector3.ZERO
+	body.rotate_object_local(ang_vel.normalized(), ang_vel.length() * delta)
+	return ang_vel.move_toward(Vector3.ZERO, DEATH_SPIN_DAMP * delta)
+
+
+static func death_slump_velocity(hit_dir: Vector3) -> Vector3:
+	var flat := Vector3(hit_dir.x, 0.0, hit_dir.z)
+	if flat.length_squared() < 0.0001:
+		flat = Vector3.FORWARD
+	else:
+		flat = flat.normalized()
+	return flat * DEATH_SLUMP_HORIZONTAL + Vector3.UP * DEATH_SLUMP_UP
+
+
+static func death_tumble_spin(rad: float) -> Vector3:
+	var axis := Vector3(
+		randf_range(-1.0, 1.0),
+		randf_range(-0.35, 0.35),
+		randf_range(-1.0, 1.0)
+	)
+	if axis.length_squared() < 0.0001:
+		axis = Vector3.FORWARD
+	return axis.normalized() * rad
 
 
 func _death_should_tumble() -> bool:
@@ -483,8 +525,6 @@ func _remember_hit_dir(from: Node3D) -> void:
 ## Knock status: a shove plus a short bleed. Only stone throw and charger ram
 ## apply this — HP loss itself does not.
 func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
-	if not is_alive():
-		return
 	var tree := get_tree()
 	var state := tree.root.get_node_or_null("GameState") if tree != null else null
 	var mp := state != null and bool(state.get("is_multiplayer"))
@@ -494,9 +534,20 @@ func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
 		_last_hit_dir = dir.normalized()
 	if impulse.length_squared() < 0.0001:
 		impulse = _knockback_impulse(dir)
+	if is_instance_valid(death_corpse) and death_corpse.has_method("apply_hit_knock"):
+		death_corpse.apply_hit_knock(impulse)
+		return
+	if not is_alive() and not is_death_physics():
+		return
+	if not is_alive() and not _death_uses_capsule_limp():
+		return
 	_knockback_vel = impulse
 	_knockback_timer = KNOCKBACK_TIMER_SEC
-	velocity += impulse
+	if is_death_physics():
+		velocity = impulse
+	else:
+		velocity += impulse
+		floor_snap_length = 0.0
 
 
 static func _knockback_impulse(knock_dir: Vector3) -> Vector3:

@@ -13,6 +13,7 @@ const MonsterCombatSpacingScript := preload("res://scripts/monsters/monster_comb
 const MonsterCasterCombatScript := preload("res://scripts/monsters/monster_caster_combat.gd")
 const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_gizmos.gd")
 const MonsterPatrolScript := preload("res://scripts/monsters/monster_patrol.gd")
+const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const TestEnvScript := preload("res://scripts/test/test_env.gd")
@@ -116,6 +117,7 @@ var _cast_prefer_index: int = 0
 var _chase_move: MonsterChaseMove = null
 var _lookdev_aggro: Node3D = null
 var _sim_delta: float = 0.0
+var _saved_dump_layer: int = 1
 
 func _ready() -> void:
 	super._ready()
@@ -255,8 +257,45 @@ func restore_after_revive() -> void:
 	_enter_idle()
 
 
+func _death_uses_capsule_limp() -> bool:
+	return false
+
+
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
+	_enter_dump_corpse()
+
+
+func _on_stop_death_physics() -> void:
+	_exit_dump_corpse()
+
+
+func _enter_dump_corpse() -> void:
+	if is_instance_valid(death_corpse):
+		return
+	if collision_layer != 0:
+		_saved_dump_layer = collision_layer
+	collision_layer = 0
+	collision_mask = 0
+	death_corpse = MonsterCorpse.spawn_dump_prop(self, _last_hit_dir)
+	_set_living_meshes_visible(false)
+	if is_knocked() and is_instance_valid(death_corpse):
+		death_corpse.apply_hit_knock(velocity)
+
+
+func _exit_dump_corpse() -> void:
+	if is_instance_valid(death_corpse):
+		death_corpse.queue_free()
+	death_corpse = null
+	collision_layer = 1 if _saved_dump_layer == 0 else _saved_dump_layer
+	collision_mask = 1
+	_set_living_meshes_visible(true)
+
+
+func _set_living_meshes_visible(meshes_on: bool) -> void:
+	for node in [get_node_or_null("%Body"), get_node_or_null("%Head")]:
+		if node is Node3D:
+			(node as Node3D).visible = meshes_on
 
 
 ## Drop every AI intent so nothing keeps ticking between death and free.
@@ -436,6 +475,8 @@ func _simulate_monster(delta: float) -> void:
 	_update_alert_timers(delta, has_interest)
 
 	var chase_target := get_chase_target()
+	var keep_x := velocity.x
+	var keep_z := velocity.z
 
 	var caster_chase := MonsterCasterCombatScript.tick_monster_if_present(
 		self, delta, _ai_state, chase_target
@@ -464,8 +505,34 @@ func _simulate_monster(delta: float) -> void:
 		if want_eyes != _eyes_chasing:
 			_set_chase_eyes_active(want_eyes)
 
+	_keep_airborne_horizontal(keep_x, keep_z)
 	_apply_knockback_bleed(delta)
 	MonsterAIScript.apply_move(self, delta)
+
+
+## Walk may set xz only on the floor. In the air they may still turn to face
+## a target, but chase/idle must not replace launch or knock momentum.
+## Dash (and charger ram, which never reaches here) still own velocity.
+func _keep_airborne_horizontal(pre_x: float, pre_z: float) -> void:
+	if MonsterAIScript.is_lookdev_live(self) or _ability_owns_horizontal():
+		return
+	var on_floor := SlideSurfaceScript.sync_motion_from_pose(self)
+	var walking := on_floor and velocity.y <= 0.05 and not is_knocked()
+	if walking:
+		return
+	floor_snap_length = 0.0
+	velocity.x = pre_x
+	velocity.z = pre_z
+
+
+func _ability_owns_horizontal() -> bool:
+	var root := get_node_or_null("Abilities")
+	if root == null:
+		return false
+	for child in root.get_children():
+		if child.has_method("is_dashing") and bool(child.call("is_dashing")):
+			return true
+	return false
 
 
 func _update_alert_timers(delta: float, has_interest: bool) -> void:

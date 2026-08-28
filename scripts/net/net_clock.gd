@@ -58,16 +58,25 @@ static func stop() -> void:
 static func move_character(body: CharacterBody3D) -> void:
 	if body == null:
 		return
-	if not is_ticking():
-		_slide_within_radius(body)
-		return
-	var nt := _network_time()
+	var ticking := is_ticking()
 	var factor := 1.0
-	if nt != null:
-		factor = float(nt.get("physics_factor"))
-	body.velocity *= factor
+	if ticking:
+		var nt := _network_time()
+		if nt != null:
+			factor = float(nt.get("physics_factor"))
+		body.velocity *= factor
 	_slide_within_radius(body)
-	body.velocity /= factor
+	_nudge_corpses(body)
+	if ticking:
+		body.velocity /= factor
+
+
+static func _nudge_corpses(body: CharacterBody3D) -> void:
+	if body is Character and not (body as Character).is_alive():
+		return
+	if is_session_multiplayer() and not body.is_multiplayer_authority():
+		return
+	MonsterCorpse.nudge_from_slide(body)
 
 
 ## Chunks a slide so each move_and_slide stays inside the collision radius.

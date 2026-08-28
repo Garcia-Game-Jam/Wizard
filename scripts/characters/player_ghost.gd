@@ -2,7 +2,7 @@ class_name PlayerGhost
 extends RefCounted
 
 ## Dead player: same pawn flies, duplicated meshes are the shoveable corpse.
-## Camera stays on Head. Not a combat body (layer 0, splash/AI skip is_node_alive).
+## Enter copies pawn velocity onto the clone, then zeroes the ghost.
 
 const GHOST_MESH_ALPHA := 0.18
 
@@ -17,20 +17,25 @@ static func enter(player: Player) -> void:
 	if player.collision_layer != 0:
 		player.saved_collision_layer = player.collision_layer
 	player.collision_layer = 0
-	player.velocity = Vector3.ZERO
-	if not is_instance_valid(player.player_corpse) and not player._pad_rez_pending:
-		player.player_corpse = MonsterCorpse.spawn_player_prop(
+	var carry := player.velocity
+	if not is_instance_valid(player.death_corpse) and not player._pad_rez_pending:
+		player.death_corpse = MonsterCorpse.spawn_player_prop(
 			player, player._last_hit_dir
 		)
+	## Pose only. Killing Knock already hits the clone via apply_knockback;
+	## apply_hit_knock here would add a second tumble on the same death.
+	if is_instance_valid(player.death_corpse) and carry.length_squared() > 0.0001:
+		player.death_corpse.linear_velocity = carry
+	player.velocity = Vector3.ZERO
 	_apply_visuals(player, true)
 
 
 static func exit(player: Player) -> void:
 	if player == null:
 		return
-	if is_instance_valid(player.player_corpse):
-		player.player_corpse.queue_free()
-	player.player_corpse = null
+	if is_instance_valid(player.death_corpse):
+		player.death_corpse.queue_free()
+	player.death_corpse = null
 	var layer := player.saved_collision_layer
 	player.collision_layer = 1 if layer == 0 else layer
 	_apply_visuals(player, false)
