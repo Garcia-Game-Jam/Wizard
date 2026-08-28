@@ -18,6 +18,9 @@ func run() -> int:
 	failures += _test_pad_rez_stands_the_body()
 	failures += _test_arena_game_over_is_host_rpc()
 	failures += _test_ghost_leaves_a_shoveable_corpse()
+	failures += _test_charger_death_is_same_node()
+	failures += _test_quiet_slump_unless_knock()
+	failures += _test_killing_knock_lands_on_corpse()
 	failures += _test_splash_skips_dead_player()
 	failures += _test_monsters_ignore_ghosts()
 	failures += _test_ghost_forward_matches_living()
@@ -169,7 +172,9 @@ func _test_ghost_leaves_a_shoveable_corpse() -> int:
 		and not player.is_in_group("combat_target")
 		and blocked
 		and corpse != null
+		and corpse is RigidBody3D
 		and corpse.collision_layer == 1
+		and corpse.is_in_group(Character.CORPSE_GROUP)
 	)
 	player.revive()
 	var leftover := _corpse_child(holder)
@@ -185,6 +190,94 @@ func _test_ghost_leaves_a_shoveable_corpse() -> int:
 		return 1
 	if not cleared:
 		push_error("Revive must free the corpse and restore the living collision layer")
+		return 1
+	return 0
+
+
+func _test_charger_death_is_same_node() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var charger := ChargerScene.instantiate() as Charger
+	holder.add_child(charger)
+	var id := charger.get_instance_id()
+	charger.kill()
+	var ok := (
+		is_instance_valid(charger)
+		and charger.get_instance_id() == id
+		and charger.is_death_physics()
+		and charger.collision_layer == 1
+		and charger.is_in_group(Character.CORPSE_GROUP)
+		and _corpse_child(holder) == null
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Dead charger must limp on the same node, layer 1, group corpse")
+		return 1
+	return 0
+
+
+func _test_quiet_slump_unless_knock() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var slump := ChargerScene.instantiate() as Charger
+	var knocked := ChargerScene.instantiate() as Charger
+	holder.add_child(slump)
+	holder.add_child(knocked)
+	slump.kill()
+	knocked.apply_knockback(Vector3.RIGHT)
+	var knock_speed := Vector3(knocked.velocity.x, 0.0, knocked.velocity.z).length()
+	knocked.kill()
+	var slump_speed := Vector3(slump.velocity.x, 0.0, slump.velocity.z).length()
+	var death_speed := Vector3(knocked.velocity.x, 0.0, knocked.velocity.z).length()
+	var ok := (
+		slump_speed <= Character.DEATH_SLUMP_HORIZONTAL + 0.05
+		and knock_speed >= Character.KNOCKBACK_HORIZONTAL - 0.05
+		and death_speed >= knock_speed - 0.05
+		and death_speed <= knock_speed + 0.05
+	)
+	holder.queue_free()
+	if not ok:
+		push_error(
+			"Damage-only death must slump; knock-active death must keep knock speed"
+			+ " (slump=%.2f knock=%.2f death=%.2f)"
+			% [slump_speed, knock_speed, death_speed]
+		)
+		return 1
+	return 0
+
+
+func _test_killing_knock_lands_on_corpse() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var shove := Vector3(4.5, 2.0, 0.0)
+	var charger := ChargerScene.instantiate() as Charger
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(charger)
+	holder.add_child(player)
+	var dump_hit := CombatPayload.new()
+	dump_hit.effects.append(Damage.with(charger.max_health))
+	dump_hit.effects.append(Knock.with(shove))
+	charger.apply(null, dump_hit)
+	var player_hit := CombatPayload.new()
+	player_hit.effects.append(Damage.with(player.max_health))
+	player_hit.effects.append(Knock.with(shove))
+	player.apply(null, player_hit)
+	var clone := _corpse_child(holder)
+	var dump_ok := charger.velocity.is_equal_approx(shove)
+	var clone_ok := (
+		clone != null
+		and clone is RigidBody3D
+		and (clone as RigidBody3D).linear_velocity.is_equal_approx(shove)
+	)
+	holder.queue_free()
+	if not dump_ok:
+		push_error("Killing knock must replace dump slump (%s)" % charger.velocity)
+		return 1
+	if not clone_ok:
+		push_error("Killing knock must land on the player corpse, not the ghost")
 		return 1
 	return 0
 

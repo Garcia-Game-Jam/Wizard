@@ -1,13 +1,13 @@
 class_name MonsterCorpse
 extends RigidBody3D
 
-## Temporary ragdoll stand-in for Monster death (single rigid body + meshes).
-## Lingers, fades, then frees — not a skeletal PhysicalBone ragdoll.
+## Player death clone: duplicated capsule + meshes. Engine rigid limp (impulse + torque).
+## Summon linger/fade still uses begin_death_sequence (not live-roster dumps).
 
 const DEFAULT_LINGER_SEC := 30.0
 const DEFAULT_FADE_SEC := 3.0
-const TORQUE_STRENGTH := 2.8
 const DEFAULT_IMPULSE_SCALE := 1.35
+const TORQUE_STRENGTH := 1.6
 
 const MonsterCorpseScript := preload("res://scripts/monsters/monster_corpse.gd")
 
@@ -30,7 +30,7 @@ func begin_death_sequence(
 	linger_sec: float = DEFAULT_LINGER_SEC,
 	fade_sec: float = DEFAULT_FADE_SEC
 ) -> void:
-	_arm_ragdoll(impulse, 0)
+	_arm_ragdoll(impulse, 0, false)
 	_fade_sec = maxf(0.05, fade_sec)
 	var wait_sec := maxf(0.0, linger_sec - _fade_sec)
 	var tree := get_tree()
@@ -40,26 +40,28 @@ func begin_death_sequence(
 	tree.create_timer(wait_sec).timeout.connect(_start_fade)
 
 
-## Player corpse: living wizards can shove it. No linger/fade — caller frees on rez.
-func begin_shove_prop(impulse: Vector3) -> void:
-	_arm_ragdoll(impulse, 1)
+func begin_player_limp(hit_dir: Vector3) -> void:
+	_arm_ragdoll(Character.death_slump_velocity(hit_dir), 1, true)
 
 
-func _arm_ragdoll(impulse: Vector3, layer: int) -> void:
+func _arm_ragdoll(impulse: Vector3, layer: int, in_corpse_group: bool) -> void:
 	collision_layer = layer
 	collision_mask = 1
 	mass = 4.5
 	linear_damp = 0.35
 	angular_damp = 0.55
 	continuous_cd = true
+	if in_corpse_group:
+		add_to_group(Character.CORPSE_GROUP)
 	_collect_materials()
 	apply_central_impulse(impulse)
-	var torque := Vector3(
-		randf_range(-1.0, 1.0),
-		randf_range(-0.4, 0.4),
-		randf_range(-1.0, 1.0)
-	).normalized() * TORQUE_STRENGTH
-	apply_torque_impulse(torque)
+	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
+
+
+## Killing knock: Character treats impulse as velocity. Replace the slump.
+func apply_hit_knock(impulse: Vector3) -> void:
+	linear_velocity = impulse
+	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
 
 
 func _collect_materials() -> void:
@@ -111,7 +113,6 @@ func _start_fade() -> void:
 		return
 	if _fade_tween != null and _fade_tween.is_valid():
 		_fade_tween.kill()
-	## Drop any materials that were freed mid-linger (can happen if meshes go away).
 	var live_mats: Array[StandardMaterial3D] = []
 	for mat in _materials:
 		if mat != null and is_instance_valid(mat):
@@ -137,7 +138,6 @@ func _start_fade() -> void:
 
 
 ## Duplicate meshes + capsule. Do not reparent Head — the camera lives there.
-## ponytail: ragdoll pose is not rewindable; upgrade is NetLiveness.replicate_world_fx.
 static func spawn_player_prop(player: Node3D, hit_dir: Vector3) -> MonsterCorpse:
 	if player == null or not player.is_inside_tree():
 		return null
@@ -152,9 +152,8 @@ static func spawn_player_prop(player: Node3D, hit_dir: Vector3) -> MonsterCorpse
 	_duplicate_node(player.get_node_or_null("%CollisionShape3D"), corpse)
 	_duplicate_node(player.get_node_or_null("%Body"), corpse)
 	_duplicate_node(player.get_node_or_null("%HeadMesh"), corpse)
-	var impulse := Character._knockback_impulse(hit_dir) * DEFAULT_IMPULSE_SCALE
-	if corpse.has_method("begin_shove_prop"):
-		corpse.call("begin_shove_prop", impulse)
+	if corpse.has_method("begin_player_limp"):
+		corpse.call("begin_player_limp", hit_dir)
 	return corpse as MonsterCorpse
 
 
