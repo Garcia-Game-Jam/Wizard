@@ -122,7 +122,7 @@ func _spawn_rat_at(monster: Monster, host: Node, parent: Node, world_pos: Vector
 			tree.create_timer(4.0).timeout.connect(
 				func() -> void:
 					if is_instance_valid(rat) and rat is Character:
-						(rat as Character).health.kill()
+						(rat as Character).kill()
 					elif is_instance_valid(rat):
 						rat.queue_free()
 			)

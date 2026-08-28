@@ -15,7 +15,6 @@ const JUMP_PAD_HEIGHT_M := 2.0
 ## Player hit: 60% move speed for 0.5s (via apply_speed_boost).
 const SLOW_DURATION_SEC := 0.5
 const SLOW_MULTIPLIER := 0.6
-const HIT_KNOCKBACK_SPEED := 3.8
 
 
 static func radius_at_distance(

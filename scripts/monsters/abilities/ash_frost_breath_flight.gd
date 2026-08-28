@@ -20,8 +20,6 @@ const TRAVEL_DECEL_K := 9.0
 const TRAVEL_SPEED := LAUNCH_SPEED
 const MAX_TRAVEL_SEC := 2.8
 
-const KNOCKBACK_SPEED := 9.0
-const KNOCKBACK_LIFT := 3.2
 const SLOW_DURATION_SEC := 2.2
 const SLOW_MULTIPLIER := 0.5
 const HIT_DAMAGE := 0.0
@@ -53,15 +51,6 @@ static func travel_step(traveled: float, delta: float) -> float:
 	if speed < 0.12:
 		return 0.0
 	return minf(speed * maxf(delta, 0.0), left)
-
-
-static func knockback_impulse(away: Vector3) -> Vector3:
-	var flat := Vector3(away.x, 0.0, away.z)
-	if flat.length_squared() < 0.0001:
-		flat = Vector3.FORWARD
-	else:
-		flat = flat.normalized()
-	return flat * KNOCKBACK_SPEED + Vector3.UP * KNOCKBACK_LIFT
 
 
 static func radius_at_age(

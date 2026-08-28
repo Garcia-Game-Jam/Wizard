@@ -150,6 +150,9 @@ func _assert_dump(role: String) -> bool:
 	if body.name.contains("@"):
 		_fail("Dump name collided: %s" % body.name)
 		return false
+	if body is Character and not (body as Character).is_alive():
+		_fail("Dump spawned dead")
+		return false
 	return true
 
 
@@ -187,7 +190,13 @@ func _assert_dump_moved(role: String) -> bool:
 		_fail("Net clock stalled during dump motion (%d ticks)" % ticks)
 		return false
 	if dist < DUMP_MOVE_MIN_M:
-		_fail("Dump did not move (%.2f m in %d ticks)" % [dist, ticks])
+		var hp := ""
+		if live is Character:
+			hp = " alive=%s hp=%.0f" % [
+				(live as Character).is_alive(),
+				(live as Character).current_health,
+			]
+		_fail("Dump did not move (%.2f m in %d ticks)%s" % [dist, ticks, hp])
 		return false
 	return true
 

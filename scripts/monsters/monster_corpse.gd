@@ -30,8 +30,23 @@ func begin_death_sequence(
 	linger_sec: float = DEFAULT_LINGER_SEC,
 	fade_sec: float = DEFAULT_FADE_SEC
 ) -> void:
+	_arm_ragdoll(impulse, 0)
 	_fade_sec = maxf(0.05, fade_sec)
-	collision_layer = 0
+	var wait_sec := maxf(0.0, linger_sec - _fade_sec)
+	var tree := get_tree()
+	if tree == null:
+		queue_free()
+		return
+	tree.create_timer(wait_sec).timeout.connect(_start_fade)
+
+
+## Player corpse: living wizards can shove it. No linger/fade — caller frees on rez.
+func begin_shove_prop(impulse: Vector3) -> void:
+	_arm_ragdoll(impulse, 1)
+
+
+func _arm_ragdoll(impulse: Vector3, layer: int) -> void:
+	collision_layer = layer
 	collision_mask = 1
 	mass = 4.5
 	linear_damp = 0.35
@@ -45,13 +60,6 @@ func begin_death_sequence(
 		randf_range(-1.0, 1.0)
 	).normalized() * TORQUE_STRENGTH
 	apply_torque_impulse(torque)
-
-	var wait_sec := maxf(0.0, linger_sec - _fade_sec)
-	var tree := get_tree()
-	if tree == null:
-		queue_free()
-		return
-	tree.create_timer(wait_sec).timeout.connect(_start_fade)
 
 
 func _collect_materials() -> void:
@@ -128,6 +136,39 @@ func _start_fade() -> void:
 	_fade_tween.tween_callback(queue_free)
 
 
+## Duplicate meshes + capsule. Do not reparent Head — the camera lives there.
+## ponytail: ragdoll pose is not rewindable; upgrade is NetLiveness.replicate_world_fx.
+static func spawn_player_prop(player: Node3D, hit_dir: Vector3) -> MonsterCorpse:
+	if player == null or not player.is_inside_tree():
+		return null
+	var parent_node := player.get_parent()
+	if parent_node == null:
+		return null
+	var corpse := RigidBody3D.new()
+	corpse.name = "%sCorpse" % player.name
+	corpse.set_script(MonsterCorpseScript)
+	parent_node.add_child(corpse)
+	corpse.global_transform = player.global_transform
+	_duplicate_node(player.get_node_or_null("%CollisionShape3D"), corpse)
+	_duplicate_node(player.get_node_or_null("%Body"), corpse)
+	_duplicate_node(player.get_node_or_null("%HeadMesh"), corpse)
+	var impulse := Character._knockback_impulse(hit_dir) * DEFAULT_IMPULSE_SCALE
+	if corpse.has_method("begin_shove_prop"):
+		corpse.call("begin_shove_prop", impulse)
+	return corpse as MonsterCorpse
+
+
+static func _duplicate_node(node: Node, corpse: Node) -> void:
+	if node == null or corpse == null:
+		return
+	var copy := node.duplicate() as Node
+	if copy == null:
+		return
+	corpse.add_child(copy)
+	if node is Node3D and copy is Node3D:
+		(copy as Node3D).global_transform = (node as Node3D).global_transform
+
+
 static func spawn_from_monster(
 	monster: Node,
 	hit_dir: Vector3,
@@ -152,7 +193,7 @@ static func spawn_from_monster(
 	_reparent_node(monster.get_node_or_null("%Body"), corpse)
 	_reparent_node(monster.get_node_or_null("%MidBody"), corpse)
 	_reparent_node(monster.get_node_or_null("%Head"), corpse)
-	var impulse: Vector3 = Character._fireball_knockback_impulse(hit_dir) * impulse_scale
+	var impulse: Vector3 = Character._knockback_impulse(hit_dir) * impulse_scale
 	if corpse.has_method("begin_death_sequence"):
 		corpse.call("begin_death_sequence", impulse, linger_sec, fade_sec)
 

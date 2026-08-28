@@ -3,17 +3,21 @@ extends CharacterBody3D
 
 ## 3D character shell: body/head meshes, collision, tint, and the shared HP lifecycle.
 ## Inherited by Player, Monster, and Summon.
-## Every character scene authors its own Health child, so each one manages an
-## independent pool. Damage, healing, and death all run through that node: hits
-## arrive via Character.apply_hit, and this class turns the resulting
-## damaged / died signals into the shared reaction and teardown sequence.
-## Subclasses vary only values and outcomes — see _on_hurt / _on_death / _combat_groups.
+## HP, slow, burn, and knock are fields on this script — set max_health per type
+## scene. Hits arrive via Character.apply_hit. Subclasses vary reactions in
+## _on_hurt / _on_death / _combat_groups.
 ## CollisionShape3D is authored per character scene — not rebuilt here.
 ## Appearance: mutate authored scene materials. Never allocate meshes or materials.
 
+signal damaged(amount: float, from: Variant)
+signal died(from: Variant)
+signal changed(current: float, maximum: float)
+signal revived
+
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
-const HealthScript := preload("res://scripts/combat/health.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+
+const DEFAULT_MAX_HEALTH := 100.0
 
 const KNOCKBACK_TIMER_SEC := 0.35
 ## Sustained shove during the knockback window, in units of _knockback_vel per
@@ -24,8 +28,10 @@ const KNOCKBACK_BLEED_PER_SEC := 10.5
 const KNOCKBACK_DECAY := 28.0
 const KNOCKBACK_HORIZONTAL := 9.0
 const KNOCKBACK_UP := 3.5
-const HURT_UP_IMPULSE := 5.0
-const HURT_KNOCKBACK_TIMER_SEC := 0.15
+const DEATH_IMPULSE_SCALE := 1.35
+const DEATH_GRAVITY := 18.0
+const DEATH_SPIN_RAD := 9.0
+const DEATH_SPIN_DAMP := 5.0
 const EYE_EMISSION_ENERGY := 5.5
 const EYE_LIGHT_ENERGY := 2.6
 ## Eye glow at 0 HP: near-black, slightly tinted from authored color.
@@ -39,7 +45,11 @@ const NET_STATE_PATHS: PackedStringArray = [
 	":rotation",
 	":_knockback_vel",
 	":_knockback_timer",
-	"Health:current_health",
+	":_speed_boost_multiplier",
+	":_speed_boost_timer",
+	":_burn_dps",
+	":_burn_timer",
+	":current_health",
 	":_eyes_chasing",
 	":eye_glow_color",
 ]
@@ -54,24 +64,53 @@ const NET_STATE_PATHS: PackedStringArray = [
 		if is_node_ready():
 			_apply_eye_glow_from_health()
 
-## This character's own HP pool, resolved from the authored Health child.
-## Reading it binds the lifecycle, so it works on a scene that is not in the tree yet.
-var health: HealthScript:
-	get:
-		_bind_health()
-		return _health
+@export_group("Health")
+## Per-type max HP. Authored on the character scene root, not a child node.
+@export_range(1.0, 1000.0, 1.0) var max_health: float = DEFAULT_MAX_HEALTH:
+	set(value):
+		max_health = maxf(value, 1.0)
+		if current_health > max_health:
+			current_health = max_health
+		_emit_health_changed()
+
+## Rewindable HP. @export_storage so netfox PropertyEntry.is_valid() (LAN).
+@export_storage var current_health: float = DEFAULT_MAX_HEALTH:
+	set(value):
+		var next := clampf(value, 0.0, max_health)
+		if is_equal_approx(current_health, next):
+			return
+		var was_dead := current_health <= 0.0
+		current_health = next
+		_emit_health_changed()
+		if _host_apply_depth == 0 and not was_dead and current_health <= 0.0:
+			died.emit(null)
+			_on_died(null)
+		if was_dead and current_health > 0.0:
+			revived.emit()
+			_on_revived()
+
+@export_group("Status")
+## Move multiplier while speed_boost_timer > 0. <1 slow, >1 haste.
+@export var _speed_boost_multiplier: float = 1.0
+@export var _speed_boost_timer: float = 0.0
+@export var _burn_dps: float = 0.0
+@export var _burn_timer: float = 0.0
 
 var net_phase: int = 0
 var net_telegraph: float = 0.0
-var _health: HealthScript = null
 var _knockback_vel: Vector3 = Vector3.ZERO
 var _knockback_timer: float = 0.0
+var _host_apply_depth: int = 0
 var _last_hit_dir: Vector3 = Vector3.FORWARD
 var _body_collision: CollisionShape3D = null
 var _eyes_root: Node3D = null
 var _eye_meshes: Array[MeshInstance3D] = []
 var _eye_light: OmniLight3D = null
 var _eyes_chasing: bool = false
+var _death_physics_active := false
+var _saved_floor_snap := 0.1
+var _death_bones: PhysicalBoneSimulator3D = null
+var _death_ang_vel: Vector3 = Vector3.ZERO
 
 ## Optional: scenes that author no Head/Body (test probes) leave these null and
 ## the appearance helpers below become no-ops.
@@ -81,7 +120,7 @@ var _eyes_chasing: bool = false
 
 
 func _ready() -> void:
-	_bind_health()
+	current_health = max_health
 	call_deferred("_bind_rewindable")
 
 
@@ -91,22 +130,6 @@ func _bind_rewindable() -> void:
 
 func _net_rewind_profile() -> String:
 	return ""
-
-
-func _bind_health() -> void:
-	if _health != null and is_instance_valid(_health):
-		return
-	_health = get_node_or_null("Health") as HealthScript
-	if _health == null:
-		return
-	if not _health.damaged.is_connected(_on_damaged):
-		_health.damaged.connect(_on_damaged)
-	if not _health.died.is_connected(_on_died):
-		_health.died.connect(_on_died)
-	if not _health.revived.is_connected(_on_revived):
-		_health.revived.connect(_on_revived)
-	if not _health.changed.is_connected(_on_health_changed):
-		_health.changed.connect(_on_health_changed)
 
 
 func net_state_paths() -> Array[String]:
@@ -123,18 +146,64 @@ func _net_state_extra() -> PackedStringArray:
 
 
 func is_alive() -> bool:
-	var pool := health
-	return pool != null and not pool.is_dead()
+	return not is_dead()
+
+
+func is_dead() -> bool:
+	return current_health <= 0.0
 
 
 func health_ratio() -> float:
-	var pool := health
-	return pool.ratio() if pool != null else 1.0
+	if max_health <= 0.001:
+		return 1.0
+	return clampf(current_health / max_health, 0.0, 1.0)
+
+
+func ratio_before(amount: float) -> float:
+	if max_health <= 0.001:
+		return 0.0
+	return clampf((current_health + maxf(amount, 0.0)) / max_health, 0.0, 1.0)
+
+
+func take_damage(amount: float, from: Variant = null) -> void:
+	if is_dead():
+		return
+	var hit := maxf(amount, 0.0)
+	if hit <= 0.0:
+		return
+	_host_apply_depth += 1
+	current_health = maxf(0.0, current_health - hit)
+	_host_apply_depth -= 1
+	damaged.emit(hit, from)
+	_on_damaged(hit, from)
+	if is_dead():
+		died.emit(from)
+		_on_died(from)
+
+
+func kill(from: Variant = null) -> void:
+	take_damage(current_health, from)
+
+
+func heal(amount: float) -> void:
+	if is_dead():
+		return
+	current_health = clampf(current_health + maxf(amount, 0.0), 0.0, max_health)
+
+
+func revive() -> void:
+	current_health = max_health
+
+
+func _emit_health_changed() -> void:
+	if not is_inside_tree():
+		return
+	changed.emit(current_health, max_health)
+	_on_health_changed(current_health, max_health)
 
 
 ## The one way damage reaches a body. Group scans and physics queries hand us
-## arbitrary nodes; only a Character has a pool to spend, and its Health child
-## raises damaged / died from there.
+## arbitrary nodes; only a Character has a pool to spend.
 static func apply_hit(body: Node, amount: float, from: Variant = null) -> void:
 	if not is_instance_valid(body) or not (body is Character):
 		return
@@ -146,7 +215,61 @@ static func apply_hit(body: Node, amount: float, from: Variant = null) -> void:
 	var mp := state != null and bool(state.get("is_multiplayer"))
 	if mp and not character.is_multiplayer_authority():
 		return
-	character.health.take_damage(amount, from)
+	character.take_damage(amount, from)
+
+
+## Loop payload.effects. Each effect uses the existing HP / knock / stun gates.
+func apply(from: Variant, payload: Resource) -> void:
+	if is_dead() or payload == null or not "effects" in payload:
+		return
+	for effect in payload.effects:
+		if effect != null and effect.has_method("apply"):
+			effect.apply(self, from)
+
+
+func combat_speed(base: float) -> float:
+	return base * _speed_boost_multiplier
+
+
+func apply_speed_boost(duration: float, multiplier: float) -> void:
+	if not _status_authority_ok():
+		return
+	_speed_boost_multiplier = multiplier
+	_speed_boost_timer = duration
+
+
+func apply_burn(dps: float, duration_sec: float, _from: Variant = null) -> void:
+	if not _status_authority_ok():
+		return
+	_burn_dps = maxf(_burn_dps, dps)
+	_burn_timer = maxf(_burn_timer, duration_sec)
+
+
+func tick_speed_boost(delta: float) -> void:
+	if _speed_boost_timer <= 0.0:
+		return
+	_speed_boost_timer -= delta
+	if _speed_boost_timer <= 0.0:
+		_speed_boost_multiplier = 1.0
+
+
+func tick_burn(delta: float) -> void:
+	if _burn_timer <= 0.0:
+		return
+	if _burn_dps > 0.0:
+		apply_hit(self, _burn_dps * delta, null)
+	_burn_timer -= delta
+	if _burn_timer <= 0.0:
+		_burn_dps = 0.0
+
+
+func _status_authority_ok() -> bool:
+	var tree := get_tree()
+	var state := tree.root.get_node_or_null("GameState") if tree != null else null
+	var mp := state != null and bool(state.get("is_multiplayer"))
+	if mp and not is_multiplayer_authority():
+		return false
+	return true
 
 
 func _on_health_changed(_current: float, _maximum: float) -> void:
@@ -158,28 +281,31 @@ func _on_health_changed(_current: float, _maximum: float) -> void:
 static func is_node_alive(node: Node) -> bool:
 	if not is_instance_valid(node):
 		return false
-	if node is Character:
-		return (node as Character).is_alive()
+	var n := node
+	while n != null:
+		if n is Character:
+			return (n as Character).is_alive()
+		n = n.get_parent()
 	return true
 
 
-## Shared hit reaction: face away from the hit, hop, dim the eyes.
+## Shared hit reaction: face away from the hit, dim the eyes.
 func _on_damaged(amount: float, from: Variant) -> void:
 	var source := _live_source(from)
 	_remember_hit_dir(source)
-	_apply_hurt_knockback()
 	_apply_eye_glow_from_health()
 	_on_hurt(amount, source)
 
 
-## Shared death teardown: stop moving, stop ticking, leave combat targeting.
+## Shared death teardown: leave combat targeting, start limp. HP rewind can reverse this.
 func _on_died(from: Variant) -> void:
-	velocity = Vector3.ZERO
-	set_physics_process(false)
 	for group in _combat_groups():
 		if is_in_group(group):
 			remove_from_group(group)
-	_on_death(_live_source(from))
+	var first_death := not _death_physics_active
+	begin_death_physics()
+	if first_death:
+		_on_death(_live_source(from))
 
 
 ## Groups to leave on death. Monsters and summons drop out of AI targeting;
@@ -198,8 +324,19 @@ func _on_death(_from: Node3D) -> void:
 	pass
 
 
-## Undo death teardown after Health.revive() or rewind restoring HP above 0.
+## Undo death teardown after revive() or rewind restoring HP above 0.
 func restore_after_revive() -> void:
+	var dying := _death_physics_active
+	stop_death_physics()
+	if not dying:
+		## HP may already be full (setter no-op) while a leftover corpse remains.
+		_on_stop_death_physics()
+	_burn_dps = 0.0
+	_burn_timer = 0.0
+	_knockback_vel = Vector3.ZERO
+	_knockback_timer = 0.0
+	_speed_boost_timer = 0.0
+	_speed_boost_multiplier = 1.0
 	set_physics_process(true)
 	for group in _combat_groups():
 		if not is_in_group(group):
@@ -209,6 +346,112 @@ func restore_after_revive() -> void:
 
 func _on_revived() -> void:
 	restore_after_revive()
+
+
+func is_death_physics() -> bool:
+	return _death_physics_active
+
+
+## Greybox: authored capsule + impulse + tumble. Simulated in the same tick
+## path as living motion so rewind records limp pose. Do not mutate
+## RollbackSynchronizer state_properties here — that frees history subjects.
+## Art scenes: if a PhysicalBoneSimulator3D is present, start that instead.
+func begin_death_physics() -> void:
+	if _death_physics_active:
+		return
+	_death_physics_active = true
+	_saved_floor_snap = floor_snap_length
+	floor_snap_length = 0.0
+	if _death_uses_capsule_limp():
+		_death_bones = _physical_bone_simulator()
+		if _death_bones != null:
+			_death_bones.physical_bones_start_simulation()
+			_death_ang_vel = Vector3.ZERO
+		else:
+			velocity += _knockback_impulse(_last_hit_dir) * DEATH_IMPULSE_SCALE
+			if _death_should_tumble():
+				var axis := Vector3(
+					randf_range(-1.0, 1.0),
+					randf_range(-0.35, 0.35),
+					randf_range(-1.0, 1.0)
+				)
+				if axis.length_squared() < 0.0001:
+					axis = Vector3.FORWARD
+				_death_ang_vel = axis.normalized() * DEATH_SPIN_RAD
+			else:
+				_death_ang_vel = Vector3.ZERO
+	set_physics_process(true)
+
+
+func stop_death_physics() -> void:
+	if not _death_physics_active:
+		return
+	if _death_bones != null:
+		_death_bones.physical_bones_stop_simulation()
+		_death_bones = null
+	_death_physics_active = false
+	_death_ang_vel = Vector3.ZERO
+	floor_snap_length = _saved_floor_snap
+	velocity = Vector3.ZERO
+	_on_stop_death_physics()
+
+
+## Engine _physics_process. True = caller should return.
+func tick_death_physics_if_active(delta: float) -> bool:
+	if not _death_physics_active:
+		return false
+	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
+		return true
+	_tick_death_physics(delta)
+	return true
+
+
+## Rollback tick. Authority simulates limp; guests restore recorded pose.
+func rollback_tick_death_if_active(delta: float) -> bool:
+	if not _death_physics_active:
+		return false
+	var tree := get_tree()
+	var state := tree.root.get_node_or_null("GameState") if tree != null else null
+	var mp := state != null and bool(state.get("is_multiplayer"))
+	if mp and not is_multiplayer_authority():
+		return true
+	_tick_death_physics(delta)
+	return true
+
+
+func _tick_death_physics(delta: float) -> void:
+	if _death_bones != null:
+		return
+	velocity.y -= _death_gravity() * delta
+	NetClockScript.move_character(self)
+	if _death_ang_vel.length_squared() > 0.0001:
+		rotate_object_local(_death_ang_vel.normalized(), _death_ang_vel.length() * delta)
+		_death_ang_vel = _death_ang_vel.move_toward(Vector3.ZERO, DEATH_SPIN_DAMP * delta)
+
+
+func _death_should_tumble() -> bool:
+	return true
+
+
+func _death_uses_capsule_limp() -> bool:
+	return true
+
+
+func _on_stop_death_physics() -> void:
+	pass
+
+
+func _death_gravity() -> float:
+	if "gravity" in self:
+		return float(get("gravity"))
+	return DEATH_GRAVITY
+
+
+func _physical_bone_simulator() -> PhysicalBoneSimulator3D:
+	var found := find_children("*", "PhysicalBoneSimulator3D", true, false)
+	if found.is_empty():
+		return null
+	return found[0] as PhysicalBoneSimulator3D
 
 
 ## A ward ate a spell this character cast.
@@ -237,19 +480,27 @@ func _remember_hit_dir(from: Node3D) -> void:
 		_last_hit_dir = away.normalized()
 
 
-func apply_fireball_knockback(fireball_dir: Vector3) -> void:
+## Knock status: a shove plus a short bleed. Only stone throw and charger ram
+## apply this — HP loss itself does not.
+func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
 	if not is_alive():
 		return
-	if fireball_dir.length_squared() > 0.0001:
-		_last_hit_dir = fireball_dir.normalized()
-	var impulse := _fireball_knockback_impulse(fireball_dir)
+	var tree := get_tree()
+	var state := tree.root.get_node_or_null("GameState") if tree != null else null
+	var mp := state != null and bool(state.get("is_multiplayer"))
+	if mp and not is_multiplayer_authority():
+		return
+	if dir.length_squared() > 0.0001:
+		_last_hit_dir = dir.normalized()
+	if impulse.length_squared() < 0.0001:
+		impulse = _knockback_impulse(dir)
 	_knockback_vel = impulse
 	_knockback_timer = KNOCKBACK_TIMER_SEC
 	velocity += impulse
 
 
-static func _fireball_knockback_impulse(fireball_dir: Vector3) -> Vector3:
-	var dir := fireball_dir
+static func _knockback_impulse(knock_dir: Vector3) -> Vector3:
+	var dir := knock_dir
 	if dir.length_squared() < 0.0001:
 		dir = Vector3.FORWARD
 	else:
@@ -260,12 +511,6 @@ static func _fireball_knockback_impulse(fireball_dir: Vector3) -> Vector3:
 	else:
 		flat = flat.normalized()
 	return flat * KNOCKBACK_HORIZONTAL + Vector3.UP * KNOCKBACK_UP
-
-
-func _apply_hurt_knockback() -> void:
-	velocity.y = maxf(velocity.y, HURT_UP_IMPULSE)
-	_knockback_vel.y = maxf(_knockback_vel.y, HURT_UP_IMPULSE * 0.45)
-	_knockback_timer = maxf(_knockback_timer, HURT_KNOCKBACK_TIMER_SEC)
 
 
 func _apply_knockback_bleed(delta: float) -> void:

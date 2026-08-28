@@ -47,7 +47,7 @@ static func attach(node: Node, profile: String = "") -> void:
 
 
 static func commit_pose(node: Node) -> void:
-	if node == null or not NetClockScript.is_session_multiplayer():
+	if node == null:
 		return
 	NetRewindableMoverScript.commit_world_pose(node)
 

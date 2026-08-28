@@ -31,8 +31,6 @@ chase_range = 3.0
 attack_range = 1.2
 touch_damage = 0.0
 alert_duration_sec = 6.0
-
-[node name="Health" parent="."]
 max_health = 60.0
 
 [node name="Eyes" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="1"]

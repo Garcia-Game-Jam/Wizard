@@ -63,6 +63,8 @@ var preview_knockup_action := preview_knockup
 @export_range(2, 24, 1, "suffix:cells") var knockup_cells: int = 6
 ## Extra height above maze walls at the apex so the hop never tunnels.
 @export_range(0.8, 8.0, 0.1, "suffix:m") var knockup_over_wall_m: float = 3.5
+## HP spent on a successful ram. 0 = launch only (old pit).
+@export_range(0.0, 200.0, 1.0) var ram_damage: float = 40.0
 
 var _phase: ChargePhase = ChargePhase.NONE
 var _charge := ChargerChargeScript.new()
@@ -121,10 +123,10 @@ func _on_death(from: Node3D) -> void:
 	super._on_death(from)
 
 
-func apply_fireball_knockback(fireball_dir: Vector3) -> void:
+func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
 	if _phase == ChargePhase.TELEGRAPH or _phase == ChargePhase.CHARGE:
 		return
-	super.apply_fireball_knockback(fireball_dir)
+	super.apply_knockback(dir, impulse)
 
 
 func _append_default_interest_candidates(_out: Array) -> void:
@@ -307,6 +309,8 @@ func _face_horizontal(desired_vel: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if tick_death_physics_if_active(delta):
+		return
 	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
 		_sync_charge_net_pose()
 		return
@@ -314,6 +318,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	if rollback_tick_death_if_active(delta):
+		return
 	_tick_ram_hits.clear()
 	if GameState.is_multiplayer and not is_multiplayer_authority():
 		_sync_charge_net_pose()
@@ -711,19 +717,20 @@ func _launch_player(player: Node3D) -> void:
 
 
 func _apply_player_hit(player: Node, launch_vel: Vector3) -> void:
+	if player is Character:
+		var ram := CombatPayload.new()
+		if ram_damage > 0.0:
+			ram.effects.append(Damage.with(ram_damage))
+		ram.effects.append(Knock.with(launch_vel))
+		ram.effects.append(Stun.with(launch_vel))
+		(player as Character).apply(self, ram)
+	if player is Character and not (player as Character).is_alive():
+		return
 	var stun := player.get_node_or_null("Stun")
 	if stun == null:
 		return
-	var g := gravity
-	if not GameState.is_multiplayer or player.is_multiplayer_authority():
-		if stun.has_method("begin_charger_hit"):
-			stun.call("begin_charger_hit", launch_vel, g)
-		if Engine.is_editor_hint() and not _lookdev_launch_stuns.has(stun):
-			_lookdev_launch_stuns.append(stun)
-		return
-	var peer := int(player.get_multiplayer_authority())
-	if peer > 0 and stun.has_method("rpc_begin_charger_hit"):
-		stun.rpc_id(peer, "rpc_begin_charger_hit", launch_vel)
+	if Engine.is_editor_hint() and not _lookdev_launch_stuns.has(stun):
+		_lookdev_launch_stuns.append(stun)
 
 
 func _ghost_ram_victim(victim: Node) -> void:

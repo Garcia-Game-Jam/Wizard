@@ -1,17 +1,16 @@
 class_name PlayerFrostBreath
 extends RefCounted
 
-## Frost breath knockback, slow, and mana drain on armed spell.
+## Frost breath slow and mana drain on armed spell.
 
 const AshFrostBreathFlightScript := preload(
 	"res://scripts/monsters/abilities/ash_frost_breath_flight.gd"
 )
 
 
-static func apply(player: Node, hit_dir: Vector3) -> void:
+static func apply(player: Node, _hit_dir: Vector3) -> void:
 	if not _can_apply(player):
 		return
-	apply_knockback_only(player, hit_dir)
 	if player.has_method("apply_speed_boost"):
 		player.call(
 			"apply_speed_boost",
@@ -19,31 +18,6 @@ static func apply(player: Node, hit_dir: Vector3) -> void:
 			AshFrostBreathFlightScript.SLOW_MULTIPLIER
 		)
 	_drain_mana_if_armed(player, AshFrostBreathFlightScript.MANA_DRAIN)
-
-
-static func apply_knockback_only(player: Node, hit_dir: Vector3) -> void:
-	if not _can_apply(player):
-		return
-	var flat := Vector3(hit_dir.x, 0.0, hit_dir.z)
-	if flat.length_squared() < 0.0001 and player is Node3D:
-		flat = -(player as Node3D).global_transform.basis.z
-		flat.y = 0.0
-	if flat.length_squared() <= 0.0001:
-		return
-	flat = flat.normalized()
-	var impulse := AshFrostBreathFlightScript.knockback_impulse(flat)
-	if "velocity" in player:
-		var vel: Variant = player.get("velocity")
-		if vel is Vector3:
-			var next := vel as Vector3
-			next.x += impulse.x
-			next.z += impulse.z
-			next.y = maxf(next.y, AshFrostBreathFlightScript.KNOCKBACK_LIFT)
-			player.set("velocity", next)
-	if "_knockback_vel" in player:
-		player.set("_knockback_vel", impulse)
-	if "_knockback_timer" in player:
-		player.set("_knockback_timer", 0.35)
 
 
 static func _can_apply(player: Node) -> bool:

@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://cgo2lkhlxtcky" path="res://scripts/spells/spell_validation_runner.gd" id="11_runner"]
 [ext_resource type="PackedScene" uid="uid://cswbhealth001" path="res://scenes/ui/scaffolding/health_bar.tscn" id="14_health"]
 [ext_resource type="PackedScene" uid="uid://cpausemenu001" path="res://scenes/ui/pause_menu.tscn" id="14_pause"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="14_game_over"]
 [ext_resource type="Resource" uid="uid://dud80ue7p23rt" path="res://scenes/spells/fireball/fireball.tres" id="15_fireball"]
 [ext_resource type="Script" uid="uid://dtymt6tugqqxx" path="res://scripts/arena/arena_cover.gd" id="16_cover"]
 [ext_resource type="Script" uid="uid://grlb8nli07gx" path="res://scripts/arena/spawn_telegraph.gd" id="17_spot"]
@@ -502,4 +503,7 @@ theme_override_font_sizes/font_size = 13
 autowrap_mode = 2
 
 [node name="PauseMenu" parent="." unique_id=2113642032 instance=ExtResource("14_pause")]
+visible = false
+
+[node name="GameOverOverlay" parent="." instance=ExtResource("14_game_over")]
 visible = false

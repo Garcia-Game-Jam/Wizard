@@ -2,7 +2,7 @@
 class_name EmberHaloProjectile
 extends Area3D
 
-## Flat expanding ring toward the player. Rim = knockback + slow; center = jump pad.
+## Flat expanding ring toward the player. Overlap slows; no knockback.
 
 const EmberHaloFlightScript := preload("res://scripts/monsters/abilities/ember_halo_flight.gd")
 const SpellWardBlockScript := preload("res://scripts/spells/spell_ward_block.gd")
@@ -22,7 +22,7 @@ var _radius: float = EmberHaloFlightScript.START_RADIUS
 var _age: float = 0.0
 var _finished: bool = false
 var _ring_hit_bodies: Dictionary = {}
-var _jump_pad_bodies: Dictionary = {}
+var _slow_payload: CombatPayload = null
 var _mesh: MeshInstance3D = null
 var _shape: CollisionShape3D = null
 var _cyl_shape: CylinderShape3D = null
@@ -151,12 +151,10 @@ func _resolve_overlaps() -> void:
 			continue
 		var flat_dist := EmberHaloFlightScript.flat_distance(global_position, hit.global_position)
 		var id := hit.get_instance_id()
-		if EmberHaloFlightScript.is_in_center(flat_dist, _radius):
-			if _jump_pad_bodies.has(id):
-				continue
-			_jump_pad_bodies[id] = true
-			_apply_jump_pad(hit)
-		elif EmberHaloFlightScript.is_in_ring(flat_dist, _radius):
+		if (
+			EmberHaloFlightScript.is_in_center(flat_dist, _radius)
+			or EmberHaloFlightScript.is_in_ring(flat_dist, _radius)
+		):
 			if _ring_hit_bodies.has(id):
 				continue
 			_ring_hit_bodies[id] = true
@@ -171,29 +169,17 @@ func _should_apply_local(body: Node) -> bool:
 	return true
 
 
-func _apply_jump_pad(body: Node3D) -> void:
-	if not _should_apply_local(body):
-		return
-	if body.has_method("apply_ember_halo_jump_pad"):
-		body.call("apply_ember_halo_jump_pad")
-	elif body.has_method("apply_ember_halo_hit"):
-		## Fallback for stubs without jump-pad hook.
-		body.call("apply_ember_halo_hit", Vector3.ZERO)
-
-
 func _apply_ring_hit(body: Node3D) -> void:
 	if not _should_apply_local(body):
 		return
-	if body.has_method("apply_ember_halo_hit"):
-		body.call("apply_ember_halo_hit", _direction)
-	elif body.has_method("apply_fireball_knockback"):
-		body.call("apply_fireball_knockback", _direction * 0.35)
-		if body.has_method("apply_speed_boost"):
-			body.call(
-				"apply_speed_boost",
-				EmberHaloFlightScript.SLOW_DURATION_SEC,
-				EmberHaloFlightScript.SLOW_MULTIPLIER
-			)
+	if not (body is Character):
+		return
+	if _slow_payload == null:
+		_slow_payload = CombatPayload.new()
+		_slow_payload.effects.append(
+			Speed.with(EmberHaloFlightScript.SLOW_MULTIPLIER, EmberHaloFlightScript.SLOW_DURATION_SEC)
+		)
+	(body as Character).apply(self, _slow_payload)
 
 
 func _block_if_ward(body: Node) -> bool:

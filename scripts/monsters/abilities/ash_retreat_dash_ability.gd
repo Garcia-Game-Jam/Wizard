@@ -4,8 +4,6 @@ extends "res://scripts/monsters/monster_ability.gd"
 
 ## Quick backdash away from the player, then a chase strafe. 5s cooldown.
 
-const PlayerFrostBreathScript := preload("res://scripts/characters/player_frost_breath.gd")
-
 const ARRIVE_EPS := 0.4
 const MAX_DASH_SEC := 2.5
 const BACKDASH_DISTANCE := 4.0
@@ -21,7 +19,6 @@ var _dash_time_left := 0.0
 var _dash_look: Node3D = null
 var _pending_strafe_side: float = 1.0
 var _inbound_dash_dir := Vector3.ZERO
-var _combo_close_pending_shove := false
 
 
 func _ready() -> void:
@@ -93,11 +90,7 @@ func fire_combo_close_dash(monster: Monster, target: Node3D) -> void:
 	var goal := MonsterAIScript.pick_dash_landing_at_range(
 		monster.global_position, target, COMBO_CLOSE_RANGE, max_dist
 	)
-	_combo_close_pending_shove = true
 	_begin_dash(monster, goal, target, false)
-	if not _dashing:
-		_apply_combo_shove(monster, target)
-		_combo_close_pending_shove = false
 
 
 func fire_combo_away_dash(monster: Monster, target: Node3D) -> void:
@@ -156,8 +149,6 @@ func _begin_dash(
 
 func _end_dash(monster: Monster) -> void:
 	var look := _dash_look
-	var shove := _combo_close_pending_shove
-	_combo_close_pending_shove = false
 	_dashing = false
 	_dash_look = null
 	if not is_instance_valid(look):
@@ -165,20 +156,7 @@ func _end_dash(monster: Monster) -> void:
 	if monster != null:
 		monster.velocity.x = 0.0
 		monster.velocity.z = 0.0
-	if shove:
-		_apply_combo_shove(monster, look)
 	_start_follow_strafe(monster, look)
-
-
-func _apply_combo_shove(monster: Monster, target: Node3D) -> void:
-	if monster == null or target == null or not is_instance_valid(target):
-		return
-	var away := Vector3(
-		target.global_position.x - monster.global_position.x,
-		0.0,
-		target.global_position.z - monster.global_position.z
-	)
-	PlayerFrostBreathScript.apply_knockback_only(target, away)
 
 
 func _start_follow_strafe(monster: Monster, look: Node3D) -> void:

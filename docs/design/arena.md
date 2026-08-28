@@ -16,7 +16,7 @@ Fights only change monsters and layout. Rewards only change what you can cast.
 
 ## Week-1 slice (playable, not polished)
 
-Three scripted dumps → grant **Ward** → more charger/ember dumps. Starter kit is Stone Throw. Respawn in the pit. Do not sculpt live monsters in the scene tree; see the greybox freeze in [AGENTS.md](../../AGENTS.md).
+Three scripted dumps → grant **Ward** → more charger/ember dumps. Starter kit is Stone Throw. Downed wizards become a flying ghost (same pit collision, not a combat target) and leave a shoveable ragdoll; stage clear stands them at the pad at full HP. Do not sculpt live monsters in the scene tree; see the greybox freeze in [AGENTS.md](../../AGENTS.md).
 
 Boot: lobby Start loads [scenes/arena.tscn](../../scenes/arena.tscn) via `GameApp.MATCH_SCENE`. Host dumps from [scripts/arena/arena_encounters.gd](../../scripts/arena/arena_encounters.gd).
 
@@ -33,14 +33,14 @@ Playable: boot lobby → pit. Raise wand, speak a spell, slot it, dump a fight.
 | Fights 1–3 | The three dumps feel different; nobody asks “which corridor” |
 | After fight 3 | Both players got the **same** new spell without a shop |
 | Fights 4–6 | You **wanted** the new spell; old spells still work |
-| Die | Respawn is in the pit, not a walk |
+| Die | Ghost + ragdoll (3s beat after last kill, then staging); all-dead shows Defeated (stages / kills / deaths) |
 | Quit | Next boot is a fresh kit (no leftover meta) |
 
 Fail if you needed a tutorial, a second map, or a currency. Fail if fight 4 is a copy of fight 1 with a new icon.
 
 ## Rewind vs death
 
-`Health.current_health` is rewindable. Crossing to 0 still runs death teardown; crossing back above 0 must reverse it (`Health.revived` → `restore_after_revive`). Do not `queue_free` a dump body whose HP can return this tick — `_clear_monsters` is the despawn. Cover and telegraph enroll before `NetworkTime.start()`. Dump children use stable names (`M{encounter}_{slot}`), not scene-root names.
+`Character.current_health` is rewindable. Crossing to 0 still runs death teardown (players fly as a ghost on the same tick path as living motion; monsters limp). Crossing back above 0 must reverse it (`Character.revived` → `restore_after_revive`). Do not mutate `RollbackSynchronizer` properties on death — that drops history subjects. Do not `queue_free` a dump body whose HP can return this tick — `_clear_monsters` (next dump) is the despawn. After the last live monster dies, wait 3s before staging. `rpc_stage_between` stands ghosts at the pad on the movement tick (HP full first, so a late death does not drop a ragdoll there). `commit_pose` is the dump-pad snap, one tick. Players stay down until that RPC or host `rpc_game_over`. Cover and telegraph enroll before `NetworkTime.start()`. Dump children use stable names (`M{encounter}_{slot}`), not scene-root names.
 
 ### What not to test yet
 

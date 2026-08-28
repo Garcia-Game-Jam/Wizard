@@ -16,7 +16,7 @@ const TestEnvScript := preload("res://scripts/test/test_env.gd")
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
 const SPOTLIGHT_SEC := 3.0
-const RESPAWN_SEC := 2.0
+const CORPSE_BEAT_SEC := 3.0
 const PATROL_SIZE := Vector2(40.0, 28.0)
 const ROLLBACK_WIDE_TICKS := 8
 
@@ -24,12 +24,16 @@ var _run: ArenaRun
 var _local_player: CharacterBody3D
 var _wave_live := false
 var _between_timer := 0.0
-var _pending_respawns: Dictionary = {}
 var _staging: Staging = Staging.NONE
 var _staging_timer := 0.0
 var _pending_encounter := 0
 var _cover_misses := 0
 var _dump_scenes: Dictionary = {}
+var _game_over := false
+var _enemies_killed := 0
+var _player_deaths := 0
+var _intentional_revive := false
+var _corpse_beat := 0.0
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
@@ -40,6 +44,7 @@ var _dump_scenes: Dictionary = {}
 @onready var game_hud: CanvasLayer = $GameHUD
 @onready var voice_validator: VoiceSpellValidator = $VoiceSpellValidator
 @onready var pause_menu: PauseMenu = $PauseMenu
+@onready var game_over_overlay: CanvasLayer = $GameOverOverlay
 
 
 func _ready() -> void:
@@ -52,6 +57,8 @@ func _ready() -> void:
 	_warm_live_dump_scenes()
 	NetDiag.begin_session({"scenario": "arena", "role": _diag_role()})
 	pause_menu.quit_to_menu_requested.connect(_on_quit_to_menu)
+	if game_over_overlay != null and game_over_overlay.has_signal("leave_requested"):
+		game_over_overlay.connect("leave_requested", _on_quit_to_menu)
 	if voice_validator != null:
 		voice_validator.apply_settings_from_manager()
 	SettingsManager.settings_applied.connect(_on_voice_settings_applied)
@@ -96,6 +103,11 @@ func _diag_role() -> String:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint() or not _is_run_host():
 		return
+	if _game_over:
+		return
+	if _has_player_pawns() and _living_player_count() == 0:
+		_host_emit_game_over()
+		return
 	if _staging != Staging.NONE:
 		_tick_staging(delta)
 		return
@@ -105,7 +117,11 @@ func _process(delta: float) -> void:
 			_host_begin_staging()
 		return
 	if _wave_live and _live_monster_count() == 0:
-		_host_resolve_fight()
+		_corpse_beat += delta
+		if _corpse_beat >= CORPSE_BEAT_SEC:
+			_host_resolve_fight()
+		return
+	_corpse_beat = 0.0
 
 
 func _is_run_host() -> bool:
@@ -121,6 +137,8 @@ func _authority_rpc(method: StringName, args: Array) -> void:
 				rpc(method, args[0])
 			2:
 				rpc(method, args[0], args[1])
+			3:
+				rpc(method, args[0], args[1], args[2])
 			_:
 				push_error("Arena: unsupported rpc arity for %s" % method)
 	else:
@@ -143,8 +161,7 @@ func _configure_local_player(player: CharacterBody3D) -> void:
 	if spell_hotbar == null:
 		spell_hotbar = player.get_node_or_null("SpellHotbar")
 	_fill_starter_hotbar(spell_hotbar)
-	var health := player.get_node_or_null("Health") as Health
-	game_hud.configure(loadout, casting_session, spell_hotbar, health)
+	game_hud.configure(loadout, casting_session, spell_hotbar, player as Character)
 	var inventory := player.get_node_or_null("%PlayerInventory")
 	if inventory == null:
 		inventory = player.get_node_or_null("PlayerInventory")
@@ -220,37 +237,28 @@ func _bind_player_deaths() -> void:
 		if not (child is Player):
 			continue
 		var player := child as Player
-		var pool := player.get_node_or_null("Health") as Health
-		if pool == null:
-			continue
-		if not pool.died.is_connected(_on_player_died):
-			pool.died.connect(_on_player_died.bind(player))
+		if not player.died.is_connected(_on_player_died):
+			player.died.connect(_on_player_died.bind(player))
+		if not player.revived.is_connected(_on_player_revived):
+			player.revived.connect(_on_player_revived)
 
 
 func _on_player_died(_from: Variant, player: Player) -> void:
 	NetDiag.mark("player_died", player.name)
 	if not _is_run_host():
 		return
-	var id := player.get_instance_id()
-	if _pending_respawns.has(id):
-		return
-	_pending_respawns[id] = true
-	var tree := get_tree()
-	if tree == null:
-		return
-	tree.create_timer(RESPAWN_SEC).timeout.connect(_respawn_player.bind(player, id))
+	_player_deaths += 1
 
 
-func _respawn_player(player: Player, id: int) -> void:
-	_pending_respawns.erase(id)
-	if not _is_run_host():
+func _on_player_revived() -> void:
+	if not _is_run_host() or _intentional_revive:
 		return
-	if not is_instance_valid(player) or player.is_alive():
-		return
-	_revive_at(player, _spawn_for_player(player))
+	_player_deaths = maxi(_player_deaths - 1, 0)
 
 
 func _host_begin_staging() -> void:
+	if _game_over:
+		return
 	var encounter := _run.encounter_index()
 	var restage := ArenaEncountersScript.should_restage_cover(
 		encounter, randf(), _cover_misses
@@ -288,6 +296,8 @@ func _tick_staging(delta: float) -> void:
 
 
 func _host_resolve_fight() -> void:
+	if _game_over:
+		return
 	_wave_live = false
 	var granted := _run.complete_fight()
 	_authority_rpc(&"rpc_fight_resolved", [_run.to_snapshot(), granted])
@@ -310,6 +320,8 @@ func rpc_show_telegraph(encounter_index: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func rpc_begin_fight(encounter_index: int) -> void:
+	if _game_over:
+		return
 	var t0 := Time.get_ticks_usec()
 	NetDiag.mark("encounter_begin", str(encounter_index))
 	_clear_monsters()
@@ -320,6 +332,7 @@ func rpc_begin_fight(encounter_index: int) -> void:
 	NetDiag.mark("dump_done", "%d %d_us" % [encounter_index, Time.get_ticks_usec() - t0])
 	_wave_live = true
 	_staging = Staging.NONE
+	_corpse_beat = 0.0
 	_refresh_hud_prompt()
 	call_deferred("_warn_wide_rollback")
 
@@ -328,10 +341,19 @@ func rpc_begin_fight(encounter_index: int) -> void:
 func rpc_fight_resolved(snapshot: Dictionary, granted_spell_id: String) -> void:
 	_wave_live = false
 	_run = ArenaRunScript.from_snapshot(snapshot)
-	_clear_monsters()
 	if not granted_spell_id.is_empty():
 		_grant_spell_to_local(granted_spell_id)
 	_refresh_hud_prompt()
+
+
+@rpc("authority", "call_local", "reliable")
+func rpc_game_over(stages_cleared: int, enemies_killed: int, deaths: int) -> void:
+	_game_over = true
+	_wave_live = false
+	_staging = Staging.NONE
+	_between_timer = 0.0
+	if game_over_overlay != null and game_over_overlay.has_method("show_run"):
+		game_over_overlay.call("show_run", stages_cleared, enemies_killed, deaths)
 
 
 func broadcast_threat_fx(kind: String, origin: Vector3, extra: Dictionary) -> void:
@@ -360,26 +382,20 @@ func _grant_spell_to_local(spell_id: String) -> void:
 
 
 func _revive_dead_players() -> void:
+	_intentional_revive = true
 	for child in players_root.get_children():
 		if not (child is Player):
 			continue
 		var player := child as Player
-		if player.is_alive():
+		if player.is_alive() and not player.is_death_physics():
 			continue
-		_pending_respawns.erase(player.get_instance_id())
 		_revive_at(player, _spawn_for_player(player))
+	_intentional_revive = false
 
 
 func _revive_at(player: Player, world_pos: Vector3) -> void:
 	NetDiag.mark("respawn", player.name)
-	if player.health != null:
-		player.health.revive()
-	player.restore_after_revive()
-	player.global_position = world_pos
-	player.velocity = Vector3.ZERO
-	var ti := player.get_node_or_null("TickInterpolator")
-	if ti != null and ti.has_method("teleport"):
-		ti.call("teleport")
+	player.queue_pad_rez(world_pos)
 
 
 func _bind_cover() -> void:
@@ -460,10 +476,14 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 		monster.global_position = spawn
 		monster.rotation = Vector3.ZERO
 		monster.set_multiplayer_authority(1)
+		if monster is Character:
+			var body := monster as Character
+			body.current_health = body.max_health
 		var inst_us := Time.get_ticks_usec() - t_inst
 		## _ready enrolled rewind at the scene origin. Seed history at the pad.
 		var t_enroll := Time.get_ticks_usec()
 		NetLivenessScript.commit_pose(monster)
+		_bind_dump_monster(monster)
 		NetDiag.mark("dump_spawn", "%s load=%d inst=%d enroll=%d" % [
 			kind, load_us, inst_us, Time.get_ticks_usec() - t_enroll,
 		])
@@ -502,6 +522,51 @@ func _live_monster_count() -> int:
 			continue
 		n += 1
 	return n
+
+
+func _has_player_pawns() -> bool:
+	for child in players_root.get_children():
+		if child is Player:
+			return true
+	return false
+
+
+func _living_player_count() -> int:
+	var n := 0
+	for child in players_root.get_children():
+		if child is Player and (child as Player).is_alive():
+			n += 1
+	return n
+
+
+func _bind_dump_monster(monster: Node) -> void:
+	if not (monster is Monster):
+		return
+	var dump := monster as Monster
+	if not dump.died.is_connected(_on_dump_monster_died):
+		dump.died.connect(_on_dump_monster_died)
+	if not dump.revived.is_connected(_on_dump_monster_revived):
+		dump.revived.connect(_on_dump_monster_revived)
+
+
+func _on_dump_monster_died(_from: Variant) -> void:
+	if not _is_run_host():
+		return
+	_enemies_killed += 1
+
+
+func _on_dump_monster_revived() -> void:
+	if not _is_run_host():
+		return
+	_enemies_killed = maxi(_enemies_killed - 1, 0)
+
+
+func _host_emit_game_over() -> void:
+	if _game_over:
+		return
+	_authority_rpc(&"rpc_game_over", [
+		_run.completed_fights, _enemies_killed, _player_deaths
+	])
 
 
 func _refresh_hud_prompt() -> void:

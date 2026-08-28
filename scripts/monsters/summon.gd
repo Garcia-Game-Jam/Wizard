@@ -23,7 +23,6 @@ const PATROL_EDGE_MAX := 0.96
 const PATROL_ARRIVE_DIST := 0.45
 const RECALL_ARRIVE_DIST := 1.15
 const RECALL_SOURCE := &"recall"
-const DEATH_IMPULSE_SCALE := 1.35
 const DEFAULT_TINT := Color(0.55, 0.45, 0.35, 1.0)
 
 @export_group("Appearance")
@@ -617,7 +616,7 @@ func _soft_clamp_inside_leash() -> void:
 func _on_host_exiting() -> void:
 	host = null
 	if is_alive():
-		health.kill()
+		kill()
 
 
 func _cancel_cast() -> void:
@@ -662,7 +661,7 @@ func _spawn_ragdoll_corpse() -> void:
 	_reparent_to_corpse(_body_collision, corpse)
 	_reparent_to_corpse(_body_mesh, corpse)
 	_reparent_to_corpse(head, corpse)
-	var impulse: Vector3 = Character._fireball_knockback_impulse(_last_hit_dir)
+	var impulse: Vector3 = Character._knockback_impulse(_last_hit_dir)
 	impulse *= DEATH_IMPULSE_SCALE
 	if corpse.has_method("begin_death_sequence"):
 		corpse.call(

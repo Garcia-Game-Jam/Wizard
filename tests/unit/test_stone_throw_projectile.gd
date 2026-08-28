@@ -54,17 +54,17 @@ func _spawn_stone(holder: Node3D, pos: Vector3, direction: Vector3) -> StoneThro
 func _test_finish_applies_damage_and_knockback(tree: SceneTree) -> int:
 	var holder := _holder(tree)
 	var target := _spawn_target(holder, Vector3(0.0, 1.0, 5.0))
-	var max_hp := target.health.max_health
+	var max_hp := target.max_health
 	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 4.7), Vector3(0.0, 0.0, 1.0))
 
 	stone.call("_finish", true, true)
 
 	var err := ""
-	if is_equal_approx(target.health.current_health, max_hp):
+	if is_equal_approx(target.current_health, max_hp):
 		err = (
 			"Expected _finish(apply_splash=true) near the target to damage it; "
 			+ "HP stayed at %.1f/%.1f"
-		) % [target.health.current_health, max_hp]
+		) % [target.current_health, max_hp]
 	elif target.velocity.length_squared() < 0.01:
 		err = "Expected the splash hit to also knock the target back (velocity ~0)"
 	holder.queue_free()
@@ -81,21 +81,21 @@ func _test_finish_applies_damage_and_knockback(tree: SceneTree) -> int:
 func _test_splash_reaches_nearby_target_by_distance(tree: SceneTree) -> int:
 	var holder := _holder(tree)
 	var target := _spawn_target(holder, Vector3(0.4, 1.0, 3.6))
-	var max_hp := target.health.max_health
+	var max_hp := target.max_health
 	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 3.0), Vector3(0.0, 0.0, 1.0))
 	stone.splash_radius = 1.0
 
 	stone.call("_apply_splash_at", stone.global_position)
 
 	var err := ""
-	if is_equal_approx(target.health.current_health, max_hp):
+	if is_equal_approx(target.current_health, max_hp):
 		err = (
 			"Expected a target %.2fm from impact (within splash_radius=%.1f) to take "
 			+ "damage; HP stayed at %.1f/%.1f"
 		) % [
 			stone.global_position.distance_to(target.global_position),
 			stone.splash_radius,
-			target.health.current_health,
+			target.current_health,
 			max_hp,
 		]
 	holder.queue_free()

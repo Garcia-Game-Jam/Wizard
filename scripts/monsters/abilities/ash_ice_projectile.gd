@@ -22,7 +22,6 @@ var _to: Vector3 = Vector3.ZERO
 var _arc_dist: float = 0.0
 var _age: float = 0.0
 var _finished: bool = false
-var _last_dir: Vector3 = Vector3.FORWARD
 
 
 static func spawn_toward_point(
@@ -68,7 +67,6 @@ func setup_toward_point(
 	_to.y = maxf(_to.y, 0.4)
 	_control = AshIceFlightScript.make_control(_from, _to, side_sign)
 	_arc_dist = 0.0
-	_last_dir = AshIceFlightScript.tangent(_from, _control, _to, 0.0)
 	set_physics_process(true)
 
 
@@ -171,7 +169,6 @@ func _tick_motion(delta: float) -> void:
 	)
 	var next_pos: Vector3 = step["position"]
 	var next_t: float = float(step["t"])
-	_last_dir = AshIceFlightScript.tangent(_from, _control, _to, next_t)
 	var prev := global_position
 	global_position = next_pos
 	_arc_dist = float(step["distance"])
@@ -210,17 +207,7 @@ func _block_if_ward(body: Node) -> bool:
 func _try_hit(body: Node3D) -> bool:
 	if MonsterSpellHitScript.kind(body, _caster) != MonsterSpellHitScript.Kind.COMBAT:
 		return false
-	var dir := _last_dir
-	if dir.length_squared() < 0.0001:
-		dir = Vector3.FORWARD
 	_finish()
-	var apply_local := true
-	if body is Node:
-		var state := get_tree().root.get_node_or_null("GameState") if get_tree() != null else null
-		var mp := state != null and bool(state.get("is_multiplayer"))
-		apply_local = (not mp) or (body as Node).is_multiplayer_authority()
-	if apply_local and body.has_method("apply_fireball_knockback"):
-		body.call("apply_fireball_knockback", dir)
 	if hit_damage > 0.0:
 		Character.apply_hit(body, hit_damage, self)
 	return true

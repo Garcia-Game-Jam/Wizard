@@ -2,7 +2,7 @@
 class_name FireballProjectile
 extends Area3D
 
-## Forward-moving fireball that explodes on impact and knocks combat targets back.
+## Forward-moving fireball that explodes on impact. Payload is [Damage] only.
 ## Open scenes/spells/fireball/fireball.tscn to tune look + preview FX.
 
 const SPEED := 28.0
@@ -77,8 +77,9 @@ const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
 @export_group("Combat")
 @export_range(0.0, 200.0, 1.0) var hit_damage: float = DEFAULT_HIT_DAMAGE
-## Damage + knockback radius on ground / monster / player impact (not midair timeout).
+## Damage radius on ground / monster / player impact (not midair timeout).
 @export_range(0.25, 8.0, 0.05) var splash_radius: float = 2.0
+@export var payload: CombatPayload
 
 @export_group("Editor preview")
 @export var preview_smoke: bool = true:
@@ -305,7 +306,6 @@ static func _authored_float(property_name: String, fallback: float, min_value: f
 func apply_charge_power(charge_factor: float) -> void:
 	var t := clampf(charge_factor, 0.0, 1.0)
 	_speed = SPEED * lerpf(CHARGE_SPEED_MIN_MULT, CHARGE_SPEED_MAX_MULT, t)
-	var dmg_max := hit_damage
 	var splash_max := splash_radius
 	var core_max := core_radius
 	var hit_max := hit_radius
@@ -317,7 +317,7 @@ func apply_charge_power(charge_factor: float) -> void:
 	var ember_emit_max := ember_emission_radius
 	var ember_puff_max := ember_puff_radius
 	var ember_amt_max := ember_amount
-	hit_damage = lerpf(CHARGE_DAMAGE_MIN, dmg_max, t)
+	_scale_payload_damage(t)
 	splash_radius = lerpf(CHARGE_AOE_MIN_RADIUS, splash_max, t)
 	core_radius = lerpf(CHARGE_AOE_MIN_RADIUS, core_max, t)
 	hit_radius = lerpf(CHARGE_AOE_MIN_RADIUS, hit_max, t)
@@ -333,6 +333,23 @@ func apply_charge_power(charge_factor: float) -> void:
 	ember_amount = maxi(1, int(round(float(ember_amt_max) * _charge_fx_scale)))
 	if is_inside_tree():
 		_sync_orb_shape()
+
+
+func _scale_payload_damage(charge_t: float) -> void:
+	payload = _ensure_payload().duplicate(true) as CombatPayload
+	for effect in payload.effects:
+		if effect is Damage:
+			var dmg := effect as Damage
+			dmg.amount = lerpf(CHARGE_DAMAGE_MIN, dmg.amount, charge_t)
+			hit_damage = dmg.amount
+
+
+func _ensure_payload() -> CombatPayload:
+	if payload != null:
+		return payload
+	payload = CombatPayload.new()
+	payload.effects.append(Damage.with(hit_damage))
+	return payload
 
 
 func _is_lookdev_flight() -> bool:
@@ -815,50 +832,19 @@ func _finish(blocked_by: Node = null, apply_splash: bool = false, is_fresh: bool
 	var impact_pos := global_position
 	var ward := _ward_from_node(blocked_by) if blocked_by != null else null
 	if apply_splash and ward == null:
-		_apply_splash_at(impact_pos)
+		_apply_splash_at(impact_pos, blocked_by)
 	_clear_projectile_visuals()
 	if is_fresh:
 		FireballExplosionEffectScript.spawn(world_parent, impact_pos, _charge_fx_scale)
 	NetLivenessScript.despawn_or_free(self)
 
 
-func _apply_splash_at(impact_pos: Vector3) -> void:
-	if hit_damage <= 0.0 or splash_radius <= 0.0:
+func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
+	if splash_radius <= 0.0:
 		return
-	var tree := get_tree()
-	if tree == null:
-		return
-	var radius_sq := splash_radius * splash_radius
-	var seen: Dictionary = {}
-	for group_name in ["monster", "combat_target", "player"]:
-		for node in tree.get_nodes_in_group(group_name):
-			if node == null or not is_instance_valid(node) or node == _caster:
-				continue
-			if seen.has(node):
-				continue
-			if not (node is Node3D):
-				continue
-			var body := node as Node3D
-			if body.global_position.distance_squared_to(impact_pos) > radius_sq:
-				continue
-			seen[node] = true
-			_apply_splash_to_body(body, impact_pos)
-
-
-func _apply_splash_to_body(body: Node3D, impact_pos: Vector3) -> void:
-	var dir := body.global_position - impact_pos
-	if dir.length_squared() < 0.0001:
-		dir = _direction
-	else:
-		dir = dir.normalized()
-	if body.has_method("apply_fireball_knockback"):
-		var apply_local := not _is_multiplayer_match()
-		if body is Node:
-			apply_local = apply_local or (body as Node).is_multiplayer_authority()
-		if apply_local:
-			body.call("apply_fireball_knockback", dir)
-	if hit_damage > 0.0:
-		Character.apply_hit(body, hit_damage, self)
+	CombatSplash.apply_at(
+		get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster, hit
+	)
 
 
 func _find_ward_hit() -> Node:
@@ -985,16 +971,10 @@ func _try_hit_player(body: Node3D, is_fresh: bool = true) -> bool:
 		or body.is_in_group("combat_target")
 	):
 		return false
+	if not Character.is_node_alive(body):
+		return false
 	if _try_block_ward_overlap(is_fresh):
 		return true
-	## Splash sphere applies damage / knockback (includes this body).
-	_finish(null, true, is_fresh)
+	## Named connect: this body, even if its root sits outside splash_radius.
+	_finish(body, true, is_fresh)
 	return true
-
-
-func _is_multiplayer_match() -> bool:
-	var tree := get_tree()
-	if tree == null:
-		return false
-	var state := tree.root.get_node_or_null("GameState")
-	return state != null and bool(state.get("is_multiplayer"))

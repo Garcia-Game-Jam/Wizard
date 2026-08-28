@@ -8,7 +8,6 @@ enum ChaseStyle { CLOSE_IN, KEEP_AWAY }
 
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 const MonsterInterestScript := preload("res://scripts/monsters/monster_interest.gd")
-const MonsterCorpseScript := preload("res://scripts/monsters/monster_corpse.gd")
 const MonsterChaseMoveScript := preload("res://scripts/monsters/monster_chase_move.gd")
 const MonsterCombatSpacingScript := preload("res://scripts/monsters/monster_combat_spacing.gd")
 const MonsterCasterCombatScript := preload("res://scripts/monsters/monster_caster_combat.gd")
@@ -20,7 +19,6 @@ const TestEnvScript := preload("res://scripts/test/test_env.gd")
 
 const DEFAULT_TINT := Color(0.72, 0.28, 0.22, 1.0)
 const DEFAULT_PLAYER_SOURCE := &"player"
-const DEATH_IMPULSE_SCALE := 1.35
 const RANGE_DISC_HEIGHT := 0.02
 
 @export_group("Appearance")
@@ -87,8 +85,6 @@ const RANGE_DISC_HEIGHT := 0.02
 @export_range(0.5, 30.0, 0.25) var lost_chase_to_alert_sec: float = 4.0
 ## How long ALERT lasts with no detection before returning to PATROL.
 @export_range(1.0, 60.0, 0.25) var alert_duration_sec: float = 12.0
-@export var death_linger_sec: float = 30.0
-@export var death_fade_sec: float = 3.0
 ## CLOSE_IN rushes melee. KEEP_AWAY holds at keep_away_range.
 @export var chase_style: ChaseStyle = ChaseStyle.CLOSE_IN
 @export_range(1.0, 40.0, 0.5) var keep_away_range: float = 20.0
@@ -261,14 +257,6 @@ func restore_after_revive() -> void:
 
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
-	## HP stays rewindable. Freeing the node here means a later restore cannot
-	## put the body back. Solo still drops a corpse; the pit clears dumps.
-	if GameState.is_multiplayer:
-		return
-	MonsterCorpseScript.spawn_from_monster(
-		self, _last_hit_dir, death_linger_sec, death_fade_sec, DEATH_IMPULSE_SCALE
-	)
-	queue_free()
 
 
 ## Drop every AI intent so nothing keeps ticking between death and free.
@@ -405,12 +393,16 @@ func _prefer_interest(candidates: Array) -> MonsterInterest:
 	return MonsterAIScript.prefer_highest_urgency(candidates) as MonsterInterest
 
 func _physics_process(delta: float) -> void:
+	if tick_death_physics_if_active(delta):
+		return
 	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
 		return
 	_simulate_monster(delta)
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	if rollback_tick_death_if_active(delta):
+		return
 	if GameState.is_multiplayer and not is_multiplayer_authority():
 		return
 	if is_fresh:
@@ -435,6 +427,8 @@ func _simulate_monster(delta: float) -> void:
 	if Engine.is_editor_hint() and not bool(get_meta("lookdev_live_ai", false)):
 		return
 	MonsterAIScript.apply_gravity(self, delta, gravity)
+	tick_speed_boost(delta)
+	tick_burn(delta)
 
 	_interest = _gather_interest()
 	var has_interest := _interest_is_actionable(_interest)
@@ -546,7 +540,7 @@ func _begin_patrol() -> void:
 func _tick_patrol(_delta: float) -> void:
 	var patrol := _ensure_patrol()
 	patrol.call("tick", self, _rng)
-	var desired: Vector3 = patrol.call("follow_velocity", self, patrol_speed)
+	var desired: Vector3 = patrol.call("follow_velocity", self, combat_speed(patrol_speed))
 	velocity.x = desired.x
 	velocity.z = desired.z
 	_face_horizontal(desired)
@@ -618,7 +612,7 @@ func _tick_chase_approach(goal: Vector3, target: Node3D) -> void:
 			_try_touch_damage(target)
 		return
 	var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
-		global_position, goal, move_speed, velocity.y
+		global_position, goal, combat_speed(move_speed), velocity.y
 	)
 	velocity.x = desired.x
 	velocity.z = desired.z
@@ -710,7 +704,7 @@ func _try_tick_chase_reposition(delta: float, target: Node3D) -> bool:
 		delta,
 		self,
 		target,
-		move_speed,
+		combat_speed(move_speed),
 		attack_range,
 		_max_chase_reposition_distance(),
 		Callable(self, "_face_horizontal"),
@@ -744,7 +738,7 @@ func _has_ranged_spacing_abilities() -> bool:
 
 func _move_keep_away(target: Node3D) -> void:
 	MonsterCombatSpacingScript.apply_keep_away(
-		self, target, keep_away_range, move_speed, Callable(self, "_face_horizontal")
+		self, target, keep_away_range, combat_speed(move_speed), Callable(self, "_face_horizontal")
 	)
 
 
@@ -781,7 +775,7 @@ func _tick_ranged_cast_chase(target: Node3D) -> bool:
 
 func _move_toward_cast_range(target: Node3D, ability: Node) -> void:
 	MonsterCombatSpacingScript.apply_cast_band(
-		self, target, ability, move_speed, Callable(self, "_face_horizontal")
+		self, target, ability, combat_speed(move_speed), Callable(self, "_face_horizontal")
 	)
 
 

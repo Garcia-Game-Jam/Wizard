@@ -45,7 +45,6 @@ func _test_profile_split() -> int:
 	var failures := 0
 	var probe := Player.new()
 	var playable_state := probe.net_state_paths()
-	probe.free()
 	var playable_input := PlayerNetInput.net_input_paths()
 	if playable_input.is_empty():
 		push_error("Playable profile must list Input properties")
@@ -73,25 +72,39 @@ func _test_profile_split() -> int:
 	if local_lerp.has("Head:rotation") or local_lerp.has("Head/CameraPivot:rotation"):
 		push_error("Local playable must not interpolate look (mouse is frame-rate)")
 		failures += 1
-	if not ("Health:current_health" in Character.NET_STATE_PATHS):
+	if not (":current_health" in Character.NET_STATE_PATHS):
 		push_error("HP must be rewindable character state")
 		failures += 1
-	if not playable_state.has("Health:current_health"):
+	if not playable_state.has(":current_health"):
 		push_error("Playable net_state_paths must include HP")
 		failures += 1
+	var hp_entry := PropertyEntry.parse(probe, ":current_health")
+	if not hp_entry.is_valid():
+		push_error("current_health must be storage-exported so LAN rewind records HP")
+		failures += 1
+	else:
+		probe.current_health = 17.0
+		if not is_equal_approx(float(hp_entry.get_value()), 17.0):
+			push_error("netfox must read current_health off the character root")
+			failures += 1
+		hp_entry.set_value(0.0)
+		if probe.is_alive() or not probe.is_death_physics():
+			push_error("netfox restore of HP 0 must run death teardown")
+			failures += 1
+	probe.free()
 	var charge_state := Profiles.state_paths(Profiles.CHARGE)
 	if not charge_state.has(":net_phase") or not charge_state.has(":net_telegraph"):
 		push_error("Charger telegraph+ram must share rewindable phase state")
 		failures += 1
-	if not charge_state.has("Health:current_health"):
+	if not charge_state.has(":current_health"):
 		push_error("Charger HP must be character net state")
 		failures += 1
 	var world_state := Profiles.state_paths(Profiles.WORLD_PROP)
 	if world_state.has(":net_phase") or world_state.has(":net_telegraph"):
 		push_error("Charger phase state belongs on CHARGE, not every world_prop")
 		failures += 1
-	if world_state.has("Health:current_health"):
-		push_error("Orb/cover world_prop must not assume a Health child")
+	if world_state.has(":current_health"):
+		push_error("Orb/cover world_prop must not assume character HP")
 		failures += 1
 	var cover_state := Profiles.state_paths(Profiles.COVER)
 	if not cover_state.has(":cover_t") or not cover_state.has(":home"):

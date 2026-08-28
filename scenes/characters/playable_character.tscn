@@ -107,20 +107,17 @@ unique_name_in_owner = true
 script = ExtResource("9_inventory")
 starting_items = Array[String](["book", "spellbook"])
 
-[node name="Health" parent="." index="7" unique_id=1969475289]
-editor_description = "Player HP pool. Monster touch, fireballs, and ember burn spend this."
-
-[node name="Stun" type="Node" parent="." index="8" unique_id=796869350]
+[node name="Stun" type="Node" parent="." index="7" unique_id=796869350]
 editor_description = "Charger ram stun: locks move/cast, ballistic launch, shared stun stars + camera 'stunned' word."
 script = ExtResource("10_stun")
 
-[node name="StunStars" parent="." index="9" unique_id=1280587676 instance=ExtResource("11_stars")]
+[node name="StunStars" parent="." index="8" unique_id=1280587676 instance=ExtResource("11_stars")]
 editor_description = "World stun stars around the head. Other players see these while this character is stunned."
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 orbit_radius = 0.22
 star_size = 0.06
 
-[node name="SpellHotbar" type="Node" parent="." index="10" unique_id=2020083901]
+[node name="SpellHotbar" type="Node" parent="." index="9" unique_id=2020083901]
 unique_name_in_owner = true
 editor_description = "Three persistent spell slots. After a voice confirm, press RMB / Q / E to assign."
 script = ExtResource("12_hotbar")

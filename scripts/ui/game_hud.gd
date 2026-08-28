@@ -29,7 +29,7 @@ var _spell_bar: HudSpellBarScript
 var _item_bar: HudItemBarScript
 var _conjure_tip: HudConjureTipScript
 var _health_root: Control
-var _health_pool: Health
+var _health_pool: Character
 ## Typed as Control: the panel is duck-typed (open_book/close_book/is_open).
 var _spellbook_panel: Control
 
@@ -143,7 +143,7 @@ func configure(
 	loadout: Node,
 	casting_session: Node = null,
 	spell_hotbar: Node = null,
-	health: Health = null
+	health: Character = null
 ) -> void:
 	_loadout = loadout
 	if _loadout != null and _loadout.has_signal("spell_learned"):
@@ -276,7 +276,7 @@ func clear_spell_word() -> void:
 		spell_word_banner.call("clear")
 
 
-func _bind_health_pool(pool: Health) -> void:
+func _bind_health_pool(pool: Character) -> void:
 	if (
 		_health_pool != null
 		and _health_pool.changed.is_connected(_on_health_changed)

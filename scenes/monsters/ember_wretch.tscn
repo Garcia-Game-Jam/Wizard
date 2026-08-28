@@ -19,9 +19,6 @@ chase_range = 14.0
 attack_range = 1.5
 touch_damage = 9.0
 
-[node name="Health" parent="."]
-max_health = 50.0
-
 [node name="Hands" type="Node3D" parent="Body"]
 editor_description = "Cast sockets. Right = Lob, Left = Halo. Markers, not extra meshes."
 

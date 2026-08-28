@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://bcharacter01"]
 
 [ext_resource type="Script" uid="uid://bolwxtj4omh65" path="res://scripts/characters/character.gd" id="1_character"]
-[ext_resource type="Script" uid="uid://bhealthpool001" path="res://scripts/combat/health.gd" id="2_health"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_character"]
 radius = 0.27
@@ -28,7 +27,8 @@ metallic = 0.05
 roughness = 0.62
 
 [node name="Character" type="CharacterBody3D" unique_id=1969475288]
-editor_description = "3D character shell: Body + Head. Edit here; type scenes override look and collision."
+editor_description = "3D character shell: Body + Head. Edit here; type scenes override look and collision. Max HP is on this root (Health group)."
+safe_margin = 0.01
 script = ExtResource("1_character")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=294740946]
@@ -52,7 +52,3 @@ unique_name_in_owner = true
 layers = 2
 mesh = SubResource("SphereMesh_head")
 surface_material_override/0 = SubResource("StandardMaterial3D_head")
-
-[node name="Health" type="Node" parent="." unique_id=1969475289]
-editor_description = "HP pool for this character. Every player, monster, and summon inherits its own. Set Max Health per type scene; damage, healing, and death all run through it."
-script = ExtResource("2_health")
