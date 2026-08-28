@@ -27,6 +27,7 @@ func run(tree: SceneTree) -> int:
 	var failures := 0
 	failures += _test_finish_applies_damage_and_knockback(tree)
 	failures += _test_splash_reaches_nearby_target_by_distance(tree)
+	failures += _test_catchup_does_not_apply_payload(tree)
 	return failures
 
 
@@ -102,4 +103,19 @@ func _test_splash_reaches_nearby_target_by_distance(tree: SceneTree) -> int:
 	if err.is_empty():
 		return 0
 	push_error(err)
+	return 1
+
+
+func _test_catchup_does_not_apply_payload(tree: SceneTree) -> int:
+	var holder := _holder(tree)
+	var target := _spawn_target(holder, Vector3(0.0, 1.0, 5.0))
+	var max_hp := target.max_health
+	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 4.7), Vector3(0.0, 0.0, 1.0))
+	stone._combat_enabled = false
+	stone.call("_finish", true, true)
+	var ok := is_equal_approx(target.current_health, max_hp)
+	holder.queue_free()
+	if ok:
+		return 0
+	push_error("Spawn catch-up must move the stone without spending the payload")
 	return 1
