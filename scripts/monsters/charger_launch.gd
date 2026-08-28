@@ -71,7 +71,7 @@ static func knockup_velocity(
 		flat = flat.rotated(Vector3.UP, yaw)
 	var g := maxf(gravity, 0.05)
 	var peak := maxf(wall_height + maxf(over_wall_m, 0.2), 1.2)
-	var vy := sqrt(2.0 * g * peak)
+	var vy := sqrt(2.0 * g * peak) * 0.5
 	return Vector3(flat.x * speed, vy, flat.z * speed)
 
 
