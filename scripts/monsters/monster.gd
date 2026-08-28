@@ -292,10 +292,10 @@ func _exit_dump_corpse() -> void:
 	_set_living_meshes_visible(true)
 
 
-func _set_living_meshes_visible(show: bool) -> void:
+func _set_living_meshes_visible(meshes_on: bool) -> void:
 	for node in [get_node_or_null("%Body"), get_node_or_null("%Head")]:
 		if node is Node3D:
-			(node as Node3D).visible = show
+			(node as Node3D).visible = meshes_on
 
 
 ## Drop every AI intent so nothing keeps ticking between death and free.

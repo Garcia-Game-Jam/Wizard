@@ -107,10 +107,10 @@ static func ram_if_new(corpse: MonsterCorpse, hits: Dictionary, vel: Vector3) ->
 	corpse.apply_hit_knock(vel)
 
 
-static func ram_nearby(from: Node3D, range: float, hits: Dictionary, vel: Vector3) -> void:
-	if from == null or not from.is_inside_tree() or range <= 0.0:
+static func ram_nearby(from: Node3D, hit_range: float, hits: Dictionary, vel: Vector3) -> void:
+	if from == null or not from.is_inside_tree() or hit_range <= 0.0:
 		return
-	var range_sq := range * range
+	var range_sq := hit_range * hit_range
 	for node in from.get_tree().get_nodes_in_group(Character.CORPSE_GROUP):
 		var corpse := resolve_from(node)
 		if corpse == null:
