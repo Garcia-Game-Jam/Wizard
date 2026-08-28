@@ -150,6 +150,9 @@ func _assert_dump(role: String) -> bool:
 	if body.name.contains("@"):
 		_fail("Dump name collided: %s" % body.name)
 		return false
+	if body is Character and not (body as Character).is_alive():
+		_fail("Dump spawned dead")
+		return false
 	return true
 
 
@@ -166,6 +169,9 @@ func _assert_dump_moved(role: String) -> bool:
 		interpolator.set("enabled", false)
 		if interpolator.has_method("process_settings"):
 			interpolator.call("process_settings")
+	## Sight is 40 m; players sit inside it. This check is rewind+patrol, not ram.
+	if role == "host":
+		_quiet_dump_for_patrol(body)
 	var origin := _flat(body.global_position)
 	var tick0 := _net_tick()
 	print("E2E_POS %s start (%.2f, %.2f) tick=%d" % [role, origin.x, origin.y, tick0])
@@ -190,6 +196,16 @@ func _assert_dump_moved(role: String) -> bool:
 		_fail("Dump did not move (%.2f m in %d ticks)" % [dist, ticks])
 		return false
 	return true
+
+
+func _quiet_dump_for_patrol(body: Node3D) -> void:
+	var senses := body.get_node_or_null("Senses")
+	if senses != null:
+		for child in senses.get_children():
+			if "enabled" in child:
+				child.set("enabled", false)
+	if body.has_method("_reset_to_idle"):
+		body.call("_reset_to_idle")
 
 
 func _net_tick() -> int:

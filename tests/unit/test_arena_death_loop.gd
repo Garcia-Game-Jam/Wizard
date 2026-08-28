@@ -227,9 +227,11 @@ func _test_monsters_ignore_ghosts() -> int:
 	holder.add_child(charger)
 	holder.add_child(live)
 	holder.add_child(ghost)
+	## Scene chase_range is 3 m — keep the living player inside it, farther than the ghost.
+	charger.chase_range = 8.0
 	charger.global_position = Vector3.ZERO
 	ghost.global_position = Vector3(0.4, 0.0, 0.0)
-	live.global_position = Vector3(4.0, 0.0, 0.0)
+	live.global_position = Vector3(2.5, 0.0, 0.0)
 	ghost.kill()
 	var sight := MonsterSightSense.new()
 	sight.require_line_of_sight = false
@@ -245,8 +247,14 @@ func _test_monsters_ignore_ghosts() -> int:
 	live.kill()
 	var none_when_all_dead := charger.get_aggro_player_target() == null
 	holder.queue_free()
-	if not prefers_living or not ram_skips_ghost or not sight_skips_ghost:
-		push_error("Aggro, ram, and sight must skip ghosts even when the ghost is closer")
+	if not prefers_living:
+		push_error("Aggro must pick the living player, not the closer ghost")
+		return 1
+	if not ram_skips_ghost:
+		push_error("Ram must skip ghosts even when the ghost is closer")
+		return 1
+	if not sight_skips_ghost:
+		push_error("Sight must skip ghosts even when the ghost is closer")
 		return 1
 	if not none_when_all_dead:
 		push_error("Aggro must be empty when every player is a ghost")

@@ -83,11 +83,13 @@ const NET_STATE_PATHS: PackedStringArray = [
 		current_health = next
 		_emit_health_changed()
 		if _host_apply_depth == 0 and not was_dead and current_health <= 0.0:
-			died.emit(null)
-			_on_died(null)
+			if is_inside_tree():
+				died.emit(null)
+				_on_died(null)
 		if was_dead and current_health > 0.0:
-			revived.emit()
-			_on_revived()
+			if is_inside_tree():
+				revived.emit()
+				_on_revived()
 
 @export_group("Status")
 ## Move multiplier while speed_boost_timer > 0. <1 slow, >1 haste.

@@ -476,6 +476,11 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 		monster.global_position = spawn
 		monster.rotation = Vector3.ZERO
 		monster.set_multiplayer_authority(1)
+		if monster is Character:
+			var body := monster as Character
+			if not body.is_alive():
+				body.revive()
+				body.restore_after_revive()
 		var inst_us := Time.get_ticks_usec() - t_inst
 		## _ready enrolled rewind at the scene origin. Seed history at the pad.
 		var t_enroll := Time.get_ticks_usec()
