@@ -3,6 +3,7 @@ extends RefCounted
 ## Stage-lifetime corpses, no mid-fight respawn, host game-over overlay stats.
 
 const PlayerScene := preload("res://scenes/characters/player.tscn")
+const ChargerScene := preload("res://scenes/monsters/charger.tscn")
 const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
 const GameOverOverlayScene := preload("res://scenes/ui/game_over_overlay.tscn")
 const ARENA_SCENE_SCRIPT := "res://scripts/arena/arena_scene.gd"
@@ -14,7 +15,14 @@ func run() -> int:
 	failures += _test_rewind_revive_stops_limp()
 	failures += _test_game_over_overlay_stats()
 	failures += _test_arena_has_no_midfight_respawn()
+	failures += _test_pad_rez_stands_the_body()
 	failures += _test_arena_game_over_is_host_rpc()
+	failures += _test_ghost_leaves_a_shoveable_corpse()
+	failures += _test_splash_skips_dead_player()
+	failures += _test_monsters_ignore_ghosts()
+	failures += _test_ghost_forward_matches_living()
+	failures += _test_stage_revive_clears_burn_and_corpse()
+	failures += _test_double_ghost_enter_keeps_living_layer()
 	return failures
 
 
@@ -33,7 +41,7 @@ func _test_player_stays_dead_until_revive() -> int:
 	)
 	holder.queue_free()
 	if not stayed:
-		push_error("Player death must limp in place with no auto-free")
+		push_error("Player death must stay in tree with no auto-free")
 		return 1
 	return 0
 
@@ -92,6 +100,45 @@ func _test_arena_has_no_midfight_respawn() -> int:
 	if not src.contains("CORPSE_BEAT_SEC"):
 		push_error("Arena must linger after the last kill so corpses can limp")
 		return 1
+	var revive_at := src.find("func _revive_at")
+	if revive_at < 0:
+		push_error("Stage clear must revive through _revive_at")
+		return 1
+	var revive_end := src.find("\nfunc ", revive_at + 1)
+	var revive_body := src.substr(revive_at)
+	if revive_end > revive_at:
+		revive_body = src.substr(revive_at, revive_end - revive_at)
+	if not revive_body.contains("queue_pad_rez"):
+		push_error("Stage revive must stand up on the movement tick, not in _process")
+		return 1
+	return 0
+
+
+func _test_pad_rez_stands_the_body() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(player)
+	player.kill()
+	player.queue_pad_rez(Vector3(4.0, 1.0, 0.0))
+	var leftover := _corpse_child(holder)
+	var stood := (
+		player.is_alive()
+		and not player.is_death_physics()
+		and player.collision_layer == 1
+		and player.global_position.is_equal_approx(Vector3(4.0, 1.0, 0.0))
+		and (leftover == null or leftover.is_queued_for_deletion())
+	)
+	var src := FileAccess.get_file_as_string("res://scripts/characters/player.gd")
+	var on_tick := src.contains("_stand_up_at_pad(is_fresh)")
+	holder.queue_free()
+	if not stood:
+		push_error("Pad rez must move the ghost to the pad and stand a living body")
+		return 1
+	if not on_tick:
+		push_error("LAN pad rez must apply on _rollback_tick, not in Arena._process")
+		return 1
 	return 0
 
 
@@ -104,6 +151,181 @@ func _test_arena_game_over_is_host_rpc() -> int:
 		push_error("Do not add a guest death RPC; HP is the death channel")
 		return 1
 	return 0
+
+
+func _test_ghost_leaves_a_shoveable_corpse() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(player)
+	player.kill()
+	var corpse := _corpse_child(holder)
+	var blocked := bool(player.call("_wand_controls_blocked"))
+	var ghosted := (
+		not player.is_alive()
+		and player.collision_layer == 0
+		and player.collision_mask == 1
+		and not player.is_in_group("combat_target")
+		and blocked
+		and corpse != null
+		and corpse.collision_layer == 1
+	)
+	player.revive()
+	var leftover := _corpse_child(holder)
+	var cleared := (
+		(leftover == null or leftover.is_queued_for_deletion())
+		and player.collision_layer == 1
+		and player.is_alive()
+		and not player.is_death_physics()
+	)
+	holder.queue_free()
+	if not ghosted:
+		push_error("Dead player must fly untargetable and leave a shoveable corpse")
+		return 1
+	if not cleared:
+		push_error("Revive must free the corpse and restore the living collision layer")
+		return 1
+	return 0
+
+
+func _test_splash_skips_dead_player() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var tree := holder.get_tree()
+	var live := PlayerScene.instantiate() as Player
+	var ghost := PlayerScene.instantiate() as Player
+	holder.add_child(live)
+	holder.add_child(ghost)
+	live.global_position = Vector3.ZERO
+	ghost.global_position = Vector3(0.2, 0.0, 0.0)
+	ghost.kill()
+	var live_hp := live.current_health
+	var payload := CombatPayload.new()
+	payload.effects.append(Damage.with(8.0))
+	CombatSplash.apply_at(tree, Vector3.ZERO, 1.0, live, payload)
+	var ok := (
+		not is_equal_approx(live.current_health, live_hp)
+		and is_equal_approx(ghost.current_health, 0.0)
+		and ghost.is_death_physics()
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Splash must hit the living caster-skip target and ignore the ghost")
+		return 1
+	return 0
+
+
+func _test_monsters_ignore_ghosts() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var charger := ChargerScene.instantiate() as Charger
+	var live := PlayerScene.instantiate() as Player
+	var ghost := PlayerScene.instantiate() as Player
+	holder.add_child(charger)
+	holder.add_child(live)
+	holder.add_child(ghost)
+	charger.global_position = Vector3.ZERO
+	ghost.global_position = Vector3(0.4, 0.0, 0.0)
+	live.global_position = Vector3(4.0, 0.0, 0.0)
+	ghost.kill()
+	var sight := MonsterSightSense.new()
+	sight.require_line_of_sight = false
+	var seen: Array = []
+	sight.append_interest_candidates(charger, seen)
+	var prefers_living := charger.get_aggro_player_target() == live
+	var ram_skips_ghost := (
+		not Charger.is_player_charge_target(ghost)
+		and Charger.is_player_charge_target(live)
+	)
+	var sight_hit: MonsterInterest = seen[0] as MonsterInterest if not seen.is_empty() else null
+	var sight_skips_ghost := sight_hit != null and sight_hit.target == live and seen.size() == 1
+	live.kill()
+	var none_when_all_dead := charger.get_aggro_player_target() == null
+	holder.queue_free()
+	if not prefers_living or not ram_skips_ghost or not sight_skips_ghost:
+		push_error("Aggro, ram, and sight must skip ghosts even when the ghost is closer")
+		return 1
+	if not none_when_all_dead:
+		push_error("Aggro must be empty when every player is a ghost")
+		return 1
+	return 0
+
+
+func _test_ghost_forward_matches_living() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(player)
+	var net := PlayerNetInput.new()
+	net.movement = Vector2(0.0, -1.0)
+	var ghost_wish: Vector3 = PlayerGhost._wish_dir(player, net)
+	var living := SlideSurface.camera_relative_move_direction(player.head, net)
+	var flipped := Vector3(living.x, living.y, -living.z)
+	var ok := (
+		living.length_squared() > 0.5
+		and ghost_wish.dot(living) > 0.9
+		and ghost_wish.dot(flipped) < 0.0
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Ghost W must match living camera-forward, not the opposite")
+		return 1
+	return 0
+
+
+func _test_stage_revive_clears_burn_and_corpse() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(player)
+	player.kill()
+	player.apply_burn(200.0, 8.0)
+	player.global_position = Vector3(8.0, 1.0, 0.0)
+	player.revive()
+	player.restore_after_revive()
+	player.tick_burn(1.0)
+	var leftover := _corpse_child(holder)
+	var ok := (
+		player.is_alive()
+		and is_equal_approx(player.current_health, player.max_health)
+		and not player.is_death_physics()
+		and player.collision_layer == 1
+		and (leftover == null or leftover.is_queued_for_deletion())
+	)
+	holder.queue_free()
+	if not ok:
+		push_error("Stage revive must stand a full-HP body, not a burned ragdoll")
+		return 1
+	return 0
+
+
+func _test_double_ghost_enter_keeps_living_layer() -> int:
+	var holder := _holder()
+	if holder == null:
+		return 1
+	var player := PlayerScene.instantiate() as Player
+	holder.add_child(player)
+	player.kill()
+	PlayerGhost.enter(player)
+	player.revive()
+	var ok := player.collision_layer == 1
+	holder.queue_free()
+	if not ok:
+		push_error("A second ghost enter must not restore collision_layer 0 on revive")
+		return 1
+	return 0
+
+
+func _corpse_child(holder: Node) -> MonsterCorpse:
+	for child in holder.get_children():
+		if child is MonsterCorpse:
+			return child as MonsterCorpse
+	return null
 
 
 func _holder() -> Node:

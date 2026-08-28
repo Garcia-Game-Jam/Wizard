@@ -6,8 +6,6 @@ extends RefCounted
 ## Caps how many move_and_slide calls one tick can make (20 m/s dash needs 3).
 const _MAX_SLIDE_SUBSTEPS := 8
 
-## Debug-only tunnelling guard state, keyed by instance id.
-static var _tunnel_warned: Dictionary = {}
 static var _radius_cache: Dictionary = {}
 
 
@@ -60,7 +58,6 @@ static func stop() -> void:
 static func move_character(body: CharacterBody3D) -> void:
 	if body == null:
 		return
-	_warn_if_tunnelling(body)
 	if not is_ticking():
 		_slide_within_radius(body)
 		return
@@ -90,35 +87,6 @@ static func _slide_within_radius(body: CharacterBody3D) -> void:
 	for _i in n:
 		body.move_and_slide()
 	body.velocity *= float(n)
-
-
-## Every character moves through move_character, so this one check guards the
-## whole class of speed bugs. A body that travels further than its own collision
-## radius in a tick can penetrate geometry; rollback then resimulates from inside
-## the wall and move_and_slide resolves to zero displacement -- the mid-air stall
-## (see docs/netcode/diagnostics.md). Debug builds only.
-static func _warn_if_tunnelling(body: CharacterBody3D) -> void:
-	if not OS.is_debug_build():
-		return
-	var radius := _collision_radius(body)
-	if radius <= 0.0:
-		return
-	var step := body.velocity.length() * tick_delta()
-	var ratio := step / radius
-	if ratio <= 1.0:
-		return
-	## High-water mark: a known violator (dash) warns once, and only a worse
-	## violation warns again. A per-tick warning would train us to ignore it.
-	var id := body.get_instance_id()
-	var worst := float(_tunnel_warned.get(id, 1.0))
-	if ratio <= worst * 1.25:
-		return
-	_tunnel_warned[id] = ratio
-	push_warning(
-		"NetClock: %s moves %.2f m/tick (%.1fx its %.2f m collision radius) — "
-		% [body.name, step, ratio, radius]
-		+ "it can penetrate geometry and stall on the other peer."
-	)
 
 
 static func _collision_radius(body: CharacterBody3D) -> float:

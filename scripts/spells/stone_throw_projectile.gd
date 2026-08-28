@@ -219,8 +219,9 @@ func _simulate_flight(delta: float, is_fresh: bool) -> void:
 	):
 		_finish(false, is_fresh)
 		return
-	if _overlaps_combat_body():
-		_finish(true, is_fresh)
+	var combat := _overlapping_combat_body()
+	if combat != null:
+		_finish(true, is_fresh, combat)
 		return
 	if stop_fraction < 1.0:
 		## Hit solid geometry — still splash in case a target is standing right there.
@@ -237,9 +238,9 @@ func _exclude_rids() -> Array:
 ## Precise early-out only — decides when the stone stops flying. Actual damage
 ## and knock come from the splash-radius group scan in _apply_splash_at(),
 ## which is forgiving of the flight sphere never quite reaching the target's shape.
-func _overlaps_combat_body() -> bool:
+func _overlapping_combat_body() -> Node3D:
 	if not is_inside_tree() or _hit_shape == null:
-		return false
+		return null
 	var space_state := get_world_3d().direct_space_state
 	var params := PhysicsShapeQueryParameters3D.new()
 	params.shape = _hit_shape
@@ -249,12 +250,14 @@ func _overlaps_combat_body() -> bool:
 	for hit in space_state.intersect_shape(params, 8):
 		var collider: Variant = hit.get("collider")
 		if collider is Node3D and _is_combat_body(collider as Node3D):
-			return true
-	return false
+			return collider as Node3D
+	return null
 
 
 func _is_combat_body(body: Node3D) -> bool:
 	if body == null or body == _caster:
+		return false
+	if not Character.is_node_alive(body):
 		return false
 	return (
 		body.is_in_group("player")
@@ -263,24 +266,26 @@ func _is_combat_body(body: Node3D) -> bool:
 	)
 
 
-func _finish(apply_splash: bool, is_fresh: bool) -> void:
+func _finish(apply_splash: bool, is_fresh: bool, hit: Node = null) -> void:
 	if _finished or not is_inside_tree():
 		return
 	_finished = true
 	var world_parent := get_parent()
 	var impact_pos := global_position
 	if apply_splash:
-		_apply_splash_at(impact_pos)
+		_apply_splash_at(impact_pos, hit)
 	_clear_projectile_visuals()
 	if is_fresh:
 		StoneImpactEffectScript.spawn(world_parent, impact_pos)
 	NetLivenessScript.despawn_or_free(self)
 
 
-func _apply_splash_at(impact_pos: Vector3) -> void:
+func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
 	if splash_radius <= 0.0:
 		return
-	CombatSplash.apply_at(get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster)
+	CombatSplash.apply_at(
+		get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster, hit
+	)
 
 
 func _ensure_payload() -> CombatPayload:

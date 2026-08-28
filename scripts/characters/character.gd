@@ -220,7 +220,7 @@ static func apply_hit(body: Node, amount: float, from: Variant = null) -> void:
 
 ## Loop payload.effects. Each effect uses the existing HP / knock / stun gates.
 func apply(from: Variant, payload: Resource) -> void:
-	if payload == null or not "effects" in payload:
+	if is_dead() or payload == null or not "effects" in payload:
 		return
 	for effect in payload.effects:
 		if effect != null and effect.has_method("apply"):
@@ -281,8 +281,11 @@ func _on_health_changed(_current: float, _maximum: float) -> void:
 static func is_node_alive(node: Node) -> bool:
 	if not is_instance_valid(node):
 		return false
-	if node is Character:
-		return (node as Character).is_alive()
+	var n := node
+	while n != null:
+		if n is Character:
+			return (n as Character).is_alive()
+		n = n.get_parent()
 	return true
 
 
@@ -299,8 +302,10 @@ func _on_died(from: Variant) -> void:
 	for group in _combat_groups():
 		if is_in_group(group):
 			remove_from_group(group)
+	var first_death := not _death_physics_active
 	begin_death_physics()
-	_on_death(_live_source(from))
+	if first_death:
+		_on_death(_live_source(from))
 
 
 ## Groups to leave on death. Monsters and summons drop out of AI targeting;
@@ -321,7 +326,17 @@ func _on_death(_from: Node3D) -> void:
 
 ## Undo death teardown after revive() or rewind restoring HP above 0.
 func restore_after_revive() -> void:
+	var dying := _death_physics_active
 	stop_death_physics()
+	if not dying:
+		## HP may already be full (setter no-op) while a leftover corpse remains.
+		_on_stop_death_physics()
+	_burn_dps = 0.0
+	_burn_timer = 0.0
+	_knockback_vel = Vector3.ZERO
+	_knockback_timer = 0.0
+	_speed_boost_timer = 0.0
+	_speed_boost_multiplier = 1.0
 	set_physics_process(true)
 	for group in _combat_groups():
 		if not is_in_group(group):
@@ -347,23 +362,24 @@ func begin_death_physics() -> void:
 	_death_physics_active = true
 	_saved_floor_snap = floor_snap_length
 	floor_snap_length = 0.0
-	_death_bones = _physical_bone_simulator()
-	if _death_bones != null:
-		_death_bones.physical_bones_start_simulation()
-		_death_ang_vel = Vector3.ZERO
-	else:
-		velocity += _knockback_impulse(_last_hit_dir) * DEATH_IMPULSE_SCALE
-		if _death_should_tumble():
-			var axis := Vector3(
-				randf_range(-1.0, 1.0),
-				randf_range(-0.35, 0.35),
-				randf_range(-1.0, 1.0)
-			)
-			if axis.length_squared() < 0.0001:
-				axis = Vector3.FORWARD
-			_death_ang_vel = axis.normalized() * DEATH_SPIN_RAD
-		else:
+	if _death_uses_capsule_limp():
+		_death_bones = _physical_bone_simulator()
+		if _death_bones != null:
+			_death_bones.physical_bones_start_simulation()
 			_death_ang_vel = Vector3.ZERO
+		else:
+			velocity += _knockback_impulse(_last_hit_dir) * DEATH_IMPULSE_SCALE
+			if _death_should_tumble():
+				var axis := Vector3(
+					randf_range(-1.0, 1.0),
+					randf_range(-0.35, 0.35),
+					randf_range(-1.0, 1.0)
+				)
+				if axis.length_squared() < 0.0001:
+					axis = Vector3.FORWARD
+				_death_ang_vel = axis.normalized() * DEATH_SPIN_RAD
+			else:
+				_death_ang_vel = Vector3.ZERO
 	set_physics_process(true)
 
 
@@ -377,6 +393,7 @@ func stop_death_physics() -> void:
 	_death_ang_vel = Vector3.ZERO
 	floor_snap_length = _saved_floor_snap
 	velocity = Vector3.ZERO
+	_on_stop_death_physics()
 
 
 ## Engine _physics_process. True = caller should return.
@@ -414,6 +431,14 @@ func _tick_death_physics(delta: float) -> void:
 
 func _death_should_tumble() -> bool:
 	return true
+
+
+func _death_uses_capsule_limp() -> bool:
+	return true
+
+
+func _on_stop_death_physics() -> void:
+	pass
 
 
 func _death_gravity() -> float:

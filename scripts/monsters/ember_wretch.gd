@@ -129,10 +129,10 @@ func _start_weighted_chase_walk(target: Node3D) -> void:
 	start_chase_strafe(target, side, duration)
 
 
-func _try_low_hp_combo(from: Node3D, ratio_before: float) -> void:
+func _try_low_hp_combo(from: Node3D, hp_ratio_before: float) -> void:
 	if _used_low_hp_combo:
 		return
-	if ratio_before < LOW_HP_COMBO_RATIO or health_ratio() >= LOW_HP_COMBO_RATIO:
+	if hp_ratio_before < LOW_HP_COMBO_RATIO or health_ratio() >= LOW_HP_COMBO_RATIO:
 		return
 	var caster := get_node_or_null("CasterCombat")
 	if caster == null or not caster.has_method("try_trigger_combo"):

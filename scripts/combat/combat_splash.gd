@@ -21,6 +21,8 @@ static func bodies_near(
 				continue
 			if seen.has(node) or not (node is Node3D):
 				continue
+			if not Character.is_node_alive(node):
+				continue
 			var body := node as Node3D
 			if body.global_position.distance_squared_to(origin) > radius_sq:
 				continue
@@ -35,15 +37,30 @@ static func apply_at(
 	radius: float,
 	from: Variant,
 	payload: CombatPayload,
-	skip: Node = null
+	skip: Node = null,
+	hit: Node = null
 ) -> void:
 	if payload == null:
 		return
+	## `hit` is the body the projectile actually overlapped. Splash measures
+	## pawn roots (at the feet); the capsule sits above that, so a tight sphere
+	## can miss the living wizard you just physically struck.
+	_apply_to(hit, origin, from, payload, skip)
 	for body in bodies_near(tree, origin, radius, skip):
-		if not (body is Character):
+		if body == hit:
 			continue
-		var aimed := _aim_knock(payload, origin, body.global_position)
-		(body as Character).apply(from, aimed)
+		_apply_to(body, origin, from, payload, skip)
+
+
+static func _apply_to(
+	body: Node, origin: Vector3, from: Variant, payload: CombatPayload, skip: Node
+) -> void:
+	if body == null or body == skip or not (body is Character):
+		return
+	if not Character.is_node_alive(body):
+		return
+	var character := body as Character
+	character.apply(from, _aim_knock(payload, origin, character.global_position))
 
 
 static func _aim_knock(

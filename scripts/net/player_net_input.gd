@@ -83,7 +83,11 @@ func _on_before_tick_loop() -> void:
 func _gather() -> void:
 	movement = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var jump_held := Input.is_action_pressed("jump")
-	jump = _jump_queued or (jump_held and not _jump_was_held)
+	var player := get_parent()
+	if player != null and player.has_method("is_dead") and bool(player.call("is_dead")):
+		jump = _jump_queued or jump_held
+	else:
+		jump = _jump_queued or (jump_held and not _jump_was_held)
 	_jump_queued = false
 	_jump_was_held = jump_held
 	dash = _dash_queued
@@ -97,7 +101,6 @@ func _gather() -> void:
 		if Input.is_action_pressed(action):
 			charging = true
 			charge_slot = i
-	var player := get_parent()
 	if player == null:
 		return
 	if "net_wand_raised" in player:

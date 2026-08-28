@@ -39,6 +39,8 @@ static func kind(body: Node, caster: Variant = null) -> Kind:
 static func is_combat_body(body: Node) -> bool:
 	if body == null:
 		return false
+	if not Character.is_node_alive(body):
+		return false
 	return (
 		body.is_in_group("player")
 		or body.is_in_group("monster")

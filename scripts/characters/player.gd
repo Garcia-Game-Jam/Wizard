@@ -21,6 +21,7 @@ const PlayerPreviewScript := preload(
 const SpellManaScript := preload("res://scripts/spells/spell_mana.gd")
 const WardSlotChannelScript := preload("res://scripts/spells/ward_slot_channel.gd")
 const PlayerCombatReactionsScript := preload("res://scripts/characters/player_combat_reactions.gd")
+const PlayerGhostScript := preload("res://scripts/characters/player_ghost.gd")
 const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
 const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 
@@ -103,6 +104,8 @@ var dash_slide_grace_remaining: float = 0.0
 var net_wand_raised: bool = false
 var net_charge_factor: float = 0.0
 var net_flashlight: bool = false
+var player_corpse: MonsterCorpse = null
+var saved_collision_layer: int = 1
 
 var _spell_loadout: Node
 var _casting_session: SpellCastingSession
@@ -118,6 +121,8 @@ var _spell_fire_releasing := false
 var _spell_fire_slot := -1
 var _spell_fire_cancel_token := 0
 var _ward_channel: RefCounted = WardSlotChannelScript.new()
+var _pad_rez_pos: Vector3 = Vector3.ZERO
+var _pad_rez_pending: bool = false
 
 @onready var camera_pivot: Node3D = %CameraPivot
 @onready var spell_loadout: Node = %CharacterSpellLoadout
@@ -154,6 +159,46 @@ func _exit_tree() -> void:
 
 func _death_should_tumble() -> bool:
 	return false
+
+
+func _death_uses_capsule_limp() -> bool:
+	return false
+
+
+func _on_death(_from: Node3D) -> void:
+	PlayerGhostScript.enter(self)
+	if _wand_raised:
+		_lower_wand(true)
+	_cancel_spell_fire_charge(true)
+
+
+func _on_stop_death_physics() -> void:
+	PlayerGhostScript.exit(self)
+
+
+## Stage clear. Apply on the movement tick so HP is full before a death-ragdoll
+## can spawn at the pad. Solo has no tick loop — stand up now.
+func queue_pad_rez(world_pos: Vector3) -> void:
+	_pad_rez_pos = world_pos
+	_pad_rez_pending = true
+	if not NetClockScript.is_ticking():
+		_stand_up_at_pad(true)
+
+
+func _stand_up_at_pad(is_fresh: bool) -> void:
+	if not _pad_rez_pending:
+		return
+	if is_alive() and not is_death_physics():
+		if is_fresh:
+			_pad_rez_pending = false
+		return
+	global_position = _pad_rez_pos
+	velocity = Vector3.ZERO
+	revive()
+	restore_after_revive()
+	if is_fresh:
+		_pad_rez_pending = false
+		NetLiveness.commit_pose(self)
 
 
 func _setup_view_camera() -> void:
@@ -297,7 +342,8 @@ func _is_player_menu_open() -> bool:
 
 func _wand_controls_blocked() -> bool:
 	return (
-		is_stunned()
+		is_dead()
+		or is_stunned()
 		or _is_spellbook_open()
 		or _is_player_menu_open()
 		or _is_monster_book_busy()
@@ -767,7 +813,10 @@ func apply_rat_explode_hit(_hit_dir: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if tick_death_physics_if_active(delta):
+	if is_death_physics():
+		if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
+			return
+		PlayerGhostScript.tick(self, delta, _get_net_input())
 		return
 	## Clock ticking without a RollbackSynchronizer (solo, leftover sync) must
 	## still simulate here — _rollback_tick never runs.
@@ -780,7 +829,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
-	if rollback_tick_death_if_active(delta):
+	_stand_up_at_pad(is_fresh)
+	if is_death_physics():
+		PlayerGhostScript.tick(self, delta, _get_net_input())
 		return
 	var net_input := _get_net_input()
 	_simulate_move(delta, is_fresh, net_input)

@@ -832,17 +832,19 @@ func _finish(blocked_by: Node = null, apply_splash: bool = false, is_fresh: bool
 	var impact_pos := global_position
 	var ward := _ward_from_node(blocked_by) if blocked_by != null else null
 	if apply_splash and ward == null:
-		_apply_splash_at(impact_pos)
+		_apply_splash_at(impact_pos, blocked_by)
 	_clear_projectile_visuals()
 	if is_fresh:
 		FireballExplosionEffectScript.spawn(world_parent, impact_pos, _charge_fx_scale)
 	NetLivenessScript.despawn_or_free(self)
 
 
-func _apply_splash_at(impact_pos: Vector3) -> void:
+func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
 	if splash_radius <= 0.0:
 		return
-	CombatSplash.apply_at(get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster)
+	CombatSplash.apply_at(
+		get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster, hit
+	)
 
 
 func _find_ward_hit() -> Node:
@@ -969,8 +971,10 @@ func _try_hit_player(body: Node3D, is_fresh: bool = true) -> bool:
 		or body.is_in_group("combat_target")
 	):
 		return false
+	if not Character.is_node_alive(body):
+		return false
 	if _try_block_ward_overlap(is_fresh):
 		return true
-	## Splash sphere applies damage (includes this body).
-	_finish(null, true, is_fresh)
+	## Named connect: this body, even if its root sits outside splash_radius.
+	_finish(body, true, is_fresh)
 	return true

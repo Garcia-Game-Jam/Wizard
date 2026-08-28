@@ -13,6 +13,7 @@ func run(tree: SceneTree) -> int:
 	var failures := 0
 	failures += _test_damage_only_does_not_knock(tree)
 	failures += _test_splash_skips_caster(tree)
+	failures += _test_direct_hit_damages_outside_splash_radius(tree)
 	failures += _test_fireball_splash_does_not_knock(tree)
 	failures += _test_charger_telegraph_ignores_knock(tree)
 	return failures
@@ -68,6 +69,26 @@ func _test_splash_skips_caster(tree: SceneTree) -> int:
 		return 0
 	push_error(err)
 	return 1
+
+
+func _test_direct_hit_damages_outside_splash_radius(tree: SceneTree) -> int:
+	var holder := _holder(tree)
+	var target := PlayerScene.instantiate() as Character
+	holder.add_child(target)
+	target.global_position = Vector3.ZERO
+	var hp := target.current_health
+	var payload := CombatPayload.new()
+	payload.effects.append(Damage.with(8.0))
+	## Impact on the capsule, splash too tight to reach the pawn root (feet).
+	CombatSplash.apply_at(tree, Vector3(0.0, 0.5, 0.0), 0.05, target, payload, null, target)
+	var ok := not is_equal_approx(target.current_health, hp)
+	holder.queue_free()
+	if not ok:
+		push_error(
+			"A overlapped body must take damage even if its root is outside splash_radius"
+		)
+		return 1
+	return 0
 
 
 func _test_fireball_splash_does_not_knock(tree: SceneTree) -> int:

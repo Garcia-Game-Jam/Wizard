@@ -387,7 +387,7 @@ func _revive_dead_players() -> void:
 		if not (child is Player):
 			continue
 		var player := child as Player
-		if player.is_alive():
+		if player.is_alive() and not player.is_death_physics():
 			continue
 		_revive_at(player, _spawn_for_player(player))
 	_intentional_revive = false
@@ -395,13 +395,7 @@ func _revive_dead_players() -> void:
 
 func _revive_at(player: Player, world_pos: Vector3) -> void:
 	NetDiag.mark("respawn", player.name)
-	player.revive()
-	player.restore_after_revive()
-	player.global_position = world_pos
-	player.velocity = Vector3.ZERO
-	var ti := player.get_node_or_null("TickInterpolator")
-	if ti != null and ti.has_method("teleport"):
-		ti.call("teleport")
+	player.queue_pad_rez(world_pos)
 
 
 func _bind_cover() -> void:
