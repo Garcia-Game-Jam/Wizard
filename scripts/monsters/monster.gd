@@ -263,33 +263,46 @@ func _death_uses_capsule_limp() -> bool:
 
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
-	_enter_dump_corpse()
+	_begin_dump_mechanics()
 
 
 func _on_stop_death_physics() -> void:
-	_exit_dump_corpse()
+	_end_dump_mechanics()
 
 
-func _enter_dump_corpse() -> void:
-	if is_instance_valid(death_corpse):
-		return
+func _begin_dump_mechanics() -> void:
 	if collision_layer != 0:
 		_saved_dump_layer = collision_layer
 	collision_layer = 0
 	collision_mask = 0
+
+
+func _end_dump_mechanics() -> void:
+	collision_layer = 1 if _saved_dump_layer == 0 else _saved_dump_layer
+	collision_mask = 1
+	if not is_instance_valid(death_corpse):
+		_set_living_meshes_visible(true)
+
+
+func commit_dump_corpse(pending_knock: Vector3 = Vector3.ZERO) -> void:
+	if is_instance_valid(death_corpse):
+		return
+	_begin_dump_mechanics()
 	death_corpse = MonsterCorpse.spawn_dump_prop(self, _last_hit_dir)
 	_set_living_meshes_visible(false)
-	if is_knocked() and is_instance_valid(death_corpse):
-		death_corpse.apply_hit_knock(velocity)
+	if is_instance_valid(death_corpse):
+		if pending_knock.length_squared() > 0.0001:
+			death_corpse.apply_hit_knock(pending_knock)
+		elif is_knocked():
+			death_corpse.apply_hit_knock(velocity)
 
 
-func _exit_dump_corpse() -> void:
+func clear_dump_corpse() -> void:
 	if is_instance_valid(death_corpse):
 		death_corpse.queue_free()
 	death_corpse = null
-	collision_layer = 1 if _saved_dump_layer == 0 else _saved_dump_layer
-	collision_mask = 1
 	_set_living_meshes_visible(true)
+	_end_dump_mechanics()
 
 
 func _set_living_meshes_visible(meshes_on: bool) -> void:

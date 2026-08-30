@@ -102,7 +102,7 @@ const NET_STATE_PATHS: PackedStringArray = [
 
 var net_phase: int = 0
 var net_telegraph: float = 0.0
-## RigidBody clone while dead (player ghost + dump flop). Not rewindable.
+## RigidBody clone while dead (player ghost + dump flop). Presentation only — Death.commit.
 var death_corpse: MonsterCorpse = null
 var _knockback_vel: Vector3 = Vector3.ZERO
 var _knockback_timer: float = 0.0
@@ -199,6 +199,9 @@ func heal(amount: float) -> void:
 
 func revive() -> void:
 	current_health = max_health
+	var death := get_node_or_null("Death")
+	if death != null and death.has_method("clear_for_revive"):
+		death.clear_for_revive()
 
 
 func _emit_health_changed() -> void:
@@ -307,7 +310,7 @@ func _on_damaged(amount: float, from: Variant) -> void:
 	_on_hurt(amount, source)
 
 
-## Shared death teardown: leave combat targeting, start limp. HP rewind can reverse this.
+## Sim death: leave combat targeting, start limp. Corpse/ghost wait for Death.commit.
 func _on_died(from: Variant) -> void:
 	for group in _combat_groups():
 		if is_in_group(group):
@@ -329,12 +332,12 @@ func _on_hurt(_amount: float, _from: Node3D) -> void:
 	pass
 
 
-## Per-type death outcome (corpse, ragdoll, respawn).
+## Per-type sim death (AI stop, ghost collision). Presentation is Death.commit.
 func _on_death(_from: Node3D) -> void:
 	pass
 
 
-## Undo death teardown after revive() or rewind restoring HP above 0.
+## Undo sim death after revive() or rewind restoring HP above 0. Corpse stays until revive().
 func restore_after_revive() -> void:
 	var dying := _death_physics_active
 	stop_death_physics()
@@ -540,6 +543,9 @@ func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
 	if not is_alive() and not is_death_physics():
 		return
 	if not is_alive() and not _death_uses_capsule_limp():
+		var death := get_node_or_null("Death")
+		if death != null and death.has_method("buffer_knock"):
+			death.buffer_knock(impulse)
 		return
 	_knockback_vel = impulse
 	_knockback_timer = KNOCKBACK_TIMER_SEC

@@ -164,14 +164,14 @@ func _death_uses_capsule_limp() -> bool:
 
 
 func _on_death(_from: Node3D) -> void:
-	PlayerGhostScript.enter(self)
+	PlayerGhostScript.begin_mechanics(self)
 	if _wand_raised:
 		_lower_wand(true)
 	_cancel_spell_fire_charge(true)
 
 
 func _on_stop_death_physics() -> void:
-	PlayerGhostScript.exit(self)
+	PlayerGhostScript.end_mechanics(self)
 
 
 ## Stage clear. Apply on the movement tick so HP is full before a death-ragdoll

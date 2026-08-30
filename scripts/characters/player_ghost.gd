@@ -1,8 +1,7 @@
 class_name PlayerGhost
 extends RefCounted
 
-## Dead player: same pawn flies, duplicated meshes are the shoveable corpse.
-## Enter copies pawn velocity onto the clone, then zeroes the ghost.
+## Dead player: same pawn flies; corpse RigidBody is presentation (Death.commit).
 
 const GHOST_MESH_ALPHA := 0.18
 
@@ -11,34 +10,58 @@ const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 
 
-static func enter(player: Player) -> void:
+## Collision off so the flying pawn stops blocking the pit. Reversible on HP restore.
+static func begin_mechanics(player: Player) -> void:
 	if player == null or player.is_alive():
 		return
 	if player.collision_layer != 0:
 		player.saved_collision_layer = player.collision_layer
 	player.collision_layer = 0
+
+
+## Corpse + ghost meshes. Called from Death after the tick loop (or immediately offline).
+static func commit(player: Player, pending_knock: Vector3 = Vector3.ZERO) -> void:
+	if player == null or player.is_alive():
+		return
+	begin_mechanics(player)
 	var carry := player.velocity
 	if not is_instance_valid(player.death_corpse) and not player._pad_rez_pending:
 		player.death_corpse = MonsterCorpse.spawn_player_prop(
 			player, player._last_hit_dir
 		)
-	## Pose only. Killing Knock already hits the clone via apply_knockback;
-	## apply_hit_knock here would add a second tumble on the same death.
-	if is_instance_valid(player.death_corpse) and carry.length_squared() > 0.0001:
-		player.death_corpse.linear_velocity = carry
+	if is_instance_valid(player.death_corpse):
+		if pending_knock.length_squared() > 0.0001:
+			player.death_corpse.apply_hit_knock(pending_knock)
+		elif carry.length_squared() > 0.0001:
+			player.death_corpse.linear_velocity = carry
 	player.velocity = Vector3.ZERO
 	_apply_visuals(player, true)
 
 
-static func exit(player: Player) -> void:
+static func end_mechanics(player: Player) -> void:
+	if player == null:
+		return
+	var layer := player.saved_collision_layer
+	player.collision_layer = 1 if layer == 0 else layer
+
+
+static func clear(player: Player) -> void:
 	if player == null:
 		return
 	if is_instance_valid(player.death_corpse):
 		player.death_corpse.queue_free()
 	player.death_corpse = null
-	var layer := player.saved_collision_layer
-	player.collision_layer = 1 if layer == 0 else layer
 	_apply_visuals(player, false)
+	end_mechanics(player)
+
+
+## Offline / test helper: mechanics + presentation in one step.
+static func enter(player: Player) -> void:
+	commit(player)
+
+
+static func exit(player: Player) -> void:
+	clear(player)
 
 
 static func tick(player: Player, delta: float, net_input: Object) -> void:

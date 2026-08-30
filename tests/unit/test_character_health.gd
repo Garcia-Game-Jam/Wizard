@@ -163,9 +163,18 @@ func _test_replicated_health_restores_combat() -> int:
 		and not character.is_death_physics()
 		and character.is_in_group(&"combat_target")
 	)
+	## Presentation stays until revive(); sim reverse is what rewind must do.
+	var leftover := false
+	for child in holder.get_children():
+		if child is MonsterCorpse and not child.is_queued_for_deletion():
+			leftover = true
+			break
 	holder.queue_free()
 	if not ok:
-		push_error("Writing HP back above 0 (rewind) should reverse death teardown")
+		push_error("Writing HP back above 0 (rewind) should reverse death sim teardown")
+		return 1
+	if not leftover:
+		push_error("HP rewind must leave committed death presentation until revive()")
 		return 1
 	return 0
 

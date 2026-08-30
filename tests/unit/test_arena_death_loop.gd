@@ -64,11 +64,26 @@ func _test_rewind_revive_stops_limp() -> int:
 		holder.queue_free()
 		push_error("HP 0 should start death physics")
 		return 1
+	var corpse_after_death := _corpse_child(holder)
 	player.current_health = player.max_health
-	var ok := player.is_alive() and not player.is_death_physics()
+	var sim_ok := player.is_alive() and not player.is_death_physics()
+	var corpse_sticky := (
+		corpse_after_death != null
+		and is_instance_valid(corpse_after_death)
+		and not corpse_after_death.is_queued_for_deletion()
+	)
+	player.revive()
+	var cleared := _corpse_child(holder)
+	var revive_ok := cleared == null or cleared.is_queued_for_deletion()
 	holder.queue_free()
-	if not ok:
+	if not sim_ok:
 		push_error("Rewind restoring HP must stop death physics")
+		return 1
+	if not corpse_sticky:
+		push_error("HP rewind must not un-commit a death corpse")
+		return 1
+	if not revive_ok:
+		push_error("revive() must clear the committed death corpse")
 		return 1
 	return 0
 

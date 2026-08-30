@@ -199,7 +199,7 @@ static func spawn_player_prop(player: Node3D, hit_dir: Vector3) -> MonsterCorpse
 	return spawn_prop(player, hit_dir, false)
 
 
-## Dump death: same rigid flop as the player corpse. Living node stays for rewind.
+## Dump death: same rigid flop as the player corpse. Living node stays; Death commits the prop.
 static func spawn_dump_prop(monster: Node3D, hit_dir: Vector3) -> MonsterCorpse:
 	return spawn_prop(monster, hit_dir, true)
 
