@@ -289,8 +289,11 @@ func commit_corpse(pending_knock: Vector3 = Vector3.ZERO) -> void:
 		opts["impulse"] = pending_knock
 	elif is_knocked():
 		opts["impulse"] = velocity
-	death_corpse = Corpse.spawn(self, _last_hit_dir, opts)
 	_set_living_meshes_visible(false)
+	if NetClockScript.is_session_multiplayer():
+		Corpse.request_multiplayer_spawn(self, _last_hit_dir, opts)
+	else:
+		death_corpse = Corpse.spawn(self, _last_hit_dir, opts)
 
 
 func clear_corpse() -> void:

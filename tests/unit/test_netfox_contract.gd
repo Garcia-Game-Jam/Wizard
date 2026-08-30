@@ -110,6 +110,13 @@ func _test_profile_split() -> int:
 	if not cover_state.has(":cover_t") or not cover_state.has(":home"):
 		push_error("Cover restage must rewind height and home")
 		failures += 1
+	var corpse_state := Profiles.state_paths(Profiles.CORPSE)
+	if not corpse_state.has(":net_linear_velocity") or not corpse_state.has(":net_angular_velocity"):
+		push_error("Corpse ragdoll must rewind net_linear_velocity and net_angular_velocity")
+		failures += 1
+	if corpse_state.has(":linear_velocity") or corpse_state.has(":velocity"):
+		push_error("Corpse profile must use net velocity fields, not engine velocity")
+		failures += 1
 	if not charge_state.has("Head:rotation"):
 		push_error("Charger bow must be rewindable pose, not a late interpolator ghost")
 		failures += 1
