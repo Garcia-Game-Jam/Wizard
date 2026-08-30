@@ -58,7 +58,7 @@ func _test_finish_applies_damage_and_knockback(tree: SceneTree) -> int:
 	var max_hp := target.max_health
 	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 4.7), Vector3(0.0, 0.0, 1.0))
 
-	stone.call("_finish", true, true)
+	stone.call("_finish", true)
 
 	var err := ""
 	if is_equal_approx(target.current_health, max_hp):
@@ -112,7 +112,7 @@ func _test_catchup_does_not_apply_payload(tree: SceneTree) -> int:
 	var max_hp := target.max_health
 	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 4.7), Vector3(0.0, 0.0, 1.0))
 	stone._combat_enabled = false
-	stone.call("_finish", true, true)
+	stone.call("_finish", true)
 	var ok := is_equal_approx(target.current_health, max_hp)
 	holder.queue_free()
 	if ok:

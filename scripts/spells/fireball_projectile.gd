@@ -23,6 +23,7 @@ const FireballFlightScript := preload("res://scripts/spells/fireball_flight.gd")
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const NetDisplayCommitScript := preload("res://scripts/net/net_display_commit.gd")
 
 @export_group("Cast timing")
 ## Hold time until the tip orb is ready to launch. Drives charge animation too.
@@ -254,6 +255,9 @@ var _combat_enabled := true
 var _preview_material_ready := false
 ## 0..1 visual scale driven by charge (trails + impact FX).
 var _charge_fx_scale := 1.0
+var _fx_committed := false
+var _impact_fx_parent: Node = null
+var _impact_fx_pos := Vector3.ZERO
 
 
 static func spawn(
@@ -364,6 +368,7 @@ func _ready() -> void:
 	_prepare_runtime_materials()
 	_apply_preview_fx()
 	_update_process_state()
+	NetDisplayCommitScript.bind(_commit_impact_fx)
 	if Engine.is_editor_hint() and not _is_lookdev_flight():
 		set_physics_process(false)
 		return
@@ -382,6 +387,10 @@ func _ready() -> void:
 	_position_trail_emitters()
 
 	set_physics_process(true)
+
+
+func _exit_tree() -> void:
+	NetDisplayCommitScript.unbind(_commit_impact_fx)
 
 
 func _process(delta: float) -> void:
@@ -702,15 +711,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if NetLivenessScript.skip_engine_physics():
 		return
-	_simulate_flight(delta, true)
+	_simulate_flight(delta)
 
 
-func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
-	_simulate_flight(delta, is_fresh)
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_simulate_flight(delta)
 
 
 func _rollback_spawn() -> void:
 	_finished = false
+	_fx_committed = false
 	NetLivenessScript.activate(self)
 
 
@@ -733,25 +743,25 @@ func simulate_from_tick(fired_tick: int) -> void:
 	for _tick in range(fired_tick, now):
 		if _finished:
 			break
-		_simulate_flight(tick_time, false)
+		_simulate_flight(tick_time)
 	_combat_enabled = true
 
 
-func _simulate_flight(delta: float, is_fresh: bool) -> void:
+func _simulate_flight(delta: float) -> void:
 	if _finished or not is_inside_tree():
 		return
 	_elapsed += delta
 	if FireballFlightScript.should_finish_normal(_elapsed):
-		_finish(null, false, is_fresh)
+		_finish(null, false)
 		return
 
 	var motion: Vector3 = _direction * _speed * delta
-	if _try_block_ward_overlap(is_fresh):
+	if _try_block_ward_overlap():
 		return
-	if _cast_motion_hit(motion, is_fresh):
+	if _cast_motion_hit(motion):
 		return
 	global_position += motion
-	_probe_players(is_fresh)
+	_probe_players()
 
 
 func apply_net_launch(origin: Vector3, direction: Vector3, charge_factor: float = 1.0) -> void:
@@ -761,7 +771,7 @@ func apply_net_launch(origin: Vector3, direction: Vector3, charge_factor: float 
 	apply_charge_power(charge_factor)
 
 
-func _cast_motion_hit(motion: Vector3, is_fresh: bool = true) -> bool:
+func _cast_motion_hit(motion: Vector3) -> bool:
 	if not is_inside_tree() or _hit_shape == null:
 		return false
 	var space_state := get_world_3d().direct_space_state
@@ -780,24 +790,24 @@ func _cast_motion_hit(motion: Vector3, is_fresh: bool = true) -> bool:
 	if ward == null:
 		ward = _find_ward_in_group_proximity()
 	if ward != null:
-		_finish(ward, true, is_fresh)
+		_finish(ward, true)
 		return true
-	if _try_block_ward_overlap(is_fresh):
+	if _try_block_ward_overlap():
 		return true
-	if _probe_players(is_fresh):
+	if _probe_players():
 		return true
-	_finish(null, true, is_fresh)
+	_finish(null, true)
 	return true
 
 
-func _try_block_ward_overlap(is_fresh: bool = true) -> bool:
+func _try_block_ward_overlap() -> bool:
 	## Wards win over monster/player overlap at the impact point (ash ward charge, etc.).
 	if not is_inside_tree() or _hit_shape == null or _finished:
 		return false
 	var ward := _find_ward_hit()
 	if ward == null:
 		return false
-	_finish(ward, true, is_fresh)
+	_finish(ward, true)
 	return true
 
 
@@ -808,7 +818,7 @@ func _exclude_rids() -> Array:
 	return rids
 
 
-func _probe_players(is_fresh: bool = true) -> bool:
+func _probe_players() -> bool:
 	if not is_inside_tree() or _hit_shape == null:
 		return false
 	var space_state := get_world_3d().direct_space_state
@@ -820,25 +830,36 @@ func _probe_players(is_fresh: bool = true) -> bool:
 	var hits := space_state.intersect_shape(params, 8)
 	for hit in hits:
 		var collider: Variant = hit.get("collider")
-		if collider is Node3D and _try_hit_player(collider as Node3D, is_fresh):
+		if collider is Node3D and _try_hit_player(collider as Node3D):
 			return true
 	return false
 
 
-func _finish(blocked_by: Node = null, apply_splash: bool = false, is_fresh: bool = true) -> void:
+func _finish(blocked_by: Node = null, apply_splash: bool = false) -> void:
 	if _finished or not is_inside_tree():
 		return
 	_finished = true
 	_notify_ward_blocked(blocked_by)
-	var world_parent := get_parent()
-	var impact_pos := global_position
+	_impact_fx_parent = get_parent()
+	_impact_fx_pos = global_position
 	var ward := _ward_from_node(blocked_by) if blocked_by != null else null
 	if apply_splash and _combat_enabled and ward == null:
-		_apply_splash_at(impact_pos, blocked_by)
+		_apply_splash_at(_impact_fx_pos, blocked_by)
 	_clear_projectile_visuals()
-	if is_fresh:
-		FireballExplosionEffectScript.spawn(world_parent, impact_pos, _charge_fx_scale)
+	NetDisplayCommitScript.request(_commit_impact_fx)
 	NetLivenessScript.despawn_or_free(self)
+
+
+func _commit_impact_fx() -> void:
+	if _fx_committed or not _finished:
+		return
+	_fx_committed = true
+	var parent := _impact_fx_parent
+	if parent == null or not is_instance_valid(parent):
+		parent = get_parent()
+	if parent == null:
+		return
+	FireballExplosionEffectScript.spawn(parent, _impact_fx_pos, _charge_fx_scale)
 
 
 func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
@@ -951,7 +972,7 @@ func _clear_projectile_visuals() -> void:
 	set_process(false)
 
 
-func _try_hit_player(body: Node3D, is_fresh: bool = true) -> bool:
+func _try_hit_player(body: Node3D) -> bool:
 	## Name kept for call sites; also hits monsters / combat_target (not player-only).
 	if body == null or body == _caster:
 		return false
@@ -963,8 +984,8 @@ func _try_hit_player(body: Node3D, is_fresh: bool = true) -> bool:
 		return false
 	if not Character.is_node_alive(body):
 		return false
-	if _try_block_ward_overlap(is_fresh):
+	if _try_block_ward_overlap():
 		return true
 	## Named connect: this body, even if its root sits outside splash_radius.
-	_finish(body, true, is_fresh)
+	_finish(body, true)
 	return true

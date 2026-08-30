@@ -25,6 +25,7 @@ const StoneImpactEffectScript := preload("res://scripts/spells/stone_impact_effe
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const NetDisplayCommitScript := preload("res://scripts/net/net_display_commit.gd")
 
 @export_group("Cast timing")
 ## Hold time until the stone is ready to throw.
@@ -54,6 +55,9 @@ var _mesh: MeshInstance3D
 var _finished := false
 ## Catch-up from NetworkWeapon must not spend the payload — rollback will.
 var _combat_enabled := true
+var _fx_committed := false
+var _impact_fx_parent: Node = null
+var _impact_fx_pos := Vector3.ZERO
 
 
 static func spawn(
@@ -107,6 +111,7 @@ func _is_lookdev_flight() -> bool:
 func _ready() -> void:
 	_cache_nodes()
 	_sync_shape()
+	NetDisplayCommitScript.bind(_commit_impact_fx)
 	if Engine.is_editor_hint() and not _is_lookdev_flight():
 		set_physics_process(false)
 		return
@@ -117,6 +122,10 @@ func _ready() -> void:
 	collision_mask = 1
 	set_physics_process(true)
 	set_process(true)
+
+
+func _exit_tree() -> void:
+	NetDisplayCommitScript.unbind(_commit_impact_fx)
 
 
 func _cache_nodes() -> void:
@@ -153,15 +162,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if NetLivenessScript.skip_engine_physics():
 		return
-	_simulate_flight(delta, true)
+	_simulate_flight(delta)
 
 
-func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
-	_simulate_flight(delta, is_fresh)
+func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
+	_simulate_flight(delta)
 
 
 func _rollback_spawn() -> void:
 	_finished = false
+	_fx_committed = false
 	NetLivenessScript.activate(self)
 
 
@@ -184,7 +194,7 @@ func simulate_from_tick(fired_tick: int) -> void:
 	for _tick in range(fired_tick, now):
 		if _finished:
 			break
-		_simulate_flight(tick_time, false)
+		_simulate_flight(tick_time)
 	_combat_enabled = true
 
 
@@ -194,13 +204,13 @@ func apply_net_launch(origin: Vector3, direction: Vector3, _charge_factor: float
 		_direction = direction.normalized()
 
 
-func _simulate_flight(delta: float, is_fresh: bool) -> void:
+func _simulate_flight(delta: float) -> void:
 	if _finished or not is_inside_tree():
 		return
 	_elapsed += delta
 	if _elapsed >= MAX_LIFETIME_SEC:
 		## Fizzled mid-air — no target was ever close enough to warrant a splash.
-		_finish(false, is_fresh)
+		_finish(false)
 		return
 
 	var prev_pos := global_position
@@ -221,15 +231,15 @@ func _simulate_flight(delta: float, is_fresh: bool) -> void:
 	if SpellWardBlockScript.try_block_along_path(
 		get_tree(), prev_pos, global_position, hit_radius, hit_damage, _caster
 	):
-		_finish(false, is_fresh)
+		_finish(false)
 		return
 	var combat := _overlapping_combat_body()
 	if combat != null:
-		_finish(true, is_fresh, combat)
+		_finish(true, combat)
 		return
 	if stop_fraction < 1.0:
 		## Hit solid geometry — still splash in case a target is standing right there.
-		_finish(true, is_fresh)
+		_finish(true)
 
 
 func _exclude_rids() -> Array:
@@ -270,18 +280,29 @@ func _is_combat_body(body: Node3D) -> bool:
 	)
 
 
-func _finish(apply_splash: bool, is_fresh: bool, hit: Node = null) -> void:
+func _finish(apply_splash: bool, hit: Node = null) -> void:
 	if _finished or not is_inside_tree():
 		return
 	_finished = true
-	var world_parent := get_parent()
-	var impact_pos := global_position
+	_impact_fx_parent = get_parent()
+	_impact_fx_pos = global_position
 	if apply_splash and _combat_enabled:
-		_apply_splash_at(impact_pos, hit)
+		_apply_splash_at(_impact_fx_pos, hit)
 	_clear_projectile_visuals()
-	if is_fresh:
-		StoneImpactEffectScript.spawn(world_parent, impact_pos)
+	NetDisplayCommitScript.request(_commit_impact_fx)
 	NetLivenessScript.despawn_or_free(self)
+
+
+func _commit_impact_fx() -> void:
+	if _fx_committed or not _finished:
+		return
+	_fx_committed = true
+	var parent := _impact_fx_parent
+	if parent == null or not is_instance_valid(parent):
+		parent = get_parent()
+	if parent == null:
+		return
+	StoneImpactEffectScript.spawn(parent, _impact_fx_pos)
 
 
 func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
