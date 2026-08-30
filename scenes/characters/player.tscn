@@ -113,7 +113,7 @@ editor_description = "Charger ram stun: locks move/cast, ballistic launch, share
 script = ExtResource("10_stun")
 
 [node name="Death" type="Node" parent="." index="8"]
-editor_description = "Death presentation: ghost visuals + shoveable corpse. Commits after the tick loop; clears on revive()."
+editor_description = "Death presentation: ghost visuals + shoveable Corpse under Arena/Corpses. Commits after the tick loop; stage calls despawn(); revive only un-ghosts."
 script = ExtResource("13_death")
 
 [node name="StunStars" parent="." index="9" unique_id=1280587676 instance=ExtResource("11_stars")]

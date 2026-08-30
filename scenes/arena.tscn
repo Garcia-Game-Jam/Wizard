@@ -361,6 +361,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
 
 [node name="Monsters" type="Node3D" parent="." unique_id=185664855]
 
+[node name="Corpses" type="Node3D" parent="."]
+unique_name_in_owner = true
+
 [node name="SpellRegistry" type="Node" parent="." unique_id=232182131]
 script = ExtResource("6_registry")
 spells = Array[Resource]([ExtResource("15_fireball"), ExtResource("35_ward"), ExtResource("36_stone_throw")])

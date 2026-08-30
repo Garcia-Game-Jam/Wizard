@@ -60,7 +60,7 @@ static func _apply_to(
 ) -> void:
 	if body == null or body == skip:
 		return
-	if body is MonsterCorpse:
+	if body is Corpse:
 		_apply_knock_only(body as Node3D, origin, payload)
 		return
 	if not (body is Character):
@@ -80,8 +80,8 @@ static func _apply_knock_only(body: Node3D, origin: Vector3, payload: CombatPayl
 		if not (effect is Knock):
 			continue
 		var impulse := (effect as Knock).impulse
-		if body is MonsterCorpse:
-			(body as MonsterCorpse).apply_hit_knock(impulse)
+		if body is Corpse:
+			(body as Corpse).apply_hit_knock(impulse)
 		elif body is Character:
 			(body as Character).apply_knockback(impulse, impulse)
 

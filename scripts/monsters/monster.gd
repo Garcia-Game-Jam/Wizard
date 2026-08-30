@@ -117,7 +117,7 @@ var _cast_prefer_index: int = 0
 var _chase_move: MonsterChaseMove = null
 var _lookdev_aggro: Node3D = null
 var _sim_delta: float = 0.0
-var _saved_dump_layer: int = 1
+var _saved_death_layer: int = 1
 
 func _ready() -> void:
 	super._ready()
@@ -257,52 +257,53 @@ func restore_after_revive() -> void:
 	_enter_idle()
 
 
-func _death_uses_capsule_limp() -> bool:
-	return false
-
-
 func _on_death(_from: Node3D) -> void:
 	_end_ai_for_death()
-	_begin_dump_mechanics()
+	_begin_death_mechanics()
 
 
 func _on_stop_death_physics() -> void:
-	_end_dump_mechanics()
+	_end_death_mechanics()
 
 
-func _begin_dump_mechanics() -> void:
+func _begin_death_mechanics() -> void:
 	if collision_layer != 0:
-		_saved_dump_layer = collision_layer
+		_saved_death_layer = collision_layer
 	collision_layer = 0
 	collision_mask = 0
 
 
-func _end_dump_mechanics() -> void:
-	collision_layer = 1 if _saved_dump_layer == 0 else _saved_dump_layer
+func _end_death_mechanics() -> void:
+	collision_layer = 1 if _saved_death_layer == 0 else _saved_death_layer
 	collision_mask = 1
 	if not is_instance_valid(death_corpse):
 		_set_living_meshes_visible(true)
 
 
-func commit_dump_corpse(pending_knock: Vector3 = Vector3.ZERO) -> void:
+func commit_corpse(pending_knock: Vector3 = Vector3.ZERO) -> void:
 	if is_instance_valid(death_corpse):
 		return
-	_begin_dump_mechanics()
-	death_corpse = MonsterCorpse.spawn_dump_prop(self, _last_hit_dir)
+	_begin_death_mechanics()
+	var opts := {}
+	if pending_knock.length_squared() > 0.0001:
+		opts["impulse"] = pending_knock
+	elif is_knocked():
+		opts["impulse"] = velocity
+	death_corpse = Corpse.spawn(self, _last_hit_dir, opts)
 	_set_living_meshes_visible(false)
-	if is_instance_valid(death_corpse):
-		if pending_knock.length_squared() > 0.0001:
-			death_corpse.apply_hit_knock(pending_knock)
-		elif is_knocked():
-			death_corpse.apply_hit_knock(velocity)
 
 
-func clear_dump_corpse() -> void:
+func clear_corpse() -> void:
 	if is_instance_valid(death_corpse):
-		death_corpse.queue_free()
+		death_corpse.despawn()
 	death_corpse = null
 	_set_living_meshes_visible(true)
-	_end_dump_mechanics()
+
+
+## Stage owns the flop prop; revive only restores the living mesh/collision.
+func release_corpse_presentation() -> void:
+	_end_death_mechanics()
+	_set_living_meshes_visible(true)
 
 
 func _set_living_meshes_visible(meshes_on: bool) -> void:

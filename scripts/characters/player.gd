@@ -155,14 +155,6 @@ func _exit_tree() -> void:
 	NetworkManagerScript.disable_player_sync(self)
 
 
-func _death_should_tumble() -> bool:
-	return false
-
-
-func _death_uses_capsule_limp() -> bool:
-	return false
-
-
 func _on_death(_from: Node3D) -> void:
 	PlayerGhostScript.begin_mechanics(self)
 	if _wand_raised:
@@ -174,8 +166,8 @@ func _on_stop_death_physics() -> void:
 	PlayerGhostScript.end_mechanics(self)
 
 
-## Stage clear. Apply on the movement tick so HP is full before a death-ragdoll
-## can spawn at the pad. Solo has no tick loop — stand up now.
+## Stage clear. Sim stand-up on the movement tick; Death un-ghosts after the loop
+## while _pad_rez_pending suppresses a pad corpse. Solo has no tick loop — stand up now.
 func queue_pad_rez(world_pos: Vector3) -> void:
 	_pad_rez_pos = world_pos
 	_pad_rez_pending = true
@@ -187,15 +179,12 @@ func _stand_up_at_pad(is_fresh: bool) -> void:
 	if not _pad_rez_pending:
 		return
 	if is_alive() and not is_death_physics():
-		if is_fresh:
-			_pad_rez_pending = false
 		return
 	global_position = _pad_rez_pos
 	velocity = Vector3.ZERO
 	revive()
 	restore_after_revive()
 	if is_fresh:
-		_pad_rez_pending = false
 		NetLiveness.commit_pose(self)
 
 

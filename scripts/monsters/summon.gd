@@ -9,7 +9,6 @@ enum AggroMode { BOUND, HOST_MIRROR, COMMAND_HUNT, COMMAND_INVESTIGATE, RECALL }
 
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 const MonsterInterestScript := preload("res://scripts/monsters/monster_interest.gd")
-const MonsterCorpseScript := preload("res://scripts/monsters/monster_corpse.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 
@@ -267,7 +266,12 @@ func _on_death(_from: Node3D) -> void:
 	_alert_timer = 0.0
 	_cancel_cast()
 	_set_chase_eyes_active(false)
-	_spawn_ragdoll_corpse()
+	Corpse.spawn(self, _last_hit_dir, {
+		"reparent": true,
+		"impulse": Character._knockback_impulse(_last_hit_dir) * DEATH_IMPULSE_SCALE,
+		"linger_sec": death_linger_sec,
+		"fade_sec": death_fade_sec,
+	})
 	queue_free()
 
 
@@ -647,41 +651,3 @@ func _refresh_appearance() -> void:
 	if _body_mesh != null and _head_mesh != null:
 		_apply_character_color(body_tint)
 	_apply_eye_glow_from_health()
-
-
-func _spawn_ragdoll_corpse() -> void:
-	var parent_node := get_parent()
-	if parent_node == null or not is_inside_tree():
-		return
-	var corpse := RigidBody3D.new()
-	corpse.name = "%sCorpse" % name
-	corpse.set_script(MonsterCorpseScript)
-	parent_node.add_child(corpse)
-	corpse.global_transform = global_transform
-	_reparent_to_corpse(_body_collision, corpse)
-	_reparent_to_corpse(_body_mesh, corpse)
-	_reparent_to_corpse(head, corpse)
-	var impulse: Vector3 = Character._knockback_impulse(_last_hit_dir)
-	impulse *= DEATH_IMPULSE_SCALE
-	if corpse.has_method("begin_death_sequence"):
-		corpse.call(
-			"begin_death_sequence",
-			impulse,
-			death_linger_sec,
-			death_fade_sec
-		)
-
-
-func _reparent_to_corpse(node: Node, corpse: Node) -> void:
-	if node == null or corpse == null:
-		return
-	var xf: Transform3D
-	var is_spatial := node is Node3D
-	if is_spatial:
-		xf = (node as Node3D).global_transform
-	var old_parent := node.get_parent()
-	if old_parent != null:
-		old_parent.remove_child(node)
-	corpse.add_child(node)
-	if is_spatial:
-		(node as Node3D).global_transform = xf

@@ -1,16 +1,15 @@
-class_name MonsterCorpse
+class_name Corpse
 extends RigidBody3D
 
-## Player death clone: duplicated capsule + meshes. Engine rigid limp (impulse + torque).
-## Summon linger/fade still uses begin_death_sequence (not live-roster dumps).
+## Stage death prop: greybox RigidBody limp (impulse + torque, no skeleton).
+## All corpses spawn through Corpse.spawn(); stage clear calls despawn().
 
 const DEFAULT_LINGER_SEC := 30.0
 const DEFAULT_FADE_SEC := 3.0
-const DEFAULT_IMPULSE_SCALE := 1.35
 const TORQUE_STRENGTH := 1.6
 const WALK_NUDGE_MPS := 1.6
 
-const MonsterCorpseScript := preload("res://scripts/monsters/monster_corpse.gd")
+const CorpseScript := preload("res://scripts/characters/corpse.gd")
 
 var _fade_sec: float = DEFAULT_FADE_SEC
 var _materials: Array[StandardMaterial3D] = []
@@ -26,26 +25,55 @@ func _notification(what: int) -> void:
 		_release_materials()
 
 
-func begin_death_sequence(
-	impulse: Vector3,
-	linger_sec: float = DEFAULT_LINGER_SEC,
-	fade_sec: float = DEFAULT_FADE_SEC
-) -> void:
-	_arm_ragdoll(impulse, 0, false)
-	_fade_sec = maxf(0.05, fade_sec)
-	var wait_sec := maxf(0.0, linger_sec - _fade_sec)
-	var tree := get_tree()
-	if tree == null:
-		queue_free()
-		return
-	tree.create_timer(wait_sec).timeout.connect(_start_fade)
+## Stage clear / explicit teardown. Later: play an outro, then free.
+func despawn() -> void:
+	queue_free()
 
 
-func begin_player_limp(hit_dir: Vector3) -> void:
-	_arm_ragdoll(Character.death_slump_velocity(hit_dir), 1, true)
+## opts: impulse (Vector3), carry (Vector3), linger_sec, fade_sec, reparent (bool).
+static func spawn(
+	source: Node3D,
+	hit_dir: Vector3 = Vector3.FORWARD,
+	opts: Dictionary = {}
+) -> Corpse:
+	if source == null or not source.is_inside_tree():
+		return null
+	var parent_node := _stage_corpses_root(source)
+	if parent_node == null:
+		return null
+	var corpse := RigidBody3D.new()
+	corpse.name = "%sCorpse" % source.name
+	corpse.set_script(CorpseScript)
+	parent_node.add_child(corpse)
+	corpse.global_transform = source.global_transform
+	if bool(opts.get("reparent", false)):
+		_reparent_greybox(source, corpse)
+	else:
+		_duplicate_greybox(source, corpse)
+	var fading := opts.has("linger_sec")
+	var layer := 0 if fading else 1
+	var in_group := not fading
+	var slump := Character.death_slump_velocity(hit_dir)
+	var knock: Vector3 = opts.get("impulse", Vector3.ZERO)
+	var carry: Vector3 = opts.get("carry", Vector3.ZERO)
+	if fading and knock.length_squared() > 0.0001:
+		(corpse as Corpse)._setup_rigidbody(knock, layer, in_group)
+	elif knock.length_squared() > 0.0001:
+		(corpse as Corpse)._setup_rigidbody(slump, layer, in_group)
+		(corpse as Corpse).apply_hit_knock(knock)
+	else:
+		(corpse as Corpse)._setup_rigidbody(slump, layer, in_group)
+		if carry.length_squared() > 0.0001:
+			corpse.linear_velocity = carry
+	if fading:
+		(corpse as Corpse)._schedule_fade(
+			float(opts.get("linger_sec", DEFAULT_LINGER_SEC)),
+			float(opts.get("fade_sec", DEFAULT_FADE_SEC))
+		)
+	return corpse as Corpse
 
 
-func _arm_ragdoll(impulse: Vector3, layer: int, in_corpse_group: bool) -> void:
+func _setup_rigidbody(impulse: Vector3, layer: int, in_corpse_group: bool) -> void:
 	collision_layer = layer
 	collision_mask = 1
 	mass = 4.5
@@ -57,6 +85,16 @@ func _arm_ragdoll(impulse: Vector3, layer: int, in_corpse_group: bool) -> void:
 	_collect_materials()
 	apply_central_impulse(impulse)
 	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
+
+
+func _schedule_fade(linger_sec: float, fade_sec: float) -> void:
+	_fade_sec = maxf(0.05, fade_sec)
+	var wait_sec := maxf(0.0, linger_sec - _fade_sec)
+	var tree := get_tree()
+	if tree == null:
+		despawn()
+		return
+	tree.create_timer(wait_sec).timeout.connect(_start_fade)
 
 
 ## Killing knock: Character treats impulse as velocity. Replace the slump.
@@ -79,25 +117,25 @@ static func nudge_from_slide(walker: CharacterBody3D) -> void:
 	for i in walker.get_slide_collision_count():
 		var col := walker.get_slide_collision(i)
 		var hit := col.get_collider()
-		if not (hit is MonsterCorpse):
+		if not (hit is Corpse):
 			continue
 		var n := col.get_normal()
 		var push := Vector3(-n.x, 0.0, -n.z)
 		if push.length_squared() < 0.0001:
 			push = Vector3(walker.velocity.x, 0.0, walker.velocity.z)
-		(hit as MonsterCorpse).apply_walk_nudge(push)
+		(hit as Corpse).apply_walk_nudge(push)
 
 
-static func resolve_from(node: Node) -> MonsterCorpse:
+static func resolve_from(node: Node) -> Corpse:
 	var n := node
 	while n != null:
-		if n is MonsterCorpse:
-			return n as MonsterCorpse
+		if n is Corpse:
+			return n as Corpse
 		n = n.get_parent()
 	return null
 
 
-static func ram_if_new(corpse: MonsterCorpse, hits: Dictionary, vel: Vector3) -> void:
+static func ram_if_new(corpse: Corpse, hits: Dictionary, vel: Vector3) -> void:
 	if corpse == null:
 		return
 	var id := corpse.get_instance_id()
@@ -176,7 +214,7 @@ func _start_fade() -> void:
 			live_mats.append(mat)
 	_materials = live_mats
 	if _materials.is_empty():
-		queue_free()
+		despawn()
 		return
 	for mat in _materials:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -191,39 +229,34 @@ func _start_fade() -> void:
 		var clear := Color(mat.albedo_color.r, mat.albedo_color.g, mat.albedo_color.b, 0.0)
 		_fade_tween.tween_property(mat, "albedo_color", clear, _fade_sec)
 	_fade_tween.set_parallel(false)
-	_fade_tween.tween_callback(queue_free)
+	_fade_tween.tween_callback(despawn)
 
 
-## Duplicate meshes + capsule. Do not reparent Head — the camera lives there.
-static func spawn_player_prop(player: Node3D, hit_dir: Vector3) -> MonsterCorpse:
-	return spawn_prop(player, hit_dir, false)
+static func _stage_corpses_root(from: Node) -> Node:
+	var n := from
+	while n != null:
+		var c := n.get_node_or_null("Corpses")
+		if c != null:
+			return c
+		n = n.get_parent()
+	return from.get_parent() if from != null else null
 
 
-## Dump death: same rigid flop as the player corpse. Living node stays; Death commits the prop.
-static func spawn_dump_prop(monster: Node3D, hit_dir: Vector3) -> MonsterCorpse:
-	return spawn_prop(monster, hit_dir, true)
-
-
-static func spawn_prop(source: Node3D, hit_dir: Vector3, include_head: bool) -> MonsterCorpse:
-	if source == null or not source.is_inside_tree():
-		return null
-	var parent_node := source.get_parent()
-	if parent_node == null:
-		return null
-	var corpse := RigidBody3D.new()
-	corpse.name = "%sCorpse" % source.name
-	corpse.set_script(MonsterCorpseScript)
-	parent_node.add_child(corpse)
-	corpse.global_transform = source.global_transform
+static func _duplicate_greybox(source: Node3D, corpse: Node) -> void:
 	_duplicate_node(source.get_node_or_null("%CollisionShape3D"), corpse)
 	_duplicate_node(source.get_node_or_null("%Body"), corpse)
-	if include_head:
-		_duplicate_node(source.get_node_or_null("%Head"), corpse)
-	else:
-		_duplicate_node(source.get_node_or_null("%HeadMesh"), corpse)
-	if corpse.has_method("begin_player_limp"):
-		corpse.call("begin_player_limp", hit_dir)
-	return corpse as MonsterCorpse
+	_duplicate_node(source.get_node_or_null("%HeadMesh"), corpse)
+
+
+static func _reparent_greybox(source: Node3D, corpse: Node) -> void:
+	for child in source.get_children():
+		if child is CollisionShape3D:
+			_reparent_node(child, corpse)
+	_reparent_node(source.get_node_or_null("%Body"), corpse)
+	var mid := source.get_node_or_null("%MidBody")
+	if mid != null:
+		_reparent_node(mid, corpse)
+	_reparent_node(source.get_node_or_null("%Head"), corpse)
 
 
 static func _duplicate_node(node: Node, corpse: Node) -> void:
@@ -235,35 +268,6 @@ static func _duplicate_node(node: Node, corpse: Node) -> void:
 	corpse.add_child(copy)
 	if node is Node3D and copy is Node3D:
 		(copy as Node3D).global_transform = (node as Node3D).global_transform
-
-
-static func spawn_from_monster(
-	monster: Node,
-	hit_dir: Vector3,
-	linger_sec: float,
-	fade_sec: float,
-	impulse_scale: float = DEFAULT_IMPULSE_SCALE
-) -> void:
-	if monster == null or not monster.is_inside_tree():
-		return
-	var parent_node := monster.get_parent()
-	if parent_node == null:
-		return
-	var corpse := RigidBody3D.new()
-	corpse.name = "%sCorpse" % monster.name
-	corpse.set_script(MonsterCorpseScript)
-	parent_node.add_child(corpse)
-	if monster is Node3D:
-		corpse.global_transform = (monster as Node3D).global_transform
-	for child in monster.get_children():
-		if child is CollisionShape3D:
-			_reparent_node(child, corpse)
-	_reparent_node(monster.get_node_or_null("%Body"), corpse)
-	_reparent_node(monster.get_node_or_null("%MidBody"), corpse)
-	_reparent_node(monster.get_node_or_null("%Head"), corpse)
-	var impulse: Vector3 = Character._knockback_impulse(hit_dir) * impulse_scale
-	if corpse.has_method("begin_death_sequence"):
-		corpse.call("begin_death_sequence", impulse, linger_sec, fade_sec)
 
 
 static func _reparent_node(node: Node, corpse: Node) -> void:

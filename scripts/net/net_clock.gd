@@ -76,7 +76,7 @@ static func _nudge_corpses(body: CharacterBody3D) -> void:
 		return
 	if is_session_multiplayer() and not body.is_multiplayer_authority():
 		return
-	MonsterCorpse.nudge_from_slide(body)
+	Corpse.nudge_from_slide(body)
 
 
 ## Chunks a slide so each move_and_slide stays inside the collision radius.

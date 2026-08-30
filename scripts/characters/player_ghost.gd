@@ -24,16 +24,13 @@ static func commit(player: Player, pending_knock: Vector3 = Vector3.ZERO) -> voi
 	if player == null or player.is_alive():
 		return
 	begin_mechanics(player)
-	var carry := player.velocity
 	if not is_instance_valid(player.death_corpse) and not player._pad_rez_pending:
-		player.death_corpse = MonsterCorpse.spawn_player_prop(
-			player, player._last_hit_dir
-		)
-	if is_instance_valid(player.death_corpse):
+		var opts := {}
 		if pending_knock.length_squared() > 0.0001:
-			player.death_corpse.apply_hit_knock(pending_knock)
-		elif carry.length_squared() > 0.0001:
-			player.death_corpse.linear_velocity = carry
+			opts["impulse"] = pending_knock
+		else:
+			opts["carry"] = player.velocity
+		player.death_corpse = Corpse.spawn(player, player._last_hit_dir, opts)
 	player.velocity = Vector3.ZERO
 	_apply_visuals(player, true)
 
@@ -45,14 +42,16 @@ static func end_mechanics(player: Player) -> void:
 	player.collision_layer = 1 if layer == 0 else layer
 
 
-static func clear(player: Player) -> void:
+## Living look + collision. Stage owns freeing the shoveable corpse prop.
+static func end_ghost(player: Player) -> void:
 	if player == null:
 		return
-	if is_instance_valid(player.death_corpse):
-		player.death_corpse.queue_free()
-	player.death_corpse = null
 	_apply_visuals(player, false)
 	end_mechanics(player)
+
+
+static func clear(player: Player) -> void:
+	end_ghost(player)
 
 
 ## Offline / test helper: mechanics + presentation in one step.
@@ -61,7 +60,7 @@ static func enter(player: Player) -> void:
 
 
 static func exit(player: Player) -> void:
-	clear(player)
+	end_ghost(player)
 
 
 static func tick(player: Player, delta: float, net_input: Object) -> void:

@@ -37,6 +37,7 @@ var _corpse_beat := 0.0
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
+@onready var corpses_root: Node3D = %Corpses
 @onready var pads_root: Node3D = $Pads
 @onready var cover_root: Node3D = $Cover
 @onready var spawn_telegraph: Node3D = $SpawnTelegraph
@@ -307,6 +308,7 @@ func _host_resolve_fight() -> void:
 @rpc("authority", "call_local", "reliable")
 func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
 	_pending_encounter = encounter_index
+	_clear_stage_corpses()
 	_revive_dead_players()
 	if restage_cover:
 		_restage_cover(encounter_index)
@@ -391,6 +393,14 @@ func _revive_dead_players() -> void:
 			continue
 		_revive_at(player, _spawn_for_player(player))
 	_intentional_revive = false
+
+
+func _clear_stage_corpses() -> void:
+	if corpses_root == null:
+		return
+	for child in corpses_root.get_children():
+		if child is Corpse:
+			(child as Corpse).despawn()
 
 
 func _revive_at(player: Player, world_pos: Vector3) -> void:
@@ -514,7 +524,7 @@ func _live_monster_count() -> int:
 	for child in monsters_root.get_children():
 		if not is_instance_valid(child) or child.is_queued_for_deletion():
 			continue
-		if child is MonsterCorpse:
+		if child is Corpse:
 			continue
 		if not (child is Character):
 			continue
