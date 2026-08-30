@@ -1,20 +1,13 @@
 class_name PlayerStun
 extends Node
 
-## Authored under Player/Stun. Locks move + cast, applies a launch
-## velocity, then stays stunned after landing. Movement is move_and_slide.
+## Player/Stun: rewindable lock + launch. Stars follow _stunned after the tick loop.
 
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
+const NetClockScript := preload("res://scripts/net/net_clock.gd")
 
 const POST_LAND_STUN_SEC := 1.5
 const MIN_AIR_SEC := 0.2
-const OVERLAY_WORD := "stunned"
-
-@export var visual_active: bool = false:
-	set(value):
-		visual_active = value
-		if is_inside_tree():
-			_sync_visuals()
 
 var _player: CharacterBody3D = null
 var _stunned: bool = false
@@ -30,7 +23,19 @@ var _cam_stars: Node = null
 
 func _ready() -> void:
 	_ensure_player()
+	var nt := get_tree().root.get_node_or_null("NetworkTime") if is_inside_tree() else null
+	if nt != null and nt.has_signal("after_tick_loop"):
+		nt.after_tick_loop.connect(_sync_visuals)
 	_sync_visuals()
+
+
+func _exit_tree() -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var nt := tree.root.get_node_or_null("NetworkTime")
+	if nt != null and nt.after_tick_loop.is_connected(_sync_visuals):
+		nt.after_tick_loop.disconnect(_sync_visuals)
 
 
 func _ensure_player() -> CharacterBody3D:
@@ -52,9 +57,10 @@ func begin_charger_hit(launch_vel: Vector3, _gravity: float = 18.0) -> void:
 	_ensure_player()
 	if not is_instance_valid(_player):
 		return
-	if not _player.is_multiplayer_authority() and GameState.is_multiplayer:
+	if GameState.is_multiplayer and not _player.is_multiplayer_authority():
 		return
-	_cancel_player_actions()
+	if _player.has_method("_cancel_spell_fire_charge"):
+		_player.call("_cancel_spell_fire_charge", true)
 	_launch_vel = launch_vel
 	_player.velocity = launch_vel
 	_saved_floor_snap = _player.floor_snap_length
@@ -63,17 +69,8 @@ func begin_charger_hit(launch_vel: Vector3, _gravity: float = 18.0) -> void:
 	_airborne = true
 	_min_air_left = MIN_AIR_SEC
 	_post_land_left = 0.0
-	visual_active = true
-
-
-@rpc("any_peer", "call_remote", "reliable")
-func rpc_begin_charger_hit(launch_vel: Vector3) -> void:
-	if GameState.is_multiplayer:
-		var sender := multiplayer.get_remote_sender_id()
-		if sender != 0 and sender != 1:
-			return
-	_ensure_player()
-	begin_charger_hit(launch_vel, 18.0)
+	if not NetClockScript.is_ticking():
+		_sync_visuals()
 
 
 func tick_physics(player: CharacterBody3D, delta: float, gravity: float) -> void:
@@ -98,22 +95,14 @@ func after_slide(player: CharacterBody3D) -> void:
 		return
 	if _min_air_left > 0.0:
 		return
-	if SlideSurfaceScript.hit_walkable_floor(player):
-		_begin_post_land()
-		return
-	if player.is_on_floor():
-		_begin_post_land()
-
-
-func _begin_post_land() -> void:
-	_airborne = false
-	_min_air_left = 0.0
-	_launch_vel = Vector3.ZERO
-	_post_land_left = POST_LAND_STUN_SEC
-	if is_instance_valid(_player):
-		_player.velocity.x = 0.0
-		_player.velocity.z = 0.0
-		_player.floor_snap_length = _saved_floor_snap
+	if SlideSurfaceScript.hit_walkable_floor(player) or player.is_on_floor():
+		_airborne = false
+		_min_air_left = 0.0
+		_launch_vel = Vector3.ZERO
+		_post_land_left = POST_LAND_STUN_SEC
+		player.velocity.x = 0.0
+		player.velocity.z = 0.0
+		player.floor_snap_length = _saved_floor_snap
 
 
 func _end_stun() -> void:
@@ -124,14 +113,8 @@ func _end_stun() -> void:
 	_launch_vel = Vector3.ZERO
 	if is_instance_valid(_player):
 		_player.floor_snap_length = _saved_floor_snap
-	visual_active = false
-
-
-func _cancel_player_actions() -> void:
-	if not is_instance_valid(_player):
-		return
-	if _player.has_method("_cancel_spell_fire_charge"):
-		_player.call("_cancel_spell_fire_charge", true)
+	if not NetClockScript.is_ticking():
+		_sync_visuals()
 
 
 func _cache_fx_nodes() -> void:
@@ -142,49 +125,32 @@ func _cache_fx_nodes() -> void:
 		return
 	_world_stars = _player.get_node_or_null("StunStars")
 	var cam := _player.get_node_or_null("%FirstPersonCamera") as Camera3D
-	if not is_instance_valid(cam):
+	if cam == null:
 		return
 	_overlay_root = cam.get_node_or_null("StunOverlay") as Node3D
-	if not is_instance_valid(_overlay_root):
-		_overlay_root = null
+	if _overlay_root == null:
 		return
 	_cam_stars = _overlay_root.get_node_or_null("StunStars")
 	var word := _overlay_root.get_node_or_null("StunnedWord") as Label3D
 	if word != null:
-		word.text = OVERLAY_WORD
+		word.text = "stunned"
 
 
-func _uses_local_view() -> bool:
-	if not is_instance_valid(_player):
-		return false
-	if _player.has_method("_uses_local_view"):
-		return bool(_player.call("_uses_local_view"))
-	return true
-
-
-func _drop_invalid_fx() -> void:
-	if not is_instance_valid(_player):
-		_player = null
+func _sync_visuals() -> void:
+	_ensure_player()
 	if not is_instance_valid(_overlay_root):
 		_overlay_root = null
 	if not is_instance_valid(_cam_stars):
 		_cam_stars = null
 	if not is_instance_valid(_world_stars):
 		_world_stars = null
-
-
-func _set_stars_active(node: Variant, on: bool) -> void:
-	if not is_instance_valid(node):
-		return
-	if node.has_method("set_active"):
-		node.call("set_active", on)
-
-
-func _sync_visuals() -> void:
-	_drop_invalid_fx()
-	var on := visual_active
-	var local_view := on and _uses_local_view()
+	var on := _stunned
+	var local_view := on and is_instance_valid(_player) and (
+		bool(_player.call("_uses_local_view")) if _player.has_method("_uses_local_view") else true
+	)
 	if is_instance_valid(_overlay_root):
 		_overlay_root.visible = local_view
-	_set_stars_active(_cam_stars, local_view)
-	_set_stars_active(_world_stars, on and not local_view)
+	if is_instance_valid(_cam_stars) and _cam_stars.has_method("set_active"):
+		_cam_stars.call("set_active", local_view)
+	if is_instance_valid(_world_stars) and _world_stars.has_method("set_active"):
+		_world_stars.call("set_active", on and not local_view)

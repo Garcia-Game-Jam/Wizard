@@ -39,7 +39,6 @@ const NET_STATE_EXTRA: PackedStringArray = [
 	":net_wand_raised",
 	":net_charge_factor",
 	":net_flashlight",
-	"Stun:visual_active",
 	"Stun:_stunned",
 	"Stun:_airborne",
 	"Stun:_post_land_left",
