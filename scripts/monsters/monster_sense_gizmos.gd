@@ -9,6 +9,7 @@ enum LosKind { FACING, CLEAR, BLOCKED, UNSEEN }
 
 const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_gizmos.gd")
 const MonsterSightSenseScript := preload("res://scripts/monsters/monster_sight_sense.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 const DISC_HEIGHT := 0.02
 const CONE_SEGMENTS := 24
@@ -432,7 +433,7 @@ func _ray_hit_point(from_pt: Vector3, to_pt: Vector3) -> Vector3:
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
-	query.collision_mask = 1
+	query.collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	var exclude: Array = []
 	var host := get_parent()
 	if host is CollisionObject3D:

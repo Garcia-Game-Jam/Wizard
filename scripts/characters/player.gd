@@ -39,7 +39,6 @@ const NET_STATE_EXTRA: PackedStringArray = [
 	":net_wand_raised",
 	":net_charge_factor",
 	":net_flashlight",
-	"Stun:visual_active",
 	"Stun:_stunned",
 	"Stun:_airborne",
 	"Stun:_post_land_left",
@@ -105,6 +104,7 @@ var net_wand_raised: bool = false
 var net_charge_factor: float = 0.0
 var net_flashlight: bool = false
 var saved_collision_layer: int = 1
+var saved_collision_mask: int = CollisionLayersScript.CHARACTER_AND_WORLD
 
 var _spell_loadout: Node
 var _casting_session: SpellCastingSession
@@ -154,29 +154,23 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	NetworkManagerScript.disable_player_sync(self)
-
-
-func _death_should_tumble() -> bool:
-	return false
-
-
-func _death_uses_capsule_limp() -> bool:
-	return false
+	if not is_alive() or is_death_physics():
+		PlayerGhostScript.clear(self)
 
 
 func _on_death(_from: Node3D) -> void:
-	PlayerGhostScript.enter(self)
+	PlayerGhostScript.begin_mechanics(self)
 	if _wand_raised:
 		_lower_wand(true)
 	_cancel_spell_fire_charge(true)
 
 
 func _on_stop_death_physics() -> void:
-	PlayerGhostScript.exit(self)
+	PlayerGhostScript.end_mechanics(self)
 
 
-## Stage clear. Apply on the movement tick so HP is full before a death-ragdoll
-## can spawn at the pad. Solo has no tick loop — stand up now.
+## Stage clear. Sim stand-up on the movement tick; Death un-ghosts after the loop
+## while _pad_rez_pending suppresses a pad corpse. Solo has no tick loop — stand up now.
 func queue_pad_rez(world_pos: Vector3) -> void:
 	_pad_rez_pos = world_pos
 	_pad_rez_pending = true
@@ -188,15 +182,12 @@ func _stand_up_at_pad(is_fresh: bool) -> void:
 	if not _pad_rez_pending:
 		return
 	if is_alive() and not is_death_physics():
-		if is_fresh:
-			_pad_rez_pending = false
 		return
 	global_position = _pad_rez_pos
 	velocity = Vector3.ZERO
 	revive()
 	restore_after_revive()
 	if is_fresh:
-		_pad_rez_pending = false
 		NetLiveness.commit_pose(self)
 
 
@@ -571,8 +562,12 @@ func _on_wand_cast_failed(
 
 
 func _separate_from_players() -> void:
+	if not is_alive():
+		return
 	for node in get_tree().get_nodes_in_group("player"):
 		if node == self or not node is CharacterBody3D:
+			continue
+		if node is Character and not (node as Character).is_alive():
 			continue
 
 		var other: CharacterBody3D = node as CharacterBody3D

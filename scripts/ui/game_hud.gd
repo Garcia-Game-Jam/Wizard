@@ -314,6 +314,8 @@ func hide_mana() -> void:
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
+	if _health_pool == null or not is_instance_valid(_health_pool):
+		return
 	_apply_health_bar(current, maximum)
 
 

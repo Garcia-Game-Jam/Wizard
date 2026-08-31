@@ -16,6 +16,7 @@ signal revived
 
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 const DEFAULT_MAX_HEALTH := 100.0
 
@@ -28,13 +29,8 @@ const KNOCKBACK_DECAY := 28.0
 const KNOCKBACK_HORIZONTAL := 9.0
 const KNOCKBACK_UP := 3.5
 const DEATH_IMPULSE_SCALE := 1.35
-const DEATH_GRAVITY := 18.0
-const DEATH_SPIN_RAD := 9.0
-const DEATH_SPIN_DAMP := 5.0
 const DEATH_SLUMP_HORIZONTAL := 1.2
 const DEATH_SLUMP_UP := 0.6
-const DEATH_SLUMP_SPIN := 3.2
-const DEATH_LIMP_DAMP := 7.0
 const CORPSE_GROUP := &"corpse"
 const EYE_EMISSION_ENERGY := 5.5
 const EYE_LIGHT_ENERGY := 2.6
@@ -102,8 +98,8 @@ const NET_STATE_PATHS: PackedStringArray = [
 
 var net_phase: int = 0
 var net_telegraph: float = 0.0
-## RigidBody clone while dead (player ghost + dump flop). Not rewindable.
-var death_corpse: MonsterCorpse = null
+## RigidBody clone while dead (player ghost + monster flop). Presentation; stage frees props.
+var death_corpse: Corpse = null
 var _knockback_vel: Vector3 = Vector3.ZERO
 var _knockback_timer: float = 0.0
 var _host_apply_depth: int = 0
@@ -115,8 +111,6 @@ var _eye_light: OmniLight3D = null
 var _eyes_chasing: bool = false
 var _death_physics_active := false
 var _saved_floor_snap := 0.1
-var _death_bones: PhysicalBoneSimulator3D = null
-var _death_ang_vel: Vector3 = Vector3.ZERO
 
 ## Optional: scenes that author no Head/Body (test probes) leave these null and
 ## the appearance helpers below become no-ops.
@@ -126,6 +120,8 @@ var _death_ang_vel: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
+	collision_layer = CollisionLayersScript.CHARACTER
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	current_health = max_health
 	call_deferred("_bind_rewindable")
 
@@ -307,7 +303,7 @@ func _on_damaged(amount: float, from: Variant) -> void:
 	_on_hurt(amount, source)
 
 
-## Shared death teardown: leave combat targeting, start limp. HP rewind can reverse this.
+## Sim death: leave combat targeting, start limp. Corpse/ghost wait for Death.commit.
 func _on_died(from: Variant) -> void:
 	for group in _combat_groups():
 		if is_in_group(group):
@@ -329,12 +325,12 @@ func _on_hurt(_amount: float, _from: Node3D) -> void:
 	pass
 
 
-## Per-type death outcome (corpse, ragdoll, respawn).
+## Per-type sim death (AI stop, ghost collision). Presentation is Death.commit.
 func _on_death(_from: Node3D) -> void:
 	pass
 
 
-## Undo death teardown after revive() or rewind restoring HP above 0.
+## Undo sim death after revive() or rewind restoring HP above 0. Corpse stays for the stage.
 func restore_after_revive() -> void:
 	var dying := _death_physics_active
 	stop_death_physics()
@@ -362,93 +358,37 @@ func is_death_physics() -> bool:
 	return _death_physics_active
 
 
-## Greybox: authored capsule + impulse + tumble. Simulated in the same tick
-## path as living motion so rewind records limp pose. Do not mutate
-## RollbackSynchronizer state_properties here — that frees history subjects.
-## Art scenes: if a PhysicalBoneSimulator3D is present, start that instead.
+## Dead sim mode (ghost flight / AI off). Corpse flop is Corpse.spawn().
 func begin_death_physics() -> void:
 	if _death_physics_active:
 		return
 	_death_physics_active = true
 	_saved_floor_snap = floor_snap_length
 	floor_snap_length = 0.0
-	if _death_uses_capsule_limp():
-		add_to_group(CORPSE_GROUP)
-		_death_bones = _physical_bone_simulator()
-		if _death_bones != null:
-			_death_bones.physical_bones_start_simulation()
-			_death_ang_vel = Vector3.ZERO
-		else:
-			if _knockback_timer <= 0.0:
-				velocity += death_slump_velocity(_last_hit_dir)
-				_death_ang_vel = death_tumble_spin(DEATH_SLUMP_SPIN)
-			else:
-				_death_ang_vel = death_tumble_spin(DEATH_SPIN_RAD)
 	set_physics_process(true)
 
 
 func stop_death_physics() -> void:
 	if not _death_physics_active:
 		return
-	if _death_bones != null:
-		_death_bones.physical_bones_stop_simulation()
-		_death_bones = null
 	_death_physics_active = false
-	_death_ang_vel = Vector3.ZERO
 	floor_snap_length = _saved_floor_snap
 	velocity = Vector3.ZERO
-	if is_in_group(CORPSE_GROUP):
-		remove_from_group(CORPSE_GROUP)
 	_on_stop_death_physics()
 
 
 ## Engine _physics_process. True = caller should return.
-func tick_death_physics_if_active(delta: float) -> bool:
+func tick_death_physics_if_active(_delta: float) -> bool:
 	if not _death_physics_active:
 		return false
 	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
 		return true
-	_tick_death_physics(delta)
-	return true
+	return _death_physics_active
 
 
-## Rollback tick. Authority simulates limp; guests restore recorded pose.
-func rollback_tick_death_if_active(delta: float) -> bool:
-	if not _death_physics_active:
-		return false
-	var tree := get_tree()
-	var state := tree.root.get_node_or_null("GameState") if tree != null else null
-	var mp := state != null and bool(state.get("is_multiplayer"))
-	if mp and not is_multiplayer_authority():
-		return true
-	_tick_death_physics(delta)
-	return true
-
-
-func _tick_death_physics(delta: float) -> void:
-	if _death_bones != null:
-		return
-	if not _death_uses_capsule_limp():
-		return
-	_death_ang_vel = tick_capsule_limp(self, _death_ang_vel, delta, _death_gravity())
-
-
-## Shared limp step for dump pawns and the player corpse clone.
-static func tick_capsule_limp(
-	body: CharacterBody3D, ang_vel: Vector3, delta: float, gravity: float
-) -> Vector3:
-	if body == null:
-		return ang_vel
-	var flat := Vector3(body.velocity.x, 0.0, body.velocity.z)
-	flat = flat.move_toward(Vector3.ZERO, DEATH_LIMP_DAMP * delta)
-	body.velocity.x = flat.x
-	body.velocity.z = flat.z
-	body.velocity.y -= gravity * delta
-	NetClockScript.move_character(body)
-	if ang_vel.length_squared() < 0.0001:
-		return Vector3.ZERO
-	body.rotate_object_local(ang_vel.normalized(), ang_vel.length() * delta)
-	return ang_vel.move_toward(Vector3.ZERO, DEATH_SPIN_DAMP * delta)
+## Rollback tick while dead — skip living sim; ghost/corpse use their own paths.
+func rollback_tick_death_if_active(_delta: float) -> bool:
+	return _death_physics_active
 
 
 static func death_slump_velocity(hit_dir: Vector3) -> Vector3:
@@ -471,29 +411,8 @@ static func death_tumble_spin(rad: float) -> Vector3:
 	return axis.normalized() * rad
 
 
-func _death_should_tumble() -> bool:
-	return true
-
-
-func _death_uses_capsule_limp() -> bool:
-	return true
-
-
 func _on_stop_death_physics() -> void:
 	pass
-
-
-func _death_gravity() -> float:
-	if "gravity" in self:
-		return float(get("gravity"))
-	return DEATH_GRAVITY
-
-
-func _physical_bone_simulator() -> PhysicalBoneSimulator3D:
-	var found := find_children("*", "PhysicalBoneSimulator3D", true, false)
-	if found.is_empty():
-		return null
-	return found[0] as PhysicalBoneSimulator3D
 
 
 ## A ward ate a spell this character cast.
@@ -539,7 +458,10 @@ func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
 		return
 	if not is_alive() and not is_death_physics():
 		return
-	if not is_alive() and not _death_uses_capsule_limp():
+	if not is_alive():
+		var death := get_node_or_null("Death")
+		if death != null and death.has_method("buffer_knock"):
+			death.buffer_knock(impulse)
 		return
 	_knockback_vel = impulse
 	_knockback_timer = KNOCKBACK_TIMER_SEC

@@ -60,15 +60,38 @@ func _test_rewind_revive_stops_limp() -> int:
 	var player := PlayerScene.instantiate() as Player
 	holder.add_child(player)
 	player.current_health = 0.0
+	var err := ""
 	if not player.is_death_physics():
-		holder.queue_free()
-		push_error("HP 0 should start death physics")
-		return 1
+		err = "HP 0 should start death physics"
+	var corpse_after_death := _corpse_child(holder)
 	player.current_health = player.max_health
-	var ok := player.is_alive() and not player.is_death_physics()
+	var sim_ok := player.is_alive() and not player.is_death_physics()
+	var corpse_sticky := (
+		corpse_after_death != null
+		and is_instance_valid(corpse_after_death)
+		and not corpse_after_death.is_queued_for_deletion()
+	)
+	player.revive()
+	var still_there := _corpse_child(holder)
+	var stage_owned := (
+		still_there != null
+		and is_instance_valid(still_there)
+		and not still_there.is_queued_for_deletion()
+	)
+	_free_holder_corpses(holder)
+	var swept := _corpse_child(holder)
+	var sweep_ok := swept == null or swept.is_queued_for_deletion()
 	holder.queue_free()
-	if not ok:
-		push_error("Rewind restoring HP must stop death physics")
+	if err.is_empty() and not sim_ok:
+		err = "Rewind restoring HP must stop death physics"
+	if err.is_empty() and not corpse_sticky:
+		err = "HP rewind must not un-commit a death corpse"
+	if err.is_empty() and not stage_owned:
+		err = "revive() must leave the stage corpse in the pit"
+	if err.is_empty() and not sweep_ok:
+		err = "Stage sweep must despawn Corpse props"
+	if not err.is_empty():
+		push_error(err)
 		return 1
 	return 0
 
@@ -98,25 +121,28 @@ func _test_game_over_overlay_stats() -> int:
 
 func _test_arena_has_no_midfight_respawn() -> int:
 	var src := FileAccess.get_file_as_string(ARENA_SCENE_SCRIPT)
+	var err := ""
 	if src.contains("RESPAWN_SEC") or src.contains("_respawn_player"):
-		push_error("Arena must not revive players on a mid-fight timer")
-		return 1
-	if not src.contains("rpc_stage_between"):
-		push_error("Arena should still revive on rpc_stage_between")
-		return 1
-	if not src.contains("CORPSE_BEAT_SEC"):
-		push_error("Arena must linger after the last kill so corpses can limp")
-		return 1
-	var revive_at := src.find("func _revive_at")
-	if revive_at < 0:
-		push_error("Stage clear must revive through _revive_at")
-		return 1
-	var revive_end := src.find("\nfunc ", revive_at + 1)
-	var revive_body := src.substr(revive_at)
-	if revive_end > revive_at:
-		revive_body = src.substr(revive_at, revive_end - revive_at)
-	if not revive_body.contains("queue_pad_rez"):
-		push_error("Stage revive must stand up on the movement tick, not in _process")
+		err = "Arena must not revive players on a mid-fight timer"
+	elif not src.contains("rpc_stage_between"):
+		err = "Arena should still revive on rpc_stage_between"
+	elif not src.contains("_clear_stage_corpses"):
+		err = "Stage clear must despawn Corpses root children before pad rez"
+	elif not src.contains("CORPSE_BEAT_SEC"):
+		err = "Arena must linger after the last kill so corpses can limp"
+	else:
+		var revive_at := src.find("func _revive_at")
+		if revive_at < 0:
+			err = "Stage clear must revive through _revive_at"
+		else:
+			var revive_end := src.find("\nfunc ", revive_at + 1)
+			var revive_body := src.substr(revive_at)
+			if revive_end > revive_at:
+				revive_body = src.substr(revive_at, revive_end - revive_at)
+			if not revive_body.contains("queue_pad_rez"):
+				err = "Stage revive must stand up on the movement tick, not in _process"
+	if not err.is_empty():
+		push_error(err)
 		return 1
 	return 0
 
@@ -135,13 +161,14 @@ func _test_pad_rez_stands_the_body() -> int:
 		and not player.is_death_physics()
 		and player.collision_layer == 1
 		and player.global_position.is_equal_approx(Vector3(4.0, 1.0, 0.0))
-		and (leftover == null or leftover.is_queued_for_deletion())
+		and leftover != null
+		and not leftover.is_queued_for_deletion()
 	)
 	var src := FileAccess.get_file_as_string("res://scripts/characters/player.gd")
 	var on_tick := src.contains("_stand_up_at_pad(is_fresh)")
 	holder.queue_free()
 	if not stood:
-		push_error("Pad rez must move the ghost to the pad and stand a living body")
+		push_error("Pad rez must stand a living body at the pad and leave the pit corpse")
 		return 1
 	if not on_tick:
 		push_error("LAN pad rez must apply on _rollback_tick, not in Arena._process")
@@ -172,7 +199,7 @@ func _test_ghost_leaves_a_shoveable_corpse() -> int:
 	var ghosted := (
 		not player.is_alive()
 		and player.collision_layer == 0
-		and player.collision_mask == 1
+		and player.collision_mask == 2
 		and not player.is_in_group("combat_target")
 		and blocked
 		and corpse != null
@@ -183,8 +210,10 @@ func _test_ghost_leaves_a_shoveable_corpse() -> int:
 	player.revive()
 	var leftover := _corpse_child(holder)
 	var cleared := (
-		(leftover == null or leftover.is_queued_for_deletion())
+		leftover != null
+		and not leftover.is_queued_for_deletion()
 		and player.collision_layer == 1
+		and player.collision_mask == 3
 		and player.is_alive()
 		and not player.is_death_physics()
 	)
@@ -193,7 +222,7 @@ func _test_ghost_leaves_a_shoveable_corpse() -> int:
 		push_error("Dead player must fly untargetable and leave a shoveable corpse")
 		return 1
 	if not cleared:
-		push_error("Revive must free the corpse and restore the living collision layer")
+		push_error("Revive must restore living collision and leave the stage corpse")
 		return 1
 	return 0
 
@@ -301,7 +330,7 @@ func _test_killing_knock_lands_on_corpse() -> int:
 	)
 	holder.queue_free()
 	if not dump_ok:
-		push_error("Killing knock must replace dump slump (%s)" % charger.death_corpse)
+		push_error("Killing knock must replace monster corpse slump (%s)" % charger.death_corpse)
 		return 1
 	if not clone_ok:
 		push_error("Killing knock must land on the player corpse, not the ghost")
@@ -348,7 +377,7 @@ func _test_stone_knocks_corpses_fireball_does_not() -> int:
 	var clone := player.death_corpse
 	if dump == null or clone == null:
 		holder.queue_free()
-		push_error("Expected dump and player corpses for splash knock")
+		push_error("Expected monster and player corpses for splash knock")
 		return 1
 	dump.linear_velocity = Vector3.ZERO
 	clone.linear_velocity = Vector3.ZERO
@@ -396,7 +425,7 @@ func _test_ram_launches_corpse_without_stun() -> int:
 	var clone := victim.death_corpse
 	if clone == null:
 		holder.queue_free()
-		push_error("Expected dump clone for ram launch")
+		push_error("Expected monster corpse for ram launch")
 		return 1
 	clone.linear_velocity = Vector3.ZERO
 	rammer.call("_try_hit_corpse", clone)
@@ -418,13 +447,13 @@ func _test_walk_nudges_corpse() -> int:
 	var clone := charger.death_corpse
 	if clone == null:
 		holder.queue_free()
-		push_error("Expected dump clone for walk nudge")
+		push_error("Expected monster corpse for walk nudge")
 		return 1
 	clone.linear_velocity = Vector3.ZERO
 	clone.apply_walk_nudge(Vector3.RIGHT)
 	var xz := Vector3(clone.linear_velocity.x, 0.0, clone.linear_velocity.z).length()
 	holder.queue_free()
-	if xz < MonsterCorpse.WALK_NUDGE_MPS - 0.05:
+	if xz < Corpse.WALK_NUDGE_MPS - 0.05:
 		push_error("Walk nudge must add horizontal speed (xz=%.2f)" % xz)
 		return 1
 	return 0
@@ -544,11 +573,18 @@ func _test_stage_revive_clears_burn_and_corpse() -> int:
 		and is_equal_approx(player.current_health, player.max_health)
 		and not player.is_death_physics()
 		and player.collision_layer == 1
-		and (leftover == null or leftover.is_queued_for_deletion())
+		and leftover != null
+		and not leftover.is_queued_for_deletion()
 	)
+	_free_holder_corpses(holder)
+	var swept := _corpse_child(holder)
+	var sweep_ok := swept == null or swept.is_queued_for_deletion()
 	holder.queue_free()
 	if not ok:
-		push_error("Stage revive must stand a full-HP body, not a burned ragdoll")
+		push_error("Stage revive must stand a full-HP body and leave the pit corpse")
+		return 1
+	if not sweep_ok:
+		push_error("Stage sweep must free the leftover corpse prop")
 		return 1
 	return 0
 
@@ -570,11 +606,21 @@ func _test_double_ghost_enter_keeps_living_layer() -> int:
 	return 0
 
 
-func _corpse_child(holder: Node) -> MonsterCorpse:
-	for child in holder.get_children():
-		if child is MonsterCorpse:
-			return child as MonsterCorpse
+func _corpse_child(holder: Node) -> Corpse:
+	var root := holder.get_node_or_null("Corpses")
+	var kids: Array = root.get_children() if root != null else holder.get_children()
+	for child in kids:
+		if child is Corpse:
+			return child as Corpse
 	return null
+
+
+func _free_holder_corpses(holder: Node) -> void:
+	var root := holder.get_node_or_null("Corpses")
+	var kids: Array = root.get_children() if root != null else holder.get_children()
+	for child in kids:
+		if child is Corpse:
+			(child as Corpse).despawn()
 
 
 func _holder() -> Node:
@@ -584,4 +630,7 @@ func _holder() -> Node:
 		return null
 	var holder := Node.new()
 	tree.root.add_child(holder)
+	var corpses := Node3D.new()
+	corpses.name = "Corpses"
+	holder.add_child(corpses)
 	return holder

@@ -163,9 +163,20 @@ func _test_replicated_health_restores_combat() -> int:
 		and not character.is_death_physics()
 		and character.is_in_group(&"combat_target")
 	)
+	## Presentation stays for the stage; sim reverse is what rewind must do.
+	var leftover := false
+	var corpses := holder.get_node_or_null("Corpses")
+	var kids: Array = corpses.get_children() if corpses != null else holder.get_children()
+	for child in kids:
+		if child is Corpse and not child.is_queued_for_deletion():
+			leftover = true
+			break
 	holder.queue_free()
 	if not ok:
-		push_error("Writing HP back above 0 (rewind) should reverse death teardown")
+		push_error("Writing HP back above 0 (rewind) should reverse death sim teardown")
+		return 1
+	if not leftover:
+		push_error("HP rewind must leave committed death presentation for the stage")
 		return 1
 	return 0
 
@@ -198,4 +209,7 @@ func _holder() -> Node:
 		return null
 	var holder := Node.new()
 	tree.root.add_child(holder)
+	var corpses := Node3D.new()
+	corpses.name = "Corpses"
+	holder.add_child(corpses)
 	return holder

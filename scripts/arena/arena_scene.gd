@@ -12,6 +12,7 @@ const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 const TestEnvScript := preload("res://scripts/test/test_env.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -37,6 +38,7 @@ var _corpse_beat := 0.0
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
+@onready var corpses_root: Node3D = %Corpses
 @onready var pads_root: Node3D = $Pads
 @onready var cover_root: Node3D = $Cover
 @onready var spawn_telegraph: Node3D = $SpawnTelegraph
@@ -51,6 +53,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 
+	_apply_pit_collision_layers()
 	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
 	## After autoloads exist. Const-preloading charger.tscn from ArenaEncounters
 	## broke LAN E2E (--script parses that table before GameState).
@@ -92,6 +95,20 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	NetDiag.end_session()
+
+
+func _apply_pit_collision_layers() -> void:
+	for root_name in ["Pit", "Cover"]:
+		var root := get_node_or_null(root_name)
+		if root != null:
+			_set_world_collision_layer(root)
+
+
+func _set_world_collision_layer(node: Node) -> void:
+	if node is StaticBody3D:
+		(node as StaticBody3D).collision_layer = CollisionLayersScript.WORLD
+	for child in node.get_children():
+		_set_world_collision_layer(child)
 
 
 func _diag_role() -> String:
@@ -307,6 +324,7 @@ func _host_resolve_fight() -> void:
 @rpc("authority", "call_local", "reliable")
 func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
 	_pending_encounter = encounter_index
+	_clear_stage_corpses()
 	_revive_dead_players()
 	if restage_cover:
 		_restage_cover(encounter_index)
@@ -391,6 +409,14 @@ func _revive_dead_players() -> void:
 			continue
 		_revive_at(player, _spawn_for_player(player))
 	_intentional_revive = false
+
+
+func _clear_stage_corpses() -> void:
+	if corpses_root == null:
+		return
+	for child in corpses_root.get_children():
+		if child is Corpse:
+			(child as Corpse).despawn()
 
 
 func _revive_at(player: Player, world_pos: Vector3) -> void:
@@ -514,7 +540,7 @@ func _live_monster_count() -> int:
 	for child in monsters_root.get_children():
 		if not is_instance_valid(child) or child.is_queued_for_deletion():
 			continue
-		if child is MonsterCorpse:
+		if child is Corpse:
 			continue
 		if not (child is Character):
 			continue

@@ -1,47 +1,86 @@
 class_name PlayerGhost
 extends RefCounted
 
-## Dead player: same pawn flies, duplicated meshes are the shoveable corpse.
-## Enter copies pawn velocity onto the clone, then zeroes the ghost.
+## Dead player: same pawn flies; corpse RigidBody is presentation (Death.commit).
 
 const GHOST_MESH_ALPHA := 0.18
+const GHOST_MAT_META := &"ghost_material"
 
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 
-static func enter(player: Player) -> void:
+## Ghost phases through characters; pit geometry stays on the world layer.
+static func begin_mechanics(player: Player) -> void:
 	if player == null or player.is_alive():
 		return
-	if player.collision_layer != 0:
-		player.saved_collision_layer = player.collision_layer
+	if (
+		player.collision_layer == 0
+		and player.collision_mask == CollisionLayersScript.GHOST_MASK
+	):
+		return
+	player.saved_collision_layer = player.collision_layer
+	player.saved_collision_mask = player.collision_mask
 	player.collision_layer = 0
-	var carry := player.velocity
-	if not is_instance_valid(player.death_corpse) and not player._pad_rez_pending:
-		player.death_corpse = MonsterCorpse.spawn_player_prop(
-			player, player._last_hit_dir
-		)
-	## Pose only. Killing Knock already hits the clone via apply_knockback;
-	## apply_hit_knock here would add a second tumble on the same death.
-	if is_instance_valid(player.death_corpse) and carry.length_squared() > 0.0001:
-		player.death_corpse.linear_velocity = carry
+	player.collision_mask = CollisionLayersScript.GHOST_MASK
+
+
+## Corpse + ghost meshes. Called from Death after the tick loop (or immediately offline).
+static func commit(player: Player, pending_knock: Vector3 = Vector3.ZERO) -> void:
+	if player == null or player.is_alive():
+		return
+	begin_mechanics(player)
+	var opts := {}
+	if pending_knock.length_squared() > 0.0001:
+		opts["impulse"] = pending_knock
+	elif not player._pad_rez_pending:
+		opts["carry"] = player.velocity
 	player.velocity = Vector3.ZERO
+	if NetClockScript.is_session_multiplayer():
+		NetLivenessScript.commit_pose(player)
+	if not player._pad_rez_pending and not is_instance_valid(player.death_corpse):
+		player.death_corpse = Corpse.spawn(player, player._last_hit_dir, opts)
+	## Corpse dup reads player meshes; isolate ghost mats after the prop exists.
 	_apply_visuals(player, true)
 
 
-static func exit(player: Player) -> void:
+static func end_mechanics(player: Player) -> void:
 	if player == null:
 		return
-	if is_instance_valid(player.death_corpse):
-		player.death_corpse.queue_free()
-	player.death_corpse = null
 	var layer := player.saved_collision_layer
-	player.collision_layer = 1 if layer == 0 else layer
+	player.collision_layer = CollisionLayersScript.CHARACTER if layer == 0 else layer
+	var mask := player.saved_collision_mask
+	if mask == 0 or mask == CollisionLayersScript.GHOST_MASK:
+		mask = CollisionLayersScript.CHARACTER_AND_WORLD
+	player.collision_mask = mask
+
+
+## Living look + collision. Stage owns freeing the shoveable corpse prop.
+static func end_ghost(player: Player) -> void:
+	if player == null:
+		return
 	_apply_visuals(player, false)
+	end_mechanics(player)
 
 
-static func tick(player: Player, delta: float, net_input: Object) -> void:
+static func clear(player: Player) -> void:
+	end_ghost(player)
+
+
+## Offline / test helper: mechanics + presentation in one step.
+static func enter(player: Player) -> void:
+	commit(player)
+
+
+static func exit(player: Player) -> void:
+	end_ghost(player)
+
+
+static func tick(player: Player, _delta: float, net_input: Object) -> void:
+	_ensure_ghost_collision(player)
 	if net_input != null and player.has_method("_apply_net_look"):
 		player.call("_apply_net_look", net_input)
 	if player.has_method("_sync_body_yaw_to_head"):
@@ -54,10 +93,19 @@ static func tick(player: Player, delta: float, net_input: Object) -> void:
 	if wish.length_squared() > 0.0001:
 		player.velocity = wish * player.move_speed
 	else:
-		player.velocity = player.velocity.move_toward(
-			Vector3.ZERO, player.move_friction * delta
-		)
+		## Killing knock is on the corpse prop; do not bleed restored rollback vel.
+		player.velocity = Vector3.ZERO
 	NetClockScript.move_character(player)
+
+
+static func _ensure_ghost_collision(player: Player) -> void:
+	if player == null or player.is_alive():
+		return
+	if (
+		player.collision_layer != 0
+		or player.collision_mask != CollisionLayersScript.GHOST_MASK
+	):
+		begin_mechanics(player)
 
 
 static func _wish_dir(player: Player, net_input: Object) -> Vector3:
@@ -102,23 +150,57 @@ static func _apply_visuals(player: Player, ghost: bool) -> void:
 		_set_alpha(player, head_mesh, GHOST_MESH_ALPHA if ghost else 1.0)
 	if wand != null:
 		wand.visible = not ghost
-	if not ghost:
-		player.call("_apply_character_color", GameState.get_player_color(player.player_index))
+	if ghost:
+		return
+	_clear_ghost_materials(player)
+	player.call("_apply_character_color", GameState.get_player_color(player.player_index))
 
 
 static func _set_alpha(player: Player, mesh: MeshInstance3D, alpha: float) -> void:
 	if mesh == null:
 		return
-	var mat: StandardMaterial3D = null
-	if player.has_method("_authored_material"):
-		mat = player.call("_authored_material", mesh) as StandardMaterial3D
+	if alpha >= 0.99:
+		_clear_ghost_material(mesh)
+		var living: StandardMaterial3D = null
+		if player.has_method("_authored_material"):
+			living = player.call("_authored_material", mesh) as StandardMaterial3D
+		if living != null:
+			living.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			var opaque := living.albedo_color
+			opaque.a = 1.0
+			living.albedo_color = opaque
+		return
+	var mat := _ghost_material_for(player, mesh)
 	if mat == null:
 		return
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var color := mat.albedo_color
-	if alpha < 0.99:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		color.a = alpha
-	else:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-		color.a = 1.0
+	color.a = alpha
 	mat.albedo_color = color
+
+
+static func _ghost_material_for(player: Player, mesh: MeshInstance3D) -> StandardMaterial3D:
+	if mesh.has_meta(GHOST_MAT_META):
+		return mesh.get_meta(GHOST_MAT_META) as StandardMaterial3D
+	var src: StandardMaterial3D = null
+	if player.has_method("_authored_material"):
+		src = player.call("_authored_material", mesh) as StandardMaterial3D
+	if src == null:
+		return null
+	var owned := src.duplicate() as StandardMaterial3D
+	mesh.material_override = owned
+	mesh.set_meta(GHOST_MAT_META, owned)
+	return owned
+
+
+static func _clear_ghost_material(mesh: MeshInstance3D) -> void:
+	if mesh == null or not mesh.has_meta(GHOST_MAT_META):
+		return
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mesh.material_override = null
+	mesh.remove_meta(GHOST_MAT_META)
+
+
+static func _clear_ghost_materials(player: Player) -> void:
+	_clear_ghost_material(player.get_node_or_null("%Body") as MeshInstance3D)
+	_clear_ghost_material(player.get_node_or_null("%HeadMesh") as MeshInstance3D)

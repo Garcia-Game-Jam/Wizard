@@ -14,6 +14,7 @@ const FlareParticlesScript := preload("res://scripts/spells/flare_particles.gd")
 const FireballLightingScript := preload("res://scripts/spells/fireball_lighting.gd")
 const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 ## Cached ammo knobs from scenes/spells/evaluating/flare/flare.tscn.
 static var _authored_ammo_cache: Dictionary = {}
@@ -233,7 +234,7 @@ func copy_tuning_to(target: FlareEffect) -> void:
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	collision_layer = 0
-	collision_mask = 1
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	monitorable = false
 	_cache_nodes()
 	_configure_authored_nodes()

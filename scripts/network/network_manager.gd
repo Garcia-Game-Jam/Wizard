@@ -629,7 +629,9 @@ func uses_steam_session() -> bool:
 
 
 func send_voice_frame(packet: PackedByteArray) -> void:
-	if packet.is_empty() or not is_online():
+	if packet.is_empty() or not is_session_active or not is_online():
+		return
+	if multiplayer.multiplayer_peer == null:
 		return
 	_rpc_voice_frame.rpc(packet)
 

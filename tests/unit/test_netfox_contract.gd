@@ -113,6 +113,12 @@ func _test_profile_split() -> int:
 	if not charge_state.has("Head:rotation"):
 		push_error("Charger bow must be rewindable pose, not a late interpolator ghost")
 		failures += 1
+	if not playable_state.has("Stun:_stunned"):
+		push_error("Stun:_stunned must be playable rewind state")
+		failures += 1
+	if playable_state.has("Stun:visual_active"):
+		push_error("Stun FX must not be rewindable net state")
+		failures += 1
 	if not (":_eyes_chasing" in Character.NET_STATE_PATHS):
 		push_error("Chase eye lights must be character net state so remotes can draw them")
 		failures += 1

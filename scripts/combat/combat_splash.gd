@@ -45,6 +45,10 @@ static func apply_at(
 ) -> void:
 	if payload == null:
 		return
+	if skip != null and not is_instance_valid(skip):
+		skip = null
+	if hit != null and not is_instance_valid(hit):
+		hit = null
 	## `hit` is the body the projectile actually overlapped. Splash measures
 	## pawn roots (at the feet); the capsule sits above that, so a tight sphere
 	## can miss the living wizard you just physically struck.
@@ -58,9 +62,9 @@ static func apply_at(
 static func _apply_to(
 	body: Node, origin: Vector3, from: Variant, payload: CombatPayload, skip: Node
 ) -> void:
-	if body == null or body == skip:
+	if body == null or not is_instance_valid(body) or body == skip:
 		return
-	if body is MonsterCorpse:
+	if body is Corpse:
 		_apply_knock_only(body as Node3D, origin, payload)
 		return
 	if not (body is Character):
@@ -80,8 +84,8 @@ static func _apply_knock_only(body: Node3D, origin: Vector3, payload: CombatPayl
 		if not (effect is Knock):
 			continue
 		var impulse := (effect as Knock).impulse
-		if body is MonsterCorpse:
-			(body as MonsterCorpse).apply_hit_knock(impulse)
+		if body is Corpse:
+			(body as Corpse).apply_hit_knock(impulse)
 		elif body is Character:
 			(body as Character).apply_knockback(impulse, impulse)
 
