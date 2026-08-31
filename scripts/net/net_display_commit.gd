@@ -20,8 +20,11 @@ static func unbind(cb: Callable) -> void:
 
 ## Offline: commit now. Online: wait for the bound after_tick_loop callback.
 static func request(cb: Callable) -> void:
+	if not cb.is_valid():
+		return
 	if not NetClockScript.is_ticking():
-		cb.call()
+		if cb.is_valid():
+			cb.call()
 
 
 static func _network_time() -> Node:
