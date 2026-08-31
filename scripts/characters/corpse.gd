@@ -1,32 +1,21 @@
 class_name Corpse
 extends RigidBody3D
 
-## Stage death prop: greybox RigidBody limp (impulse + torque, no skeleton).
-## All corpses spawn through Corpse.spawn(); stage clear calls despawn().
-## Multiplayer: host tick sim + RollbackSynchronizer; guests display interpolated pose.
+## Local death VFX: greybox RigidBody limp, fades out, then frees.
+## Each peer spawns its own copy; not replicated in multiplayer.
 
-const DEFAULT_LINGER_SEC := 30.0
-const DEFAULT_FADE_SEC := 3.0
+const DEFAULT_LINGER_SEC := 4.0
+const DEFAULT_FADE_SEC := 2.0
 const TORQUE_STRENGTH := 1.6
 const WALK_NUDGE_MPS := 1.6
 const GRAVITY := 18.0
 
 const CorpseScript := preload("res://scripts/characters/corpse.gd")
-const NetClockScript := preload("res://scripts/net/net_clock.gd")
-const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
-const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
-const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
-const GameWorldScript := preload("res://scripts/game_world.gd")
-
-## Rewindable sim velocity — frozen RigidBody engine vel is not reliable in MP.
-var net_linear_velocity: Vector3 = Vector3.ZERO
-var net_angular_velocity: Vector3 = Vector3.ZERO
 
 var _fade_sec: float = DEFAULT_FADE_SEC
 var _materials: Array[StandardMaterial3D] = []
 var _fade_tween: Tween
 var _hit_dir: Vector3 = Vector3.FORWARD
-var _net_enrolled := false
 
 
 func _notification(what: int) -> void:
@@ -38,53 +27,13 @@ func _notification(what: int) -> void:
 		_release_materials()
 
 
-func net_state_paths() -> Array[String]:
-	return Profiles.state_paths(Profiles.CORPSE)
-
-
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
-	if NetClockScript.is_session_multiplayer():
-		return
 	state.linear_velocity += Vector3.DOWN * GRAVITY * state.step
 
 
-func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
-	if not NetClockScript.is_session_multiplayer():
-		return
-	if not NetAuthorityScript.should_simulate(self):
-		return
-	_simulate_corpse(delta, true)
-
-
-## Netfox liveness: hide on ticks before spawn_tick so death resims do not flash a corpse.
-func _rollback_spawn() -> void:
-	visible = true
-
-
-func _rollback_despawn() -> void:
-	visible = false
-
-
-## Stage clear / explicit teardown. Later: play an outro, then free.
+## Stage clear / explicit teardown.
 func despawn() -> void:
 	queue_free()
-
-
-static func request_multiplayer_spawn(
-	source: Node3D,
-	hit_dir: Vector3,
-	opts: Dictionary
-) -> void:
-	if source == null or not source.is_inside_tree():
-		return
-	if not NetClockScript.is_session_multiplayer():
-		return
-	var mp := source.get_multiplayer()
-	if mp == null or not mp.is_server():
-		return
-	var arena: Node = GameWorldScript.find_match_root(source.get_tree())
-	if arena != null and arena.has_method("request_corpse_spawn"):
-		arena.call("request_corpse_spawn", source, hit_dir, opts)
 
 
 ## opts: impulse (Vector3), carry (Vector3), linger_sec, fade_sec, reparent (bool).
@@ -117,33 +66,25 @@ static func spawn(
 		flat_hit = Vector3.FORWARD
 	else:
 		flat_hit = flat_hit.normalized()
-	var fading := opts.has("linger_sec")
-	var layer := 0 if fading else 1
-	var in_group := not fading
+	var summon_style := opts.has("linger_sec")
+	var layer := 0 if summon_style else 1
+	var in_group := not summon_style
 	var slump := Character.death_slump_velocity(flat_hit)
 	var knock: Vector3 = opts.get("impulse", Vector3.ZERO)
 	var carry: Vector3 = opts.get("carry", Vector3.ZERO)
 	var body := corpse as Corpse
 	body._hit_dir = flat_hit
-	if fading and knock.length_squared() > 0.0001:
-		body._setup_rigidbody(knock, layer, in_group)
-	elif knock.length_squared() > 0.0001:
+	if knock.length_squared() > 0.0001:
 		body._setup_rigidbody(slump, layer, in_group)
-		body._set_net_knock(knock)
+		body.apply_hit_knock(knock)
 	else:
 		body._setup_rigidbody(slump, layer, in_group)
 		if carry.length_squared() > 0.0001:
-			if NetClockScript.is_session_multiplayer():
-				body._set_net_carry(carry)
-			else:
-				corpse.linear_velocity = carry
-	if fading:
-		body._schedule_fade(
-			float(opts.get("linger_sec", DEFAULT_LINGER_SEC)),
-			float(opts.get("fade_sec", DEFAULT_FADE_SEC))
-		)
-	if NetClockScript.is_session_multiplayer():
-		body._enroll_net()
+			body.linear_velocity = carry
+	body._schedule_fade(
+		float(opts.get("linger_sec", DEFAULT_LINGER_SEC)),
+		float(opts.get("fade_sec", DEFAULT_FADE_SEC))
+	)
 	return body
 
 
@@ -154,99 +95,13 @@ func _setup_rigidbody(impulse: Vector3, layer: int, in_corpse_group: bool) -> vo
 	linear_damp = 0.35
 	angular_damp = 0.55
 	continuous_cd = true
+	custom_integrator = true
 	if in_corpse_group:
 		add_to_group(Character.CORPSE_GROUP)
-		_collect_materials()
-	if NetClockScript.is_session_multiplayer():
-		custom_integrator = false
-		freeze = true
-		freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
-		if impulse.length_squared() > 0.0001:
-			net_linear_velocity = impulse
-		net_angular_velocity = _tumble_angular_velocity(_hit_dir, TORQUE_STRENGTH)
-	else:
-		custom_integrator = true
-		if impulse.length_squared() > 0.0001:
-			apply_central_impulse(impulse)
-		apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
-
-
-func _enroll_net() -> void:
-	if _net_enrolled or not NetClockScript.is_session_multiplayer():
-		return
-	_net_enrolled = true
-	freeze = true
-	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
-	custom_integrator = false
-	NetLivenessScript.attach(self, Profiles.CORPSE)
-	NetLivenessScript.commit_pose(self)
-
-
-func _set_net_knock(impulse: Vector3) -> void:
-	net_linear_velocity = impulse
-	net_angular_velocity = _tumble_angular_velocity(_hit_dir, TORQUE_STRENGTH)
-
-
-func _set_net_carry(carry: Vector3) -> void:
-	net_linear_velocity = carry
-
-
-func _simulate_corpse(delta: float, use_net_state: bool) -> void:
-	if delta <= 0.0:
-		return
-	var vel := net_linear_velocity if use_net_state else linear_velocity
-	var ang := net_angular_velocity if use_net_state else angular_velocity
-	vel.y -= GRAVITY * delta
-	vel *= maxf(0.0, 1.0 - linear_damp * delta)
-	ang *= maxf(0.0, 1.0 - angular_damp * delta)
-	var motion := vel * delta
-	vel = _move_with_collision(motion, vel)
-	if ang.length_squared() > 0.0001:
-		rotation += ang * delta
-	if use_net_state:
-		net_linear_velocity = vel
-		net_angular_velocity = ang
-	else:
-		linear_velocity = vel
-		angular_velocity = ang
-		_sync_physics_server()
-
-
-func _move_with_collision(motion: Vector3, vel: Vector3) -> Vector3:
-	if motion.length_squared() < 0.000001:
-		return vel
-	var params := PhysicsTestMotionParameters3D.new()
-	params.from = global_transform
-	params.motion = motion
-	var result := PhysicsTestMotionResult3D.new()
-	if PhysicsServer3D.body_test_motion(get_rid(), params, result):
-		global_position += result.get_travel()
-		return vel.slide(result.get_collision_normal())
-	global_position += motion
-	return vel
-
-
-func _sync_physics_server() -> void:
-	if not is_inside_tree():
-		return
-	var rid := get_rid()
-	if not rid.is_valid():
-		return
-	PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_TRANSFORM, global_transform)
-	if NetClockScript.is_session_multiplayer():
-		PhysicsServer3D.body_set_state(
-			rid, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, net_linear_velocity
-		)
-		PhysicsServer3D.body_set_state(
-			rid, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, net_angular_velocity
-		)
-	else:
-		PhysicsServer3D.body_set_state(
-			rid, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, linear_velocity
-		)
-		PhysicsServer3D.body_set_state(
-			rid, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, angular_velocity
-		)
+	_collect_materials()
+	if impulse.length_squared() > 0.0001:
+		apply_central_impulse(impulse)
+	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
 
 
 func _schedule_fade(linger_sec: float, fade_sec: float) -> void:
@@ -261,25 +116,15 @@ func _schedule_fade(linger_sec: float, fade_sec: float) -> void:
 
 ## Killing knock: Character treats impulse as velocity. Replace the slump.
 func apply_hit_knock(impulse: Vector3) -> void:
-	if not NetAuthorityScript.should_simulate(self):
-		return
-	if NetClockScript.is_session_multiplayer():
-		_set_net_knock(impulse)
-	else:
-		linear_velocity = impulse
-		apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
+	linear_velocity = impulse
+	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
 
 
 func apply_walk_nudge(dir: Vector3) -> void:
-	if not NetAuthorityScript.should_simulate(self):
-		return
 	var flat := Vector3(dir.x, 0.0, dir.z)
 	if flat.length_squared() < 0.0001:
 		return
-	if NetClockScript.is_session_multiplayer():
-		net_linear_velocity += flat.normalized() * WALK_NUDGE_MPS
-	else:
-		linear_velocity += flat.normalized() * WALK_NUDGE_MPS
+	linear_velocity += flat.normalized() * WALK_NUDGE_MPS
 
 
 ## After a living slide. ponytail: O(slide collisions) per mover.
@@ -310,8 +155,6 @@ static func resolve_from(node: Node) -> Corpse:
 static func ram_if_new(corpse: Corpse, hits: Dictionary, vel: Vector3) -> void:
 	if corpse == null:
 		return
-	if NetClockScript.is_session_multiplayer() and not NetAuthorityScript.should_simulate(corpse):
-		return
 	var id := corpse.get_instance_id()
 	if hits.has(id):
 		return
@@ -340,13 +183,6 @@ static func _apply_spawn_pose(corpse: Corpse, source: Node3D) -> void:
 		corpse.global_rotation = body.global_rotation
 		return
 	corpse.global_transform = source.global_transform
-
-
-static func _tumble_angular_velocity(hit_dir: Vector3, strength: float) -> Vector3:
-	var spin_axis := Vector3(hit_dir.z, 0.35, -hit_dir.x)
-	if spin_axis.length_squared() < 0.0001:
-		spin_axis = Vector3(1.0, 0.35, 0.0)
-	return spin_axis.normalized() * strength
 
 
 func _collect_materials() -> void:
@@ -438,7 +274,7 @@ static func _duplicate_greybox(source: Node3D, corpse: Node) -> void:
 	_duplicate_node(source.get_node_or_null("%HeadMesh"), corpse)
 
 
-## Corpse dup runs after ghost visuals on guests; never copy the pawn's alpha fade.
+## Corpse dup runs after ghost visuals; never copy the pawn's alpha fade.
 func _ensure_opaque_greybox() -> void:
 	for mesh in _find_mesh_instances(self):
 		var mat := _mesh_material(mesh)

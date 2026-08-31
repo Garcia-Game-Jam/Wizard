@@ -12,13 +12,13 @@ const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 
 
-## Collision off so the flying pawn stops blocking the pit. Reversible on HP restore.
+## Ghost collides with pit and living characters; not a combat target (no layer-0 phasing).
 static func begin_mechanics(player: Player) -> void:
 	if player == null or player.is_alive():
 		return
-	if player.collision_layer != 0:
-		player.saved_collision_layer = player.collision_layer
-	player.collision_layer = 0
+	player.saved_collision_layer = player.collision_layer
+	player.collision_layer = 1
+	player.collision_mask = 1
 
 
 ## Corpse + ghost meshes. Called from Death after the tick loop (or immediately offline).
@@ -35,10 +35,7 @@ static func commit(player: Player, pending_knock: Vector3 = Vector3.ZERO) -> voi
 	if NetClockScript.is_session_multiplayer():
 		NetLivenessScript.commit_pose(player)
 	if not player._pad_rez_pending and not is_instance_valid(player.death_corpse):
-		if NetClockScript.is_session_multiplayer():
-			Corpse.request_multiplayer_spawn(player, player._last_hit_dir, opts)
-		else:
-			player.death_corpse = Corpse.spawn(player, player._last_hit_dir, opts)
+		player.death_corpse = Corpse.spawn(player, player._last_hit_dir, opts)
 	## Corpse dup reads player meshes; isolate ghost mats after the prop exists.
 	_apply_visuals(player, true)
 

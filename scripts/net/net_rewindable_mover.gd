@@ -66,7 +66,7 @@ static func apply_world_prop(root: Node, profile: String = "") -> void:
 	)
 	_ensure_interpolator(root, resolved)
 	if rs != null:
-		rs.set("enable_prediction", resolved != Profiles.CORPSE)
+		rs.set("enable_prediction", false)
 		if rs.has_method("process_settings"):
 			rs.call("process_settings")
 

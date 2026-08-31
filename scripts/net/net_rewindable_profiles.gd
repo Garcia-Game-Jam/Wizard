@@ -12,7 +12,6 @@ const PROJECTILE := "projectile"
 const VOLUME := "volume"
 const CHARGE := "charge"
 const COVER := "cover"
-const CORPSE := "corpse"
 
 
 static func state_paths(profile: String) -> Array[String]:
@@ -55,13 +54,6 @@ static func state_paths(profile: String) -> Array[String]:
 				":_done",
 				":_playing",
 			])
-		CORPSE:
-			paths.append_array([
-				":position",
-				":rotation",
-				":net_linear_velocity",
-				":net_angular_velocity",
-			])
 	return paths
 
 
@@ -87,7 +79,7 @@ static func interpolate_paths(profile: String) -> Array[String]:
 				"Head:rotation",
 				"Body:rotation",
 			])
-		WORLD_PROP, PROJECTILE, VOLUME, COVER, CORPSE:
+		WORLD_PROP, PROJECTILE, VOLUME, COVER:
 			paths.append_array([
 				":position",
 				":rotation",

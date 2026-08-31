@@ -74,11 +74,6 @@ static func move_character(body: CharacterBody3D) -> void:
 static func _nudge_corpses(body: CharacterBody3D) -> void:
 	if body is Character and not (body as Character).is_alive():
 		return
-	## Corpses are host-simmed world props; guest-owned pawns still slide on host resim.
-	if is_session_multiplayer():
-		var mp := body.get_multiplayer()
-		if mp != null and not mp.is_server():
-			return
 	Corpse.nudge_from_slide(body)
 
 
