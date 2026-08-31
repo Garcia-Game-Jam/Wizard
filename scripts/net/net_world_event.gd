@@ -2,7 +2,7 @@ class_name NetWorldEvent
 extends RefCounted
 
 ## Thin dispatcher onto netfox primitives. Not a parallel lockstep simulator.
-## Predicted flyers: authored NetSpellWeapon under the wand. Flare/ward still
+## Predicted projectiles: authored NetSpellWeapon under the wand. Flare/ward still
 ## use spawn_predicted. Bind happens from bind_player(); node names from the lane.
 
 const SpellSyncLaneScript := preload("res://scripts/spells/spell_sync_lane.gd")

@@ -120,7 +120,7 @@ func _integrate_velocity(delta: float) -> void:
 		_velocity.y -= flight_gravity * delta
 
 
-## Move one step, then connect. True if this step finished the flyer.
+## Move one step, then connect. True if this step finished the projectile.
 func _advance_and_connect(delta: float) -> bool:
 	var prev := global_position
 	var motion: Vector3 = _velocity * delta

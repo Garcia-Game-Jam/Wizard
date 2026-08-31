@@ -167,7 +167,9 @@ func _process(delta: float) -> void:
 	if Engine.is_editor_hint() and bool(get_meta("lookdev_live_ai", false)):
 		_physics_process(delta)
 		return
-	if GameState.is_multiplayer and not is_multiplayer_authority():
+	if not is_inside_tree():
+		return
+	if NetClockScript.is_session_multiplayer() and not is_multiplayer_authority():
 		_apply_replicated_eyes()
 
 
@@ -457,7 +459,7 @@ func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
 	super._rollback_tick(delta, _tick, is_fresh)
 	if rollback_tick_death_if_active(delta):
 		return
-	if GameState.is_multiplayer and not is_multiplayer_authority():
+	if NetClockScript.is_session_multiplayer() and not is_multiplayer_authority():
 		return
 	if is_fresh:
 		_simulate_monster(delta)

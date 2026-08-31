@@ -2,7 +2,7 @@ class_name NetLiveness
 extends RefCounted
 
 ## Tick-loop spawn/despawn and engine-physics skip for rewindable bodies.
-## Rewind flyers (ember trail, ice, flare): after_spawn() from spawn().
+## Rewind volumes (ember trail, ice, flare): after_spawn() from spawn().
 ## Player SpellProjectile does not — that is NetworkWeapon + physics frames.
 ## NPCs / cover / orbs: attach().
 ## Motion: skip_engine_physics() in _physics_process; _rollback_tick on the

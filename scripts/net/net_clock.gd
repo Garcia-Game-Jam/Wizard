@@ -35,7 +35,7 @@ static func is_session_multiplayer() -> bool:
 	if not (tree is SceneTree):
 		return false
 	var state := (tree as SceneTree).root.get_node_or_null("GameState")
-	return state != null and bool(state.get("is_multiplayer"))
+	return is_instance_valid(state) and bool(state.get("is_multiplayer"))
 
 
 static func start_for_match() -> void:

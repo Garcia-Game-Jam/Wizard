@@ -4,9 +4,9 @@ Connect (who) then apply (what). A hit is a list of effect Resources. `Character
 
 ## Scene tree as source of truth
 
-The **wand** is the gun (`NetSpellWeapon` children under `player_wand.tscn`, launch from authored `CastOrigin` toward the crosshair). The flying scene is [`SpellProjectile`](../../scripts/spells/spell_projectile.gd): motion exports, mesh/look, `impact_fx` PackedScene, and payload are authored on that scene. `bind_player` only `configure()`s weapon nodes that already exist — it does not `NetSpellWeapon.new()`. There is no `spawn_predicted` `effect_id` switch for fireball or stone throw; `_spawn()` instantiates the weapon’s packed scene.
+The **wand** is the gun (`NetSpellWeapon` children under `player_wand.tscn`, launch from authored `CastOrigin` toward the crosshair). The projectile scene is [`SpellProjectile`](../../scripts/spells/spell_projectile.gd): motion exports, mesh/look, `impact_fx` PackedScene, and payload are authored on that scene. `bind_player` only `configure()`s weapon nodes that already exist — it does not `NetSpellWeapon.new()`. There is no `spawn_predicted` `effect_id` switch for fireball or stone throw; `_spawn()` instantiates the weapon’s packed scene.
 
-Flare is EPHEMERAL but not a splash-detonate flyer (it slides, then becomes a beacon). It does not extend `SpellProjectile`.
+Flare is EPHEMERAL but not a `SpellProjectile` (it slides, then becomes a beacon).
 
 ## Connect vs apply
 
@@ -54,11 +54,11 @@ Player projectiles are **not** rewind bodies. They fly on Godot physics frames. 
 
 ## Two spawn doors
 
-Player fireball and stone throw spawn through NetworkWeapon (caster-predicted, authored wand weapons) — including solo, when the tick clock is off. Ember threats spawn through `NetLiveness.replicate_world_fx` (guest copies are visual-only). Do not merge those doors. Combat is shared (overlap connect + payload); flying threats may extend `SpellProjectile` for flight/connect only.
+Player fireball and stone throw spawn through NetworkWeapon (caster-predicted, authored wand weapons) — including solo, when the tick clock is off. Ember threats spawn through `NetLiveness.replicate_world_fx` (guest copies are visual-only). Do not merge those doors. Combat is shared (overlap connect + payload); monster projectiles may extend `SpellProjectile` for flight/connect only.
 
-## Adding a flyer
+## Adding a projectile
 
-1. Authored flying scene extends [`SpellProjectile`](../../scripts/spells/spell_projectile.gd). Subclass look, charge, or a custom velocity — not connect, payload spend, or spawn RPCs.
+1. Authored scene extends [`SpellProjectile`](../../scripts/spells/spell_projectile.gd). Subclass look, charge, or a custom velocity — not connect, payload spend, or spawn RPCs.
 2. Player spell: authored `NetSpellWeapon` under the wand with `projectile_scene`. Add `effect_id` to `SpellSyncLane.BY_EFFECT` as `EPHEMERAL`. `bind_player` only `configure()`s that node.
 3. Monster threat: spawn through `NetLiveness.replicate_world_fx`. Override velocity, then call `_advance_and_connect`. Guest copies stay `visual_only`.
 4. Do not add a `spawn_predicted` match, `NetLiveness.after_spawn`, or a new `SpellEffectSync.apply` spawn for a `SpellProjectile`.
