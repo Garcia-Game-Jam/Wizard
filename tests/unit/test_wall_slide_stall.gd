@@ -4,6 +4,7 @@ extends RefCounted
 ## A body knocked into a convex wall must keep falling, not hang in the air.
 
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 const CAPSULE_RADIUS := 0.2368164
 const CAPSULE_HEIGHT := 0.72
@@ -64,8 +65,8 @@ func _make_body() -> CharacterBody3D:
 	capsule.height = CAPSULE_HEIGHT
 	shape.shape = capsule
 	body.add_child(shape)
-	body.collision_layer = 1
-	body.collision_mask = 1
+	body.collision_layer = CollisionLayersScript.CHARACTER
+	body.collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	body.floor_block_on_wall = false
 	body.safe_margin = 0.04
 	body.floor_snap_length = 0.0
@@ -80,5 +81,6 @@ func _add_static_box(parent: Node, size: Vector3, pos: Vector3) -> void:
 	box.size = size
 	shape.shape = box
 	static_body.add_child(shape)
+	static_body.collision_layer = CollisionLayersScript.WORLD
 	parent.add_child(static_body)
 	static_body.global_position = pos

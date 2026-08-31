@@ -104,6 +104,7 @@ var net_wand_raised: bool = false
 var net_charge_factor: float = 0.0
 var net_flashlight: bool = false
 var saved_collision_layer: int = 1
+var saved_collision_mask: int = CollisionLayersScript.CHARACTER_AND_WORLD
 
 var _spell_loadout: Node
 var _casting_session: SpellCastingSession
@@ -559,8 +560,12 @@ func _on_wand_cast_failed(
 
 
 func _separate_from_players() -> void:
+	if not is_alive():
+		return
 	for node in get_tree().get_nodes_in_group("player"):
 		if node == self or not node is CharacterBody3D:
+			continue
+		if node is Character and not (node as Character).is_alive():
 			continue
 
 		var other: CharacterBody3D = node as CharacterBody3D

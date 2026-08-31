@@ -7,6 +7,7 @@ const PlayerScene := preload("res://scenes/characters/player.tscn")
 const ChargerScene := preload("res://scenes/monsters/charger.tscn")
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 const TICK := 1.0 / 60.0
 
 
@@ -60,7 +61,7 @@ func _add_floor(parent: Node) -> void:
 	static_body.add_child(shape)
 	parent.add_child(static_body)
 	static_body.global_position = Vector3(0.0, -0.5, 0.0)
-	static_body.collision_layer = 1
+	static_body.collision_layer = CollisionLayersScript.WORLD
 	static_body.collision_mask = 0
 
 

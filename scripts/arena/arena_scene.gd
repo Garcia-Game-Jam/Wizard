@@ -12,6 +12,7 @@ const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 const TestEnvScript := preload("res://scripts/test/test_env.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -52,6 +53,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 
+	_apply_pit_collision_layers()
 	_run = ArenaRunScript.create(ArenaEncountersScript.UNLOCK_QUEUE)
 	## After autoloads exist. Const-preloading charger.tscn from ArenaEncounters
 	## broke LAN E2E (--script parses that table before GameState).
@@ -93,6 +95,20 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	NetDiag.end_session()
+
+
+func _apply_pit_collision_layers() -> void:
+	for root_name in ["Pit", "Cover"]:
+		var root := get_node_or_null(root_name)
+		if root != null:
+			_set_world_collision_layer(root)
+
+
+func _set_world_collision_layer(node: Node) -> void:
+	if node is StaticBody3D:
+		(node as StaticBody3D).collision_layer = CollisionLayersScript.WORLD
+	for child in node.get_children():
+		_set_world_collision_layer(child)
 
 
 func _diag_role() -> String:

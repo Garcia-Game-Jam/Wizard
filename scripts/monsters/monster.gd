@@ -275,7 +275,7 @@ func _begin_death_mechanics() -> void:
 
 func _end_death_mechanics() -> void:
 	collision_layer = 1 if _saved_death_layer == 0 else _saved_death_layer
-	collision_mask = 1
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	if not is_instance_valid(death_corpse):
 		_set_living_meshes_visible(true)
 

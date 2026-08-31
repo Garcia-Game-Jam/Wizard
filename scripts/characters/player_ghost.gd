@@ -10,15 +10,17 @@ const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 
-## Ghost collides with pit and living characters; not a combat target (no layer-0 phasing).
+## Ghost phases through characters; pit geometry stays on the world layer.
 static func begin_mechanics(player: Player) -> void:
 	if player == null or player.is_alive():
 		return
 	player.saved_collision_layer = player.collision_layer
-	player.collision_layer = 1
-	player.collision_mask = 1
+	player.saved_collision_mask = player.collision_mask
+	player.collision_layer = 0
+	player.collision_mask = CollisionLayersScript.GHOST_MASK
 
 
 ## Corpse + ghost meshes. Called from Death after the tick loop (or immediately offline).
@@ -44,7 +46,12 @@ static func end_mechanics(player: Player) -> void:
 	if player == null:
 		return
 	var layer := player.saved_collision_layer
-	player.collision_layer = 1 if layer == 0 else layer
+	player.collision_layer = CollisionLayersScript.CHARACTER if layer == 0 else layer
+	player.collision_mask = (
+		player.saved_collision_mask
+		if player.saved_collision_mask != 0
+		else CollisionLayersScript.CHARACTER_AND_WORLD
+	)
 
 
 ## Living look + collision. Stage owns freeing the shoveable corpse prop.
@@ -69,6 +76,7 @@ static func exit(player: Player) -> void:
 
 
 static func tick(player: Player, _delta: float, net_input: Object) -> void:
+	_ensure_ghost_collision(player)
 	if net_input != null and player.has_method("_apply_net_look"):
 		player.call("_apply_net_look", net_input)
 	if player.has_method("_sync_body_yaw_to_head"):
@@ -84,6 +92,16 @@ static func tick(player: Player, _delta: float, net_input: Object) -> void:
 		## Killing knock is on the corpse prop; do not bleed restored rollback vel.
 		player.velocity = Vector3.ZERO
 	NetClockScript.move_character(player)
+
+
+static func _ensure_ghost_collision(player: Player) -> void:
+	if player == null or player.is_alive():
+		return
+	if (
+		player.collision_layer != 0
+		or player.collision_mask != CollisionLayersScript.GHOST_MASK
+	):
+		begin_mechanics(player)
 
 
 static func _wish_dir(player: Player, net_input: Object) -> Vector3:
@@ -176,6 +194,8 @@ static func _clear_ghost_material(mesh: MeshInstance3D) -> void:
 		return
 	mesh.material_override = null
 	mesh.remove_meta(GHOST_MAT_META)
+	if mesh.mesh == null or mesh.get_active_material(0) == null:
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 static func _clear_ghost_materials(player: Player) -> void:

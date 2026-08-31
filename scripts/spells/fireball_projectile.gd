@@ -24,6 +24,7 @@ const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const NetDisplayCommitScript := preload("res://scripts/net/net_display_commit.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 @export_group("Cast timing")
 ## Hold time until the tip orb is ready to launch. Drives charge animation too.
@@ -376,7 +377,7 @@ func _ready() -> void:
 	monitoring = true
 	monitorable = false
 	collision_layer = 0
-	collision_mask = 1
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 
 	_configure_travel_light()
 

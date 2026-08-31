@@ -5,6 +5,7 @@ extends MonsterSense
 ## Proximity + optional LOS / vision-cone player detection under Monster/Senses.
 
 const MonsterInterestScript := preload("res://scripts/monsters/monster_interest.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 ## Default player capsule width used when sizing a narrow vision cone.
 const DEFAULT_PLAYER_WIDTH_M := 0.55
 
@@ -89,7 +90,7 @@ func _has_line_of_sight(monster: CharacterBody3D, target: Node3D) -> bool:
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
-	query.collision_mask = 1
+	query.collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	var exclude: Array = [monster.get_rid()]
 	if target is CollisionObject3D:
 		exclude.append((target as CollisionObject3D).get_rid())
@@ -107,7 +108,7 @@ static func occlude_distance(
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
-	query.collision_mask = 1
+	query.collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	query.exclude = exclude
 	var hit := world.direct_space_state.intersect_ray(query)
 	if hit.is_empty():

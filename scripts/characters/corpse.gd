@@ -11,6 +11,7 @@ const WALK_NUDGE_MPS := 1.6
 const GRAVITY := 18.0
 
 const CorpseScript := preload("res://scripts/characters/corpse.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 var _fade_sec: float = DEFAULT_FADE_SEC
 var _materials: Array[StandardMaterial3D] = []
@@ -90,7 +91,7 @@ static func spawn(
 
 func _setup_rigidbody(impulse: Vector3, layer: int, in_corpse_group: bool) -> void:
 	collision_layer = layer
-	collision_mask = 1
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	mass = 4.5
 	linear_damp = 0.35
 	angular_damp = 0.55
@@ -191,6 +192,7 @@ func _collect_materials() -> void:
 	for mesh in _find_mesh_instances(self):
 		var mat := _mesh_material(mesh)
 		if mat == null:
+			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			continue
 		var key := mat.get_instance_id()
 		var owned: StandardMaterial3D = owned_for.get(key) as StandardMaterial3D
@@ -224,6 +226,7 @@ func _find_mesh_instances(root: Node) -> Array[MeshInstance3D]:
 
 func _release_materials() -> void:
 	for mesh in _find_mesh_instances(self):
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mesh.material_override = null
 		for i in mesh.get_surface_override_material_count():
 			mesh.set_surface_override_material(i, null)
@@ -279,6 +282,7 @@ func _ensure_opaque_greybox() -> void:
 	for mesh in _find_mesh_instances(self):
 		var mat := _mesh_material(mesh)
 		if mat == null:
+			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			continue
 		var owned := mat.duplicate() as StandardMaterial3D
 		owned.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED

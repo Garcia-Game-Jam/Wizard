@@ -26,6 +26,7 @@ const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const NetDisplayCommitScript := preload("res://scripts/net/net_display_commit.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 @export_group("Cast timing")
 ## Hold time until the stone is ready to throw.
@@ -119,7 +120,7 @@ func _ready() -> void:
 	monitoring = true
 	monitorable = false
 	collision_layer = 0
-	collision_mask = 1
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	set_physics_process(true)
 	set_process(true)
 
@@ -308,8 +309,10 @@ func _commit_impact_fx() -> void:
 func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
 	if splash_radius <= 0.0:
 		return
+	var skip: Node = _caster if is_instance_valid(_caster) else null
+	var direct: Node = hit if is_instance_valid(hit) else null
 	CombatSplash.apply_at(
-		get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster, hit
+		get_tree(), impact_pos, splash_radius, self, _ensure_payload(), skip, direct
 	)
 
 

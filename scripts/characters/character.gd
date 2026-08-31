@@ -16,6 +16,7 @@ signal revived
 
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 const DEFAULT_MAX_HEALTH := 100.0
 
@@ -119,6 +120,8 @@ var _saved_floor_snap := 0.1
 
 
 func _ready() -> void:
+	collision_layer = CollisionLayersScript.CHARACTER
+	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	current_health = max_health
 	call_deferred("_bind_rewindable")
 
