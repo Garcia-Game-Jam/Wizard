@@ -27,8 +27,8 @@ func _run_tests() -> void:
 		return
 
 	var failures := 0
-	failures += _run_suite_file(UNIT_LIST_PATH, false)
-	failures += _run_suite_file(TREE_LIST_PATH, true)
+	failures += await _run_suite_file(UNIT_LIST_PATH, false)
+	failures += await _run_suite_file(TREE_LIST_PATH, true)
 
 	if failures == 0:
 		print("All tests passed.")
@@ -49,7 +49,7 @@ func _run_suite_file(list_path: String, needs_tree: bool) -> int:
 		var line := file.get_line().strip_edges()
 		if line.is_empty() or line.begins_with("#"):
 			continue
-		failures += _run_suite(line, needs_tree)
+		failures += await _run_suite(line, needs_tree)
 	return failures
 
 
@@ -62,9 +62,14 @@ func _run_suite(path: String, needs_tree: bool = false) -> int:
 	if not suite.has_method("run"):
 		push_error("Test suite missing run(): %s" % path)
 		return 1
+	var result: Variant
 	if needs_tree:
-		return suite.call("run", self)
-	return suite.call("run")
+		result = suite.call("run", self)
+	else:
+		result = suite.call("run")
+	if result is int:
+		return result
+	return await result
 
 
 func _assert_autoloads_ready() -> bool:

@@ -539,8 +539,8 @@ static func coerce_vector3(value: Variant) -> Vector3:
 	return Vector3.ZERO
 
 
-## Predicted ephemeral spawn for NetworkWeapon. Solo apply() reuses this for
-## fireball / flare; ward keeps a separate path for channel + placement nudge.
+## Predicted ephemeral spawn for NetworkWeapon fallbacks (flare, ward).
+## Fireball / stone instantiate their packed scenes from authored wand weapons.
 static func spawn_predicted(player: CharacterBody3D, params: Dictionary) -> Node3D:
 	if player == null or params.is_empty():
 		return null
@@ -550,26 +550,6 @@ static func spawn_predicted(player: CharacterBody3D, params: Dictionary) -> Node
 	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
 	var spawned: Variant = null
 	match effect_id:
-		EFFECT_FIREBALL:
-			spawned = SpellEphemeralFxScript.spawn_at(
-				player,
-				origin,
-				direction,
-				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
-					return FireballProjectileScript.spawn(
-						parent, spawn_origin, spawn_dir, player, false, charge
-					)
-			)
-		EFFECT_STONE_THROW:
-			spawned = SpellEphemeralFxScript.spawn_at(
-				player,
-				origin,
-				direction,
-				func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
-					return StoneThrowProjectileScript.spawn(
-						parent, spawn_origin, spawn_dir, player, false
-					)
-			)
 		EFFECT_FLARE:
 			var duration := float(
 				params.get(KEY_DURATION, FlareEffectScript.DEFAULT_DURATION_SEC)
@@ -780,11 +760,34 @@ static func _fireball_origin(player: CharacterBody3D) -> Vector3:
 
 
 static func _apply_fireball(player: CharacterBody3D, params: Dictionary) -> void:
-	spawn_predicted(player, params)
+	## Fallback when the wand has no FireballWeapon (tests, lookdev). Live pit fires the weapon.
+	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
+	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
+	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
+	SpellEphemeralFxScript.spawn_at(
+		player,
+		origin,
+		direction,
+		func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
+			return FireballProjectileScript.spawn(
+				parent, spawn_origin, spawn_dir, player, false, charge
+			)
+	)
 
 
 static func _apply_stone_throw(player: CharacterBody3D, params: Dictionary) -> void:
-	spawn_predicted(player, params)
+	## Fallback when the wand has no StoneThrowWeapon (tests, lookdev). Live pit fires the weapon.
+	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
+	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
+	SpellEphemeralFxScript.spawn_at(
+		player,
+		origin,
+		direction,
+		func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
+			return StoneThrowProjectileScript.spawn(
+				parent, spawn_origin, spawn_dir, player, false
+			)
+	)
 
 
 static func _apply_flare(player: CharacterBody3D, params: Dictionary) -> void:

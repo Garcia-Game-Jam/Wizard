@@ -9,6 +9,10 @@ const JUMP_VELOCITY := 3.5
 const MOUSE_SENSITIVITY := 0.002
 const PLAYER_MIN_SEPARATION := 0.55
 const AIM_RAY_LENGTH := 200.0
+const CAST_PHASE_IDLE := 0
+const CAST_PHASE_CHARGING := 1
+const CAST_PHASE_RELEASING := 2
+const CAST_PHASE_FIZZLE := 3
 
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const TargetHighlightScript := preload("res://scripts/spells/target_highlight.gd")
@@ -24,6 +28,7 @@ const PlayerCombatReactionsScript := preload("res://scripts/characters/player_co
 const PlayerGhostScript := preload("res://scripts/characters/player_ghost.gd")
 const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
 const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
+const SpellSyncLaneScript := preload("res://scripts/spells/spell_sync_lane.gd")
 
 ## Movement tells and stun on top of Character.NET_STATE_PATHS.
 const NET_STATE_EXTRA: PackedStringArray = [
@@ -38,6 +43,8 @@ const NET_STATE_EXTRA: PackedStringArray = [
 	":dash_slide_grace_remaining",
 	":net_wand_raised",
 	":net_charge_factor",
+	":net_cast_phase",
+	":net_cast_effect_id",
 	":net_flashlight",
 	"Stun:_stunned",
 	"Stun:_airborne",
@@ -102,6 +109,8 @@ var crouch_recovery_remaining: float = 0.0
 var dash_slide_grace_remaining: float = 0.0
 var net_wand_raised: bool = false
 var net_charge_factor: float = 0.0
+var net_cast_phase: int = CAST_PHASE_IDLE
+var net_cast_effect_id: String = ""
 var net_flashlight: bool = false
 var saved_collision_layer: int = 1
 var saved_collision_mask: int = CollisionLayersScript.CHARACTER_AND_WORLD
@@ -119,6 +128,7 @@ var _spell_fire_charging := false
 var _spell_fire_releasing := false
 var _spell_fire_slot := -1
 var _spell_fire_cancel_token := 0
+var _spell_fire_fizzle_ticks := 0
 var _ward_channel: RefCounted = WardSlotChannelScript.new()
 var _pad_rez_pos: Vector3 = Vector3.ZERO
 var _pad_rez_pending: bool = false
@@ -669,10 +679,12 @@ func _try_release_slot_fire(slot_index: int) -> bool:
 	if _wand == null or not _wand.is_cast_charge_ready():
 		if _wand != null:
 			_wand.fizzle_cast_charge()
+		_spell_fire_fizzle_ticks = 2
 		_cancel_slot_cast()
 		return false
 	if not _can_fire_slotted_spell(_armed_spell):
 		_wand.fizzle_cast_charge()
+		_spell_fire_fizzle_ticks = 2
 		_cancel_slot_cast()
 		return false
 	_ward_channel.call("plant")
@@ -823,6 +835,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	super._rollback_tick(delta, _tick, is_fresh)
 	_stand_up_at_pad(is_fresh)
 	if is_death_physics():
 		PlayerGhostScript.tick(self, delta, _get_net_input())
@@ -834,7 +847,11 @@ func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
 
 
 func _simulate_move(delta: float, is_fresh: bool, net_input: Object) -> void:
-	if net_input != null:
+	var apply_input := (
+		net_input != null
+		and NetAuthorityScript.should_predict_or_simulate(self)
+	)
+	if apply_input:
 		_apply_net_look(net_input)
 		_apply_net_tells(net_input)
 	_sync_body_yaw_to_head()
@@ -888,12 +905,37 @@ func _apply_net_look(net_input: Object) -> void:
 		camera_pivot.rotation.x = clampf(net_input.look_pitch, deg_to_rad(-70.0), deg_to_rad(70.0))
 
 
+func _cast_tell_phase() -> int:
+	if _spell_fire_fizzle_ticks > 0:
+		return CAST_PHASE_FIZZLE
+	if _spell_fire_charging:
+		return CAST_PHASE_CHARGING
+	if _spell_fire_releasing:
+		return CAST_PHASE_RELEASING
+	return CAST_PHASE_IDLE
+
+
+func _cast_tell_effect_id() -> String:
+	if _armed_spell != null:
+		return _armed_spell.effect_id
+	return ""
+
+
+func _consume_cast_tell_pulse() -> void:
+	if _spell_fire_fizzle_ticks > 0:
+		_spell_fire_fizzle_ticks -= 1
+
+
 func _apply_net_tells(net_input: Object) -> void:
 	net_wand_raised = net_input.wand_raised
 	if net_input.charging:
 		net_charge_factor = clampf(net_input.charge_factor, 0.0, 1.0)
 	else:
 		net_charge_factor = 0.0
+	if "cast_phase" in net_input:
+		net_cast_phase = int(net_input.get("cast_phase"))
+	if "cast_effect_code" in net_input:
+		net_cast_effect_id = SpellSyncLaneScript.id_for_code(int(net_input.get("cast_effect_code")))
 	if not is_local_owner():
 		_apply_replicated_wand_tell()
 
@@ -908,7 +950,13 @@ func _apply_replicated_wand_tell() -> void:
 	if _wand == null:
 		return
 	if _wand.has_method("set_replicated_cast_tell"):
-		_wand.call("set_replicated_cast_tell", net_wand_raised, net_charge_factor)
+		_wand.call(
+			"set_replicated_cast_tell",
+			net_wand_raised,
+			net_charge_factor,
+			net_cast_phase,
+			net_cast_effect_id
+		)
 	else:
 		_wand.set_raised(net_wand_raised)
 

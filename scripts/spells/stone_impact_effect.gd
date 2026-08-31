@@ -6,6 +6,13 @@ extends Node3D
 const FireballParticlesScript := preload("res://scripts/spells/fireball_particles.gd")
 const CLEANUP_DELAY_SEC := 0.9
 
+var _played := false
+
+
+func _ready() -> void:
+	if not _played:
+		_play()
+
 
 static func spawn(parent: Node, world_position: Vector3) -> StoneImpactEffect:
 	if parent == null:
@@ -13,11 +20,13 @@ static func spawn(parent: Node, world_position: Vector3) -> StoneImpactEffect:
 	var effect := StoneImpactEffect.new()
 	parent.add_child(effect)
 	effect.global_position = world_position
-	effect._play()
 	return effect
 
 
 func _play() -> void:
+	if _played:
+		return
+	_played = true
 	_emit(
 		FireballParticlesScript.make_burst(
 			"Dust",

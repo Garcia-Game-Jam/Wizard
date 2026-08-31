@@ -195,6 +195,7 @@ func resolve_hand(monster: Monster) -> Node3D:
 	if hand != null:
 		return hand
 	var fallbacks := [
+		"Hands/RightHand" if hand_side == HandSide.RIGHT else "Hands/LeftHand",
 		"Body/Hands/RightHand" if hand_side == HandSide.RIGHT else "Body/Hands/LeftHand",
 		"MidBody/Hands/RightHand" if hand_side == HandSide.RIGHT else "MidBody/Hands/LeftHand",
 	]

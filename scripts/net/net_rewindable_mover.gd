@@ -43,6 +43,8 @@ static func apply_playable(root: Node, owner_peer_id: int, local_view: bool = fa
 			ti.call("process_settings")
 	if rs != null and rs.has_method("process_settings"):
 		rs.call("process_settings")
+	if rs != null and rs.has_method("set_schema"):
+		rs.call("set_schema", PlayerNetInputScript.net_schema())
 
 
 static func apply_world_prop(root: Node, profile: String = "") -> void:
@@ -66,7 +68,9 @@ static func apply_world_prop(root: Node, profile: String = "") -> void:
 	)
 	_ensure_interpolator(root, resolved)
 	if rs != null:
-		rs.set("enable_prediction", false)
+		## Inputless NPCs skip engine physics while the clock ticks. They only
+		## move if rollback still calls _rollback_tick — that is this flag.
+		rs.set("enable_prediction", true)
 		if rs.has_method("process_settings"):
 			rs.call("process_settings")
 

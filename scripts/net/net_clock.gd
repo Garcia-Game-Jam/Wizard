@@ -16,6 +16,13 @@ static func is_ticking() -> bool:
 	return bool(nt.call("is_initial_sync_done"))
 
 
+static func tick() -> int:
+	var nt := _network_time()
+	if nt != null and is_ticking():
+		return int(nt.get("tick"))
+	return 0
+
+
 static func tick_delta() -> float:
 	var nt := _network_time()
 	if nt != null and is_ticking():
@@ -28,7 +35,7 @@ static func is_session_multiplayer() -> bool:
 	if not (tree is SceneTree):
 		return false
 	var state := (tree as SceneTree).root.get_node_or_null("GameState")
-	return state != null and bool(state.get("is_multiplayer"))
+	return is_instance_valid(state) and bool(state.get("is_multiplayer"))
 
 
 static func start_for_match() -> void:

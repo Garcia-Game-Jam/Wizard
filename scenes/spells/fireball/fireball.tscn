@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cfireball001"]
 
 [ext_resource type="Script" uid="uid://cto1qc80bouyt" path="res://scripts/spells/fireball_projectile.gd" id="1_fireball"]
+[ext_resource type="PackedScene" uid="uid://cfireballexp1" path="res://scenes/spells/fireball/fireball_explosion.tscn" id="2_impact"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_hit"]
 radius = 0.23
@@ -59,9 +60,11 @@ editor_description = "Select THIS Fireball root. Cast timing is charge hold + wa
 collision_layer = 0
 monitorable = false
 script = ExtResource("1_fireball")
-charge_time_sec = 0.8
-wand_charge_pose_sec = 0.14
+speed = 28.0
+lifetime = 2.5
 hit_radius = 0.23
+impact_fx = ExtResource("2_impact")
+charge_time_sec = 0.8
 shell_radius = 0.25
 glow_light_base = 0.55
 glow_light_peak = 1.5

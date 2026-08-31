@@ -1,51 +1,115 @@
-[gd_scene load_steps=7 format=3 uid="uid://dtmkhfh4qil65"]
+[gd_scene format=3 uid="uid://dtmkhfh4qil65"]
 
 [ext_resource type="PackedScene" uid="uid://bmonster001" path="res://scenes/monsters/monster.tscn" id="1_monster"]
-[ext_resource type="Script" path="res://scripts/monsters/ember_wretch.gd" id="2_ember"]
-[ext_resource type="Script" path="res://scripts/monsters/abilities/ember_lob_ability.gd" id="3_lob"]
-[ext_resource type="Script" path="res://scripts/monsters/abilities/ember_halo_ability.gd" id="4_halo"]
-[ext_resource type="Script" path="res://scripts/monsters/abilities/ember_dash_ability.gd" id="5_dash"]
-[ext_resource type="Script" path="res://scripts/monsters/monster_caster_combat.gd" id="6_caster"]
+[ext_resource type="Script" uid="uid://beg1fd8htdtoo" path="res://scripts/monsters/ember_wretch.gd" id="2_ember"]
+[ext_resource type="Script" uid="uid://d0o2iv0f440rd" path="res://scripts/monsters/abilities/ember_lob_ability.gd" id="3_lob"]
+[ext_resource type="Script" uid="uid://4gquo6ujvles" path="res://scripts/monsters/abilities/ember_halo_ability.gd" id="4_halo"]
+[ext_resource type="Script" uid="uid://cge0plplvo3ae" path="res://scripts/monsters/abilities/ember_dash_ability.gd" id="5_dash"]
+[ext_resource type="Script" uid="uid://bbtdnjf8jfusd" path="res://scripts/monsters/monster_caster_combat.gd" id="6_caster"]
+[ext_resource type="Script" uid="uid://r2m2xx63ltbm" path="res://scripts/monsters/monster_combo_step.gd" id="7_47dwu"]
 
-[node name="EmberWretch" instance=ExtResource("1_monster")]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_47dwu"]
+resource_local_to_scene = true
+albedo_color = Color(0.85, 0.38, 0.12, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_17vvc"]
+resource_local_to_scene = true
+albedo_color = Color(0.86200005, 0.4296, 0.1904, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_41spr"]
+resource_local_to_scene = true
+shading_mode = 0
+albedo_color = Color(1, 0.12, 0.08, 1)
+
+[sub_resource type="Resource" id="Resource_k2w2y"]
+script = ExtResource("7_47dwu")
+ability_id = "ember_halo"
+
+[sub_resource type="Resource" id="Resource_c1jed"]
+script = ExtResource("7_47dwu")
+ability_id = "ember_dash"
+step_type = 0
+
+[sub_resource type="Resource" id="Resource_sk28t"]
+script = ExtResource("7_47dwu")
+ability_id = "ember_lob"
+
+[node name="EmberWretch" unique_id=632101534 instance=ExtResource("1_monster")]
 editor_description = "Ember Caster. Caster combat: charge spells, stay in range, halo→dash→lob combo."
+collision_mask = 3
 script = ExtResource("2_ember")
 body_tint = Color(0.85, 0.38, 0.12, 1)
-eye_glow_color = Color(1, 0.12, 0.08, 1)
-lookdev_pose = 0
+lookdev_override = false
 show_combat_ranges = false
+show_sense_ranges = false
 move_speed = 3.24
 chase_range = 14.0
 attack_range = 1.5
 touch_damage = 9.0
+idle_duration_sec = 1.2
+patrol_speed = 2.4
+patrol_radius = 8.0
+lost_chase_to_alert_sec = 4.0
+alert_duration_sec = 12.0
+chase_style = 0
+keep_away_range = 20.0
+face_turn_speed_rad = 10.0
+chase_wait_min_sec = 1.0
+chase_wait_max_sec = 3.0
+chase_strafe_min_sec = 1.2
+chase_strafe_max_sec = 2.0
+chase_retreat_min_sec = 1.2
+chase_retreat_max_sec = 3.2
+chase_optimal_eps = 0.55
+eye_glow_color = Color(1, 0.12, 0.08, 1)
+current_health = 50.0
 
-[node name="Hands" type="Node3D" parent="Body"]
-editor_description = "Cast sockets. Right = Lob, Left = Halo. Markers, not extra meshes."
+[node name="Body" parent="." index="1" unique_id=73058391]
+surface_material_override/0 = SubResource("StandardMaterial3D_47dwu")
 
-[node name="RightHand" type="Marker3D" parent="Body/Hands"]
+[node name="HeadMesh" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="0" unique_id=1294118041]
+surface_material_override/0 = SubResource("StandardMaterial3D_17vvc")
+
+[node name="LeftEye" parent="Head/Eyes" parent_id_path=PackedInt32Array(910001010) index="0" unique_id=910001011]
+surface_material_override/0 = SubResource("StandardMaterial3D_41spr")
+
+[node name="RightEye" parent="Head/Eyes" parent_id_path=PackedInt32Array(910001010) index="1" unique_id=910001012]
+surface_material_override/0 = SubResource("StandardMaterial3D_41spr")
+
+[node name="Glow" parent="Head/Eyes" parent_id_path=PackedInt32Array(910001010) index="2" unique_id=910001013]
+light_color = Color(1, 0.12, 0.08, 1)
+light_energy = 2.6
+light_cull_mask = 3
+
+[node name="RightHand" type="Marker3D" parent="." index="6" unique_id=1209880725]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.26, 0.02, 0)
+editor_description = "Lob spawn + windup. Child of the body so it stays attached. Facing is -Z."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 0.36, -0.32)
+gizmo_extents = 0.1
 
-[node name="LeftHand" type="Marker3D" parent="Body/Hands"]
+[node name="LeftHand" type="Marker3D" parent="." index="7" unique_id=1729938510]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26, 0.02, 0)
+editor_description = "Halo spawn + windup. Child of the body so it stays attached. Facing is -Z."
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22, 0.36, -0.32)
+gizmo_extents = 0.1
 
-[node name="Abilities" type="Node3D" parent="."]
+[node name="Abilities" type="Node3D" parent="." index="8" unique_id=1247301455]
 editor_description = "Ability 1 RightHand Ember Lob. Ability 2 LeftHand Ember Halo. Ability 3 Ember Dash reposition."
 
-[node name="EmberLob" type="Node3D" parent="Abilities"]
+[node name="EmberLob" type="Node3D" parent="Abilities" index="0" unique_id=1165393791]
 script = ExtResource("3_lob")
 ability_id = "ember_lob"
 display_name = "Ember Lob"
 description = "Right-hand lob fireball that arcs, then dives at the player from apex."
-cooldown_sec = 5.0
-windup_sec = 0.55
 telegraph_color = Color(1, 0.22, 0.06, 1)
-hand_side = 0
 min_cast_range = 3.5
 max_cast_range = 13.0
 
-[node name="EmberHalo" type="Node3D" parent="Abilities"]
+[node name="EmberHalo" type="Node3D" parent="Abilities" index="1" unique_id=1851936057]
 script = ExtResource("4_halo")
 ability_id = "ember_halo"
 display_name = "Ember Halo"
@@ -57,16 +121,19 @@ hand_side = 1
 min_cast_range = 2.5
 max_cast_range = 11.0
 
-[node name="EmberDash" type="Node3D" parent="Abilities"]
+[node name="EmberDash" type="Node3D" parent="Abilities" index="2" unique_id=758961456]
 script = ExtResource("5_dash")
 ability_id = "ember_dash"
 display_name = "Ember Dash"
-description = "Sidestep opposite the player at 8m, or dash behind them during combo, leaving a burning trail."
-cooldown_sec = 5.0
+description = "Sidestep opposite the player's movement at close range, or dash behind them during combo, leaving a burning trail."
 windup_sec = 0.0
 telegraph_color = Color(1, 0.15, 0.05, 1)
+requires_chase_target = true
+min_cast_range = 0.0
+max_cast_range = 40.0
 participates_in_cast_rotation = false
 
-[node name="CasterCombat" type="Node3D" parent="."]
+[node name="CasterCombat" type="Node" parent="." index="9" unique_id=1113617755]
+editor_description = "Charge-hold-release AI (when to charge, retreat, or run the halo→dash→lob combo). Not a spawn socket — it has no 3D transform."
 script = ExtResource("6_caster")
-combo_trigger_max_range = 8.0
+combo_steps = [SubResource("Resource_k2w2y"), SubResource("Resource_c1jed"), SubResource("Resource_sk28t")]

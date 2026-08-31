@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://bl1lphofjy2wh" path="res://scripts/player/wand_listening_fx.gd" id="1_fx"]
 [ext_resource type="Script" uid="uid://co3lwxyvgag6i" path="res://scripts/player/player_wand.gd" id="1_wand"]
+[ext_resource type="PackedScene" uid="uid://cfireballwpn1" path="res://scenes/spells/fireball/fireball_weapon.tscn" id="2_fbw"]
+[ext_resource type="PackedScene" uid="uid://cstonewpn001" path="res://scenes/spells/stone_throw/stone_throw_weapon.tscn" id="3_stw"]
+[ext_resource type="PackedScene" uid="uid://cflarewpn001" path="res://scenes/spells/evaluating/flare/flare_weapon.tscn" id="4_flw"]
+[ext_resource type="PackedScene" uid="uid://cwardwpn0001" path="res://scenes/spells/ward/ward_weapon.tscn" id="5_wdw"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shaft"]
 albedo_color = Color(0.18, 0.12, 0.1, 1)
@@ -324,3 +328,11 @@ shadow_caster_mask = 1
 spot_range = 14.0
 spot_attenuation = 1.05
 spot_angle = 28.0
+
+[node name="FireballWeapon" parent="." instance=ExtResource("2_fbw")]
+
+[node name="StoneThrowWeapon" parent="." instance=ExtResource("3_stw")]
+
+[node name="FlareWeapon" parent="." instance=ExtResource("4_flw")]
+
+[node name="WardWeapon" parent="." instance=ExtResource("5_wdw")]

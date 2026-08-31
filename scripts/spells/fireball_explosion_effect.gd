@@ -6,6 +6,13 @@ extends Node3D
 const FireballParticlesScript := preload("res://scripts/spells/fireball_particles.gd")
 const FireballLightingScript := preload("res://scripts/spells/fireball_lighting.gd")
 
+var _played := false
+
+
+func _ready() -> void:
+	if not _played:
+		_play(clampf(scale.x, 0.08, 1.0))
+
 
 static func spawn(
 	parent: Node,
@@ -13,13 +20,16 @@ static func spawn(
 	fx_scale: float = 1.0
 ) -> FireballExplosionEffect:
 	var effect := FireballExplosionEffect.new()
+	effect.scale = Vector3.ONE * clampf(fx_scale, 0.08, 1.0)
 	parent.add_child(effect)
 	effect.global_position = world_position
-	effect._play(clampf(fx_scale, 0.08, 1.0))
 	return effect
 
 
 func _play(fx_scale: float = 1.0) -> void:
+	if _played:
+		return
+	_played = true
 	scale = Vector3.ONE * fx_scale
 	var flash := FireballLightingScript.make_explosion_flash_light()
 	flash.light_energy *= fx_scale

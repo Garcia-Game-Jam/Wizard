@@ -260,7 +260,7 @@ func _arm_charge_ticks(pose_only: bool) -> void:
 
 
 func _process(delta: float) -> void:
-	if GameState.is_multiplayer and not is_multiplayer_authority():
+	if NetClockScript.is_session_multiplayer() and not is_multiplayer_authority():
 		_apply_replicated_eyes()
 	if Engine.is_editor_hint():
 		_tick_lookdev_launches(delta)
@@ -318,10 +318,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	_flush_rewind_applies(_tick)
 	if rollback_tick_death_if_active(delta):
 		return
 	_tick_ram_hits.clear()
-	if GameState.is_multiplayer and not is_multiplayer_authority():
+	if NetClockScript.is_session_multiplayer() and not is_multiplayer_authority():
 		_sync_charge_net_pose()
 		return
 	if _phase != ChargePhase.NONE:
@@ -354,7 +355,7 @@ func _simulate_charger(delta: float) -> void:
 
 
 func _sync_charge_net_pose() -> void:
-	if GameState.is_multiplayer and not is_multiplayer_authority():
+	if NetClockScript.is_session_multiplayer() and not is_multiplayer_authority():
 		_phase = net_phase as ChargePhase
 		var tell := 0.0
 		if _phase == ChargePhase.TELEGRAPH:

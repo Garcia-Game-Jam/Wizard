@@ -2,7 +2,7 @@ class_name Knock
 extends Effect
 
 ## Shove plus bleed. impulse must be non-zero — omit this resource for no knock.
-## from_impact: splash rebuilds impulse per body from the detonate point.
+## from_impact: rebuilds impulse per body from the impact point.
 ## Authored impulse then holds (horizontal, up, unused) magnitudes.
 
 @export var impulse: Vector3 = Vector3(9.0, 3.5, 0.0)
