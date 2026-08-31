@@ -280,6 +280,7 @@ static func _duplicate_greybox(source: Node3D, corpse: Node) -> void:
 ## Corpse dup runs after ghost visuals; never copy the pawn's alpha fade.
 func _ensure_opaque_greybox() -> void:
 	for mesh in _find_mesh_instances(self):
+		mesh.visible = true
 		var mat := _mesh_material(mesh)
 		if mat == null:
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
