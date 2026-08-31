@@ -68,7 +68,9 @@ static func apply_world_prop(root: Node, profile: String = "") -> void:
 	)
 	_ensure_interpolator(root, resolved)
 	if rs != null:
-		rs.set("enable_prediction", false)
+		## Inputless NPCs skip engine physics while the clock ticks. They only
+		## move if rollback still calls _rollback_tick — that is this flag.
+		rs.set("enable_prediction", true)
 		if rs.has_method("process_settings"):
 			rs.call("process_settings")
 

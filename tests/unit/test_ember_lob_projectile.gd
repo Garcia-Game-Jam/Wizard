@@ -11,6 +11,9 @@ const LOB_HIT_RADIUS := 0.18
 
 
 func run(tree: SceneTree) -> int:
+	## Overlap connect scans every player/monster in the tree. Flush the previous
+	## suite's queue_free before we spawn, and free holders immediately after.
+	await tree.process_frame
 	var failures := 0
 	failures += _test_impact_damages_nearby_player_without_knockback(tree)
 	failures += _test_authored_hands_clear_lob_sphere(tree)
@@ -24,6 +27,11 @@ func _holder(tree: SceneTree) -> Node3D:
 	var holder := Node3D.new()
 	tree.root.add_child(holder)
 	return holder
+
+
+func _drop(holder: Node) -> void:
+	if holder != null and is_instance_valid(holder):
+		holder.free()
 
 
 func _test_impact_damages_nearby_player_without_knockback(tree: SceneTree) -> int:
@@ -46,7 +54,7 @@ func _test_impact_damages_nearby_player_without_knockback(tree: SceneTree) -> in
 		)
 	elif player.velocity.length_squared() > 0.01:
 		err = "Ember lob must not knock the player back (velocity %s)" % player.velocity
-	holder.queue_free()
+	_drop(holder)
 	if err.is_empty():
 		return 0
 	push_error(err)
@@ -75,7 +83,7 @@ func _test_authored_hands_clear_lob_sphere(tree: SceneTree) -> int:
 					% [path, gap, LOB_HIT_RADIUS]
 				)
 				break
-	holder.queue_free()
+	_drop(holder)
 	if err.is_empty():
 		return 0
 	push_error(err)
@@ -100,7 +108,7 @@ func _test_hands_follow_ember_move(tree: SceneTree) -> int:
 				"RightHand must follow the ember (got %s, expected %s)"
 				% [hand.global_position, expected]
 			)
-	holder.queue_free()
+	_drop(holder)
 	if err.is_empty():
 		return 0
 	push_error(err)
@@ -121,7 +129,7 @@ func _test_first_step_does_not_detonate_on_caster(tree: SceneTree) -> int:
 	var err := ""
 	if bool(lob.get("_finished")):
 		err = "Host lob must not detonate on the caster's first flight step"
-	holder.queue_free()
+	_drop(holder)
 	if err.is_empty():
 		return 0
 	push_error(err)
@@ -144,7 +152,7 @@ func _test_replica_without_caster_does_not_detonate_on_ember(tree: SceneTree) ->
 		lob.call("_simulate_flight", 1.0 / 60.0)
 		if bool(lob.get("_finished")):
 			err = "Guest replica must not detonate on the ember when caster was omitted"
-	holder.queue_free()
+	_drop(holder)
 	if err.is_empty():
 		return 0
 	push_error(err)

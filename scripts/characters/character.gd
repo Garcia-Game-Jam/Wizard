@@ -426,16 +426,12 @@ func stop_death_physics() -> void:
 
 ## Engine _physics_process. True = caller should return.
 func tick_death_physics_if_active(_delta: float) -> bool:
-	if not _death_physics_active:
-		return false
-	if NetClockScript.is_ticking() and get_node_or_null("RollbackSynchronizer") != null:
-		return true
-	return _death_physics_active
+	return _death_physics_active and not is_alive()
 
 
 ## Rollback tick while dead — skip living sim; ghost/corpse use their own paths.
 func rollback_tick_death_if_active(_delta: float) -> bool:
-	return _death_physics_active
+	return _death_physics_active and not is_alive()
 
 
 static func death_slump_velocity(hit_dir: Vector3) -> Vector3:
