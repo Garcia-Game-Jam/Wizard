@@ -11,7 +11,11 @@ const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 const TICK := 1.0 / 60.0
 
 
-func run(tree: SceneTree) -> int:
+func run() -> int:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		push_error("Expected a SceneTree for knock ground-move tests")
+		return 1
 	var failures := 0
 	failures += _test_walk_does_not_replace_knock_xz(tree)
 	failures += _test_monster_gravity_does_not_eat_knock_up(tree)

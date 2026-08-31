@@ -17,6 +17,11 @@ const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 static func begin_mechanics(player: Player) -> void:
 	if player == null or player.is_alive():
 		return
+	if (
+		player.collision_layer == 0
+		and player.collision_mask == CollisionLayersScript.GHOST_MASK
+	):
+		return
 	player.saved_collision_layer = player.collision_layer
 	player.saved_collision_mask = player.collision_mask
 	player.collision_layer = 0
@@ -47,11 +52,10 @@ static func end_mechanics(player: Player) -> void:
 		return
 	var layer := player.saved_collision_layer
 	player.collision_layer = CollisionLayersScript.CHARACTER if layer == 0 else layer
-	player.collision_mask = (
-		player.saved_collision_mask
-		if player.saved_collision_mask != 0
-		else CollisionLayersScript.CHARACTER_AND_WORLD
-	)
+	var mask := player.saved_collision_mask
+	if mask == 0 or mask == CollisionLayersScript.GHOST_MASK:
+		mask = CollisionLayersScript.CHARACTER_AND_WORLD
+	player.collision_mask = mask
 
 
 ## Living look + collision. Stage owns freeing the shoveable corpse prop.
