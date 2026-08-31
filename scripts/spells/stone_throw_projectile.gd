@@ -26,7 +26,7 @@ static func spawn(
 	caster: Node3D = null,
 	lookdev_flight: bool = false
 ) -> Node:
-	## Lookdev / apply() fallback. Live pit instantiates via NetSpellWeapon.
+	## Lookdev. Live pit instantiates via NetSpellWeapon.
 	## Lazy-load avoids circular preload with stone_throw.tscn.
 	var packed: PackedScene = load(
 		"res://scenes/spells/stone_throw/stone_throw.tscn"
