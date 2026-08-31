@@ -229,6 +229,8 @@ func _process(_delta: float) -> void:
 func _on_broker_pcm(mono: PackedFloat32Array, mix_rate: int) -> void:
 	if not is_active or mono.is_empty():
 		return
+	if not _has_live_multiplayer():
+		return
 	var gain: float = MicGainUtilScript.from_settings()
 	var target_rate := float(sample_rate)
 	var decim_every := (
@@ -297,6 +299,8 @@ func _send_to_peers(packet: PackedByteArray) -> void:
 		return
 	var network := tree.root.get_node_or_null("NetworkManager")
 	if network == null or not network.has_method("send_voice_frame"):
+		return
+	if "is_session_active" in network and not bool(network.get("is_session_active")):
 		return
 	network.call("send_voice_frame", packet)
 	_debug_sent += 1
@@ -384,6 +388,8 @@ func _ensure_remote_playback(steam_id: int, rate: int) -> AudioStreamGeneratorPl
 	var player := _player_by_steam_id.get(steam_id) as Node
 	if player == null or not is_instance_valid(player):
 		player = _create_remote_player(steam_id, rate)
+	if player == null or not is_instance_valid(player):
+		return null
 	if not bool(player.get("playing")):
 		player.call("play")
 	playback = player.call("get_stream_playback") as AudioStreamGeneratorPlayback

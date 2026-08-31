@@ -137,6 +137,8 @@ func _cache_fx_nodes() -> void:
 
 
 func _sync_visuals() -> void:
+	if not is_inside_tree():
+		return
 	_ensure_player()
 	if not is_instance_valid(_overlay_root):
 		_overlay_root = null

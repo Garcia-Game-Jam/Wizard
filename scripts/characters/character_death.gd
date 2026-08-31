@@ -54,8 +54,10 @@ func _on_host_revived() -> void:
 
 
 func _sync_presentation() -> void:
+	if not is_inside_tree():
+		return
 	var host := get_parent() as Character
-	if host == null:
+	if host == null or not is_instance_valid(host):
 		return
 	## Pad rez: suppress death commit until sim stands up; then un-ghost only.
 	if host is Player and (host as Player)._pad_rez_pending:
