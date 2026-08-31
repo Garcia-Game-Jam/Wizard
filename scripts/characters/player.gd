@@ -154,6 +154,8 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	NetworkManagerScript.disable_player_sync(self)
+	if not is_alive() or is_death_physics():
+		PlayerGhostScript.clear(self)
 
 
 func _on_death(_from: Node3D) -> void:

@@ -54,7 +54,6 @@ const DEFAULT_TINT := Color(0.55, 0.45, 0.35, 1.0)
 @export_range(0.5, 30.0, 0.25) var lost_chase_to_alert_sec: float = 4.0
 @export_range(1.0, 60.0, 0.25) var alert_duration_sec: float = 12.0
 @export var death_linger_sec: float = 30.0
-@export var death_fade_sec: float = 3.0
 @export_range(1.0, 24.0, 0.1) var face_turn_speed_rad: float = 10.0
 
 @export_group("Leash")
@@ -270,7 +269,6 @@ func _on_death(_from: Node3D) -> void:
 		"reparent": true,
 		"impulse": Character._knockback_impulse(_last_hit_dir) * DEATH_IMPULSE_SCALE,
 		"linger_sec": death_linger_sec,
-		"fade_sec": death_fade_sec,
 	})
 	queue_free()
 

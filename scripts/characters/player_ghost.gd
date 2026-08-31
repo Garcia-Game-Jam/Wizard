@@ -196,10 +196,9 @@ static func _ghost_material_for(player: Player, mesh: MeshInstance3D) -> Standar
 static func _clear_ghost_material(mesh: MeshInstance3D) -> void:
 	if mesh == null or not mesh.has_meta(GHOST_MAT_META):
 		return
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mesh.material_override = null
 	mesh.remove_meta(GHOST_MAT_META)
-	if mesh.mesh == null or mesh.get_active_material(0) == null:
-		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 static func _clear_ghost_materials(player: Player) -> void:

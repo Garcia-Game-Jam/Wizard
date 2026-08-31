@@ -1,11 +1,10 @@
 class_name Corpse
 extends RigidBody3D
 
-## Local death VFX: greybox RigidBody limp, fades out, then frees.
+## Local death VFX: greybox RigidBody limp, then frees after linger.
 ## Each peer spawns its own copy; not replicated in multiplayer.
 
 const DEFAULT_LINGER_SEC := 4.0
-const DEFAULT_FADE_SEC := 2.0
 const TORQUE_STRENGTH := 1.6
 const WALK_NUDGE_MPS := 1.6
 const GRAVITY := 18.0
@@ -13,19 +12,7 @@ const GRAVITY := 18.0
 const CorpseScript := preload("res://scripts/characters/corpse.gd")
 const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
-var _fade_sec: float = DEFAULT_FADE_SEC
-var _materials: Array[StandardMaterial3D] = []
-var _fade_tween: Tween
 var _hit_dir: Vector3 = Vector3.FORWARD
-
-
-func _notification(what: int) -> void:
-	## A MeshInstance3D that holds the last reference to its material leaves the
-	## renderer a dangling RID when it frees (engine #67144), which spams
-	## "material_is_animated: Parameter material is null". Our fade duplicates the
-	## authored materials, so every corpse mesh is such an owner: drop them first.
-	if what == NOTIFICATION_PREDELETE:
-		_release_materials()
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
@@ -37,7 +24,7 @@ func despawn() -> void:
 	queue_free()
 
 
-## opts: impulse (Vector3), carry (Vector3), linger_sec, fade_sec, reparent (bool).
+## opts: impulse (Vector3), carry (Vector3), linger_sec, reparent (bool).
 static func spawn(
 	source: Node3D,
 	hit_dir: Vector3 = Vector3.FORWARD,
@@ -61,7 +48,7 @@ static func spawn(
 		_reparent_greybox(source, corpse)
 	else:
 		_duplicate_greybox(source, corpse)
-		(corpse as Corpse)._ensure_opaque_greybox()
+		(corpse as Corpse)._show_greybox()
 	var flat_hit := Vector3(hit_dir.x, 0.0, hit_dir.z)
 	if flat_hit.length_squared() < 0.0001:
 		flat_hit = Vector3.FORWARD
@@ -82,10 +69,7 @@ static func spawn(
 		body._setup_rigidbody(slump, layer, in_group)
 		if carry.length_squared() > 0.0001:
 			body.linear_velocity = carry
-	body._schedule_fade(
-		float(opts.get("linger_sec", DEFAULT_LINGER_SEC)),
-		float(opts.get("fade_sec", DEFAULT_FADE_SEC))
-	)
+	body._schedule_despawn(float(opts.get("linger_sec", DEFAULT_LINGER_SEC)))
 	return body
 
 
@@ -99,20 +83,17 @@ func _setup_rigidbody(impulse: Vector3, layer: int, in_corpse_group: bool) -> vo
 	custom_integrator = true
 	if in_corpse_group:
 		add_to_group(Character.CORPSE_GROUP)
-	_collect_materials()
 	if impulse.length_squared() > 0.0001:
 		apply_central_impulse(impulse)
 	apply_torque_impulse(Character.death_tumble_spin(TORQUE_STRENGTH))
 
 
-func _schedule_fade(linger_sec: float, fade_sec: float) -> void:
-	_fade_sec = maxf(0.05, fade_sec)
-	var wait_sec := maxf(0.0, linger_sec - _fade_sec)
+func _schedule_despawn(linger_sec: float) -> void:
 	var tree := get_tree()
 	if tree == null:
 		despawn()
 		return
-	tree.create_timer(wait_sec).timeout.connect(_start_fade)
+	tree.create_timer(maxf(0.0, linger_sec)).timeout.connect(despawn)
 
 
 ## Killing knock: Character treats impulse as velocity. Replace the slump.
@@ -186,81 +167,6 @@ static func _apply_spawn_pose(corpse: Corpse, source: Node3D) -> void:
 	corpse.global_transform = source.global_transform
 
 
-func _collect_materials() -> void:
-	_materials.clear()
-	var owned_for: Dictionary = {}
-	for mesh in _find_mesh_instances(self):
-		var mat := _mesh_material(mesh)
-		if mat == null:
-			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			continue
-		var key := mat.get_instance_id()
-		var owned: StandardMaterial3D = owned_for.get(key) as StandardMaterial3D
-		if owned == null:
-			owned = mat.duplicate() as StandardMaterial3D
-			owned_for[key] = owned
-			_materials.append(owned)
-		if mesh.material_override != null:
-			mesh.material_override = owned
-		else:
-			mesh.set_surface_override_material(0, owned)
-
-
-func _mesh_material(mesh: MeshInstance3D) -> StandardMaterial3D:
-	if mesh.material_override is StandardMaterial3D:
-		return mesh.material_override as StandardMaterial3D
-	var override_mat := mesh.get_surface_override_material(0)
-	if override_mat is StandardMaterial3D:
-		return override_mat as StandardMaterial3D
-	return null
-
-
-func _find_mesh_instances(root: Node) -> Array[MeshInstance3D]:
-	var found: Array[MeshInstance3D] = []
-	if root is MeshInstance3D:
-		found.append(root as MeshInstance3D)
-	for child in root.get_children():
-		found.append_array(_find_mesh_instances(child))
-	return found
-
-
-func _release_materials() -> void:
-	for mesh in _find_mesh_instances(self):
-		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mesh.material_override = null
-		for i in mesh.get_surface_override_material_count():
-			mesh.set_surface_override_material(i, null)
-
-
-func _start_fade() -> void:
-	if not is_inside_tree():
-		return
-	if _fade_tween != null and _fade_tween.is_valid():
-		_fade_tween.kill()
-	var live_mats: Array[StandardMaterial3D] = []
-	for mat in _materials:
-		if mat != null and is_instance_valid(mat):
-			live_mats.append(mat)
-	_materials = live_mats
-	if _materials.is_empty():
-		despawn()
-		return
-	for mat in _materials:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	for mesh in _find_mesh_instances(self):
-		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-	_fade_tween = create_tween()
-	_fade_tween.set_parallel(true)
-	_fade_tween.set_trans(Tween.TRANS_SINE)
-	_fade_tween.set_ease(Tween.EASE_IN)
-	for mat in _materials:
-		var clear := Color(mat.albedo_color.r, mat.albedo_color.g, mat.albedo_color.b, 0.0)
-		_fade_tween.tween_property(mat, "albedo_color", clear, _fade_sec)
-	_fade_tween.set_parallel(false)
-	_fade_tween.tween_callback(despawn)
-
-
 static func _stage_corpses_root(from: Node) -> Node:
 	var n := from
 	while n != null:
@@ -277,20 +183,19 @@ static func _duplicate_greybox(source: Node3D, corpse: Node) -> void:
 	_duplicate_node(source.get_node_or_null("%HeadMesh"), corpse)
 
 
-## Corpse dup runs after ghost visuals; never copy the pawn's alpha fade.
-func _ensure_opaque_greybox() -> void:
+## Spawn runs before ghost visuals; keep meshes visible if the source was hidden.
+func _show_greybox() -> void:
 	for mesh in _find_mesh_instances(self):
 		mesh.visible = true
-		var mat := _mesh_material(mesh)
-		if mat == null:
-			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			continue
-		var owned := mat.duplicate() as StandardMaterial3D
-		owned.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-		var color := owned.albedo_color
-		color.a = 1.0
-		owned.albedo_color = color
-		mesh.material_override = owned
+
+
+func _find_mesh_instances(root: Node) -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	if root is MeshInstance3D:
+		found.append(root as MeshInstance3D)
+	for child in root.get_children():
+		found.append_array(_find_mesh_instances(child))
+	return found
 
 
 static func _reparent_greybox(source: Node3D, corpse: Node) -> void:
