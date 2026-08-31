@@ -318,6 +318,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	_flush_rewind_applies(_tick)
 	if rollback_tick_death_if_active(delta):
 		return
 	_tick_ram_hits.clear()

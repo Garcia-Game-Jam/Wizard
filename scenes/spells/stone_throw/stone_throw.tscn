@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://d3cv5t40q0v1c" path="res://scripts/spells/stone_throw_projectile.gd" id="1_stone"]
 [ext_resource type="ArrayMesh" path="res://assets/props/stone_mesh.res" id="2_mesh"]
+[ext_resource type="PackedScene" uid="uid://cstoneimpact01" path="res://scenes/spells/stone_throw/stone_impact.tscn" id="3_impact"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_hit"]
 radius = 0.2
@@ -15,6 +16,11 @@ editor_description = "Select THIS StoneThrow root. Cast timing is charge hold. R
 collision_layer = 0
 monitorable = false
 script = ExtResource("1_stone")
+speed = 24.0
+lifetime = 2.0
+hit_radius = 0.2
+hit_damage = 15.0
+impact_fx = ExtResource("3_impact")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=732600528]
 shape = SubResource("SphereShape3D_hit")

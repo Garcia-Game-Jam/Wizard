@@ -1,23 +1,8 @@
 class_name TestStoneThrowProjectile
 extends RefCounted
 
-## Does a thrown stone actually connect and hurt/knock back what it hits?
-##
-## Both tests call internal methods directly rather than driving real flight via
-## _simulate_flight() in a loop: Area3D.direct_space_state only reflects state as
-## of the last completed physics step, and this suite's run() cannot await one
-## (the harness calls run() synchronously — see test_spell_pipeline.gd's polling
-## workaround for the same constraint). A manual _simulate_flight() loop with no
-## elapsed physics frame reliably reports zero overlaps even for two shapes sitting
-## exactly on top of each other, which would look like a hit-detection bug but
-## isn't one — confirmed by isolated --script repros that awaited real
-## physics_frame ticks and then got correct intersect_shape results every time.
-##
-## What IS worth covering here: that a landed hit actually damages/knocks back
-## (_finish), and that the splash-radius group scan (_apply_splash_at) — the
-## thing that makes a real hit forgiving of a creature's collision capsule not
-## being centered on its root position — reaches a target by distance, not by
-## requiring pixel-exact shape overlap.
+## Thrown stone connects on overlap and spends Damage+Knock. Nearby-without-overlap
+## is not a hit. Flight coverage still awaits a real physics_frame.
 
 const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
 const StoneThrowScene := preload("res://scenes/spells/stone_throw/stone_throw.tscn")
@@ -26,8 +11,10 @@ const StoneThrowScene := preload("res://scenes/spells/stone_throw/stone_throw.ts
 func run(tree: SceneTree) -> int:
 	var failures := 0
 	failures += _test_finish_applies_damage_and_knockback(tree)
-	failures += _test_splash_reaches_nearby_target_by_distance(tree)
-	failures += _test_catchup_does_not_apply_payload(tree)
+	failures += _test_nearby_without_overlap_does_not_hit(tree)
+	failures += _test_two_overlapping_bodies_both_apply(tree)
+	failures += _test_catchup_does_apply_payload(tree)
+	failures += await _test_connect_awaits_physics_frame(tree)
 	return failures
 
 
@@ -47,8 +34,7 @@ func _spawn_target(holder: Node3D, pos: Vector3) -> Character:
 func _spawn_stone(holder: Node3D, pos: Vector3, direction: Vector3) -> StoneThrowProjectile:
 	var stone := StoneThrowScene.instantiate() as StoneThrowProjectile
 	holder.add_child(stone)
-	stone.global_position = pos
-	stone._direction = direction.normalized()
+	stone.setup_launch(pos, direction)
 	return stone
 
 
@@ -56,18 +42,18 @@ func _test_finish_applies_damage_and_knockback(tree: SceneTree) -> int:
 	var holder := _holder(tree)
 	var target := _spawn_target(holder, Vector3(0.0, 1.0, 5.0))
 	var max_hp := target.max_health
-	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 4.7), Vector3(0.0, 0.0, 1.0))
+	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 5.0), Vector3(0.0, 0.0, 1.0))
 
 	stone.call("_finish", true)
 
 	var err := ""
 	if is_equal_approx(target.current_health, max_hp):
 		err = (
-			"Expected _finish(apply_splash=true) near the target to damage it; "
+			"Expected _finish on an overlapping stone to damage the target; "
 			+ "HP stayed at %.1f/%.1f"
 		) % [target.current_health, max_hp]
 	elif target.velocity.length_squared() < 0.01:
-		err = "Expected the splash hit to also knock the target back (velocity ~0)"
+		err = "Expected the overlapping hit to also knock the target back (velocity ~0)"
 	holder.queue_free()
 	if err.is_empty():
 		return 0
@@ -75,30 +61,17 @@ func _test_finish_applies_damage_and_knockback(tree: SceneTree) -> int:
 	return 1
 
 
-## Places the target near, but not exactly at, the impact point — the scenario a
-## precise-only hit sphere used to miss because a character's collision capsule
-## sits well above its root position. _apply_splash_at measures to the target's
-## own global_position (root), so this only needs splash_radius, no shape overlap.
-func _test_splash_reaches_nearby_target_by_distance(tree: SceneTree) -> int:
+func _test_nearby_without_overlap_does_not_hit(tree: SceneTree) -> int:
 	var holder := _holder(tree)
-	var target := _spawn_target(holder, Vector3(0.4, 1.0, 3.6))
+	var target := _spawn_target(holder, Vector3(0.0, 1.0, 4.0))
 	var max_hp := target.max_health
-	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 3.0), Vector3(0.0, 0.0, 1.0))
-	stone.splash_radius = 1.0
+	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, 1.0))
 
-	stone.call("_apply_splash_at", stone.global_position)
+	stone.call("_finish", true)
 
 	var err := ""
-	if is_equal_approx(target.current_health, max_hp):
-		err = (
-			"Expected a target %.2fm from impact (within splash_radius=%.1f) to take "
-			+ "damage; HP stayed at %.1f/%.1f"
-		) % [
-			stone.global_position.distance_to(target.global_position),
-			stone.splash_radius,
-			target.current_health,
-			max_hp,
-		]
+	if not is_equal_approx(target.current_health, max_hp):
+		err = "A target the hit sphere never overlapped must not take damage"
 	holder.queue_free()
 	if err.is_empty():
 		return 0
@@ -106,16 +79,54 @@ func _test_splash_reaches_nearby_target_by_distance(tree: SceneTree) -> int:
 	return 1
 
 
-func _test_catchup_does_not_apply_payload(tree: SceneTree) -> int:
+func _test_two_overlapping_bodies_both_apply(tree: SceneTree) -> int:
+	var holder := _holder(tree)
+	var a := _spawn_target(holder, Vector3(0.0, 1.0, 5.0))
+	var b := _spawn_target(holder, Vector3(0.15, 1.0, 5.0))
+	var a_hp := a.max_health
+	var b_hp := b.max_health
+	var stone := _spawn_stone(holder, Vector3(0.08, 1.0, 5.0), Vector3(0.0, 0.0, 1.0))
+
+	stone.call("_finish", true)
+
+	var err := ""
+	if is_equal_approx(a.current_health, a_hp) or is_equal_approx(b.current_health, b_hp):
+		err = "Both overlapping bodies must take the payload"
+	holder.queue_free()
+	if err.is_empty():
+		return 0
+	push_error(err)
+	return 1
+
+
+func _test_catchup_does_apply_payload(tree: SceneTree) -> int:
 	var holder := _holder(tree)
 	var target := _spawn_target(holder, Vector3(0.0, 1.0, 5.0))
 	var max_hp := target.max_health
-	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 4.7), Vector3(0.0, 0.0, 1.0))
-	stone._combat_enabled = false
+	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 5.0), Vector3(0.0, 0.0, 1.0))
 	stone.call("_finish", true)
-	var ok := is_equal_approx(target.current_health, max_hp)
+	var ok := not is_equal_approx(target.current_health, max_hp)
 	holder.queue_free()
 	if ok:
 		return 0
-	push_error("Spawn catch-up must move the stone without spending the payload")
+	push_error("Catch-up _finish must spend the payload (combat stays on)")
+	return 1
+
+
+func _test_connect_awaits_physics_frame(tree: SceneTree) -> int:
+	var holder := _holder(tree)
+	var target := _spawn_target(holder, Vector3(0.0, 1.0, 2.0))
+	var max_hp := target.max_health
+	var stone := _spawn_stone(holder, Vector3(0.0, 1.0, 0.2), Vector3(0.0, 0.0, 1.0))
+	for _i in 45:
+		await tree.physics_frame
+		if not is_instance_valid(stone):
+			break
+	var damaged := is_instance_valid(target) and target.current_health < max_hp
+	holder.queue_free()
+	if damaged:
+		return 0
+	push_error(
+		"Expected a stone flown across physics frames to connect and spend HP"
+	)
 	return 1

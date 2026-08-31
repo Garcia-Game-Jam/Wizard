@@ -1,24 +1,29 @@
 class_name NetSpellWeapon
 extends "res://addons/netfox.extras/weapon/network-weapon-3d.gd"
 
-## Predicted spell fire: spawn immediately, host confirms, reconcile.
-## One node per effect_id so the host can spawn without client pending state.
-## Spawn lives on SpellEffectSync.spawn_predicted — do not add a second match.
+## Wand gun: authored under PlayerWand. Instantiates `projectile_scene` at CastOrigin.
 
 const SpellEffectSyncScript := preload("res://scripts/spells/spell_effect_sync.gd")
+const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
 const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 
 const HOST_PEER_ID := NetAuthorityScript.HOST_PEER_ID
 
-var effect_id: String = ""
+@export var effect_id: String = ""
+@export var projectile_scene: PackedScene
+@export var charge_clip: StringName = &""
+@export var release_clip: StringName = &""
+@export var fizzle_clip: StringName = &""
+
 var _pending: Dictionary = {}
 var _owner_peer_id: int = 0
 
 
 func configure(p_effect_id: String, peer_id: int) -> void:
-	effect_id = p_effect_id
+	if not p_effect_id.is_empty():
+		effect_id = p_effect_id
 	_owner_peer_id = peer_id
-	distance_threshold = 8.0
+	distance_threshold = 1.5
 	set_multiplayer_authority(HOST_PEER_ID)
 
 
@@ -31,7 +36,7 @@ func fire_effect(params: Dictionary) -> Node3D:
 
 
 func _can_fire() -> bool:
-	return get_parent() is CharacterBody3D and not effect_id.is_empty()
+	return _player() != null and not effect_id.is_empty()
 
 
 func _can_peer_use(peer_id: int) -> bool:
@@ -41,8 +46,11 @@ func _can_peer_use(peer_id: int) -> bool:
 
 
 func _spawn() -> Node3D:
-	var player := get_parent() as CharacterBody3D
-	return SpellEffectSyncScript.spawn_predicted(player, _params_for_spawn(player))
+	var player := _player()
+	var params := _params_for_spawn(player)
+	if projectile_scene != null:
+		return _spawn_packed(player, params)
+	return SpellEffectSyncScript.spawn_predicted(player, params)
 
 
 func _after_fire(projectile: Node3D) -> void:
@@ -59,8 +67,8 @@ func _get_data(projectile: Node3D) -> Dictionary:
 		data["direction"] = projectile.get("_direction")
 	if not _pending.is_empty():
 		data["charge"] = float(_pending.get(SpellEffectSyncScript.KEY_CHARGE_FACTOR, 1.0))
-	elif projectile != null and "net_charge_factor" in get_parent():
-		data["charge"] = float(get_parent().get("net_charge_factor"))
+	elif player_has_charge():
+		data["charge"] = float(_player().get("net_charge_factor"))
 	else:
 		data["charge"] = 1.0
 	return data
@@ -80,6 +88,27 @@ func _apply_data(projectile: Node3D, data: Dictionary) -> void:
 		)
 
 
+func _spawn_packed(player: CharacterBody3D, params: Dictionary) -> Node3D:
+	var origin := SpellEffectSyncScript.coerce_vector3(
+		params.get(SpellEffectSyncScript.KEY_ORIGIN, Vector3.ZERO)
+	)
+	var direction := SpellEffectSyncScript.coerce_vector3(
+		params.get(SpellEffectSyncScript.KEY_DIRECTION, Vector3.FORWARD)
+	)
+	var charge := clampf(float(params.get(SpellEffectSyncScript.KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
+	var parent := SpellEphemeralFxScript.resolve_parent(player)
+	var projectile: Node = projectile_scene.instantiate()
+	if projectile is Node3D:
+		SpellEphemeralFxScript.add_child_at(parent, projectile as Node3D, origin)
+	elif parent != null:
+		parent.add_child(projectile)
+	if projectile != null and projectile.has_method("setup_launch"):
+		projectile.call("setup_launch", origin, direction, player, charge)
+	elif projectile != null and projectile.has_method("apply_net_launch"):
+		projectile.call("apply_net_launch", origin, direction, charge)
+	return projectile as Node3D
+
+
 func _params_for_spawn(player: CharacterBody3D) -> Dictionary:
 	if not _pending.is_empty():
 		return _pending
@@ -91,3 +120,17 @@ func _params_for_spawn(player: CharacterBody3D) -> Dictionary:
 	if player != null and "net_charge_factor" in player:
 		params[SpellEffectSyncScript.KEY_CHARGE_FACTOR] = float(player.get("net_charge_factor"))
 	return params
+
+
+func _player() -> CharacterBody3D:
+	var walk: Node = get_parent()
+	while walk != null:
+		if walk is CharacterBody3D:
+			return walk as CharacterBody3D
+		walk = walk.get_parent()
+	return null
+
+
+func player_has_charge() -> bool:
+	var player := _player()
+	return player != null and "net_charge_factor" in player

@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cstonewpn001"]
+
+[ext_resource type="Script" uid="uid://cbeh2p31wkk04" path="res://scripts/net/net_spell_weapon.gd" id="1_weapon"]
+[ext_resource type="PackedScene" uid="uid://cstonethrow01" path="res://scenes/spells/stone_throw/stone_throw.tscn" id="2_proj"]
+
+[node name="StoneThrowWeapon" type="Node3D"]
+script = ExtResource("1_weapon")
+effect_id = "stone_throw"
+projectile_scene = ExtResource("2_proj")

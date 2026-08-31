@@ -4,6 +4,8 @@ extends Node
 ## Peer-owned movement input. Property names in NET_FIELDS are the rewindable
 ## input contract — add a member here and it joins RollbackSynchronizer.
 
+const SpellSyncLaneScript := preload("res://scripts/spells/spell_sync_lane.gd")
+
 const NET_FIELDS: PackedStringArray = [
 	"movement",
 	"jump",
@@ -14,6 +16,8 @@ const NET_FIELDS: PackedStringArray = [
 	"charging",
 	"charge_slot",
 	"charge_factor",
+	"cast_phase",
+	"cast_effect_code",
 	"wand_raised",
 ]
 
@@ -26,6 +30,8 @@ var look_pitch: float = 0.0
 var charging: bool = false
 var charge_slot: int = -1
 var charge_factor: float = 0.0
+var cast_phase: int = 0
+var cast_effect_code: int = 0
 var wand_raised: bool = false
 ## Frame-rate pulse so a dash press is not missed between 30 Hz ticks.
 var _dash_queued: bool = false
@@ -96,6 +102,8 @@ func _gather() -> void:
 	charge_slot = -1
 	charging = false
 	charge_factor = 0.0
+	cast_phase = 0
+	cast_effect_code = 0
 	for i in range(4):
 		var action := "spell_slot_%d" % (i + 1)
 		if Input.is_action_pressed(action):
@@ -120,3 +128,9 @@ func _gather() -> void:
 		charge_factor = clampf(float(wand.call("get_cast_power_factor")), 0.0, 1.0)
 	elif charging and "net_charge_factor" in player:
 		charge_factor = float(player.get("net_charge_factor"))
+	if player.has_method("_cast_tell_phase"):
+		cast_phase = int(player.call("_cast_tell_phase"))
+	if player.has_method("_cast_tell_effect_id"):
+		cast_effect_code = SpellSyncLaneScript.code_for(str(player.call("_cast_tell_effect_id")))
+	if player.has_method("_consume_cast_tell_pulse"):
+		player.call("_consume_cast_tell_pulse")

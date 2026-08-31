@@ -16,6 +16,13 @@ static func is_ticking() -> bool:
 	return bool(nt.call("is_initial_sync_done"))
 
 
+static func tick() -> int:
+	var nt := _network_time()
+	if nt != null and is_ticking():
+		return int(nt.get("tick"))
+	return 0
+
+
 static func tick_delta() -> float:
 	var nt := _network_time()
 	if nt != null and is_ticking():

@@ -1,30 +1,23 @@
 @tool
 class_name FireballProjectile
-extends Area3D
+extends "res://scripts/spells/spell_projectile.gd"
 
-## Forward-moving fireball that explodes on impact. Payload is [Damage] only.
-## Open scenes/spells/fireball/fireball.tscn to tune look + preview FX.
+## Forward-moving fireball. Payload is [Damage] only.
+## Flight/connect live on SpellProjectile. This script is look + charge.
 
 const SPEED := 28.0
 const DEFAULT_HIT_DAMAGE := 20.0
 const DEFAULT_CHARGE_TIME_SEC := 0.8
 const DEFAULT_WAND_CHARGE_POSE_SEC := 0.14
-## Min charge combat values; max uses authored hit_damage / splash / radii.
+## Min charge combat values; max uses authored hit_damage / look radii.
 const CHARGE_DAMAGE_MIN := 5.0
 const CHARGE_AOE_MIN_RADIUS := 0.037
 const CHARGE_SPEED_MIN_MULT := 0.75
 const CHARGE_SPEED_MAX_MULT := 1.5625
 
-const FireballExplosionEffectScript := preload("res://scripts/spells/fireball_explosion_effect.gd")
 const FireballSmokeTrailScript := preload("res://scripts/spells/fireball_smoke_trail.gd")
 const FireballParticlesScript := preload("res://scripts/spells/fireball_particles.gd")
 const FireballLightingScript := preload("res://scripts/spells/fireball_lighting.gd")
-const FireballFlightScript := preload("res://scripts/spells/fireball_flight.gd")
-const SpellEphemeralFxScript := preload("res://scripts/spells/spell_ephemeral_fx.gd")
-const NetClockScript := preload("res://scripts/net/net_clock.gd")
-const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
-const NetDisplayCommitScript := preload("res://scripts/net/net_display_commit.gd")
-const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 @export_group("Cast timing")
 ## Hold time until the tip orb is ready to launch. Drives charge animation too.
@@ -40,11 +33,6 @@ const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 @export_range(0.05, 1.5, 0.01, "or_greater") var core_radius: float = 0.22:
 	set(value):
 		core_radius = maxf(value, 0.02)
-		_sync_orb_shape()
-
-@export_range(0.04, 1.2, 0.01, "or_greater") var hit_radius: float = 0.16:
-	set(value):
-		hit_radius = maxf(value, 0.02)
 		_sync_orb_shape()
 
 @export_range(0.05, 2.0, 0.01, "or_greater") var shell_radius: float = 0.3:
@@ -76,12 +64,6 @@ const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 	set(value):
 		light_radius = maxf(value, 0.1)
 		_configure_travel_light()
-
-@export_group("Combat")
-@export_range(0.0, 200.0, 1.0) var hit_damage: float = DEFAULT_HIT_DAMAGE
-## Damage radius on ground / monster / player impact (not midair timeout).
-@export_range(0.25, 8.0, 0.05) var splash_radius: float = 2.0
-@export var payload: CombatPayload
 
 @export_group("Editor preview")
 @export var preview_smoke: bool = true:
@@ -236,29 +218,18 @@ const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 var _glow_restart_queued := false
 
-var _direction := Vector3.FORWARD
-var _elapsed := 0.0
-var _speed: float = SPEED
+var _launch_speed: float = SPEED
 var _smoke_trail: CPUParticles3D
 var _ember_sparks: CPUParticles3D
-var _hit_shape: SphereShape3D
 var _travel_light: OmniLight3D
 var _core_material: StandardMaterial3D
 var _shell_material: StandardMaterial3D
 var _core_mesh: MeshInstance3D
 var _flame_shell: MeshInstance3D
-var _collision: CollisionShape3D
 var _glow_tween: Tween
-var _caster: Node3D
-var _finished := false
-## Catch-up from NetworkWeapon must not spend the payload — rollback will.
-var _combat_enabled := true
 var _preview_material_ready := false
 ## 0..1 visual scale driven by charge (trails + impact FX).
 var _charge_fx_scale := 1.0
-var _fx_committed := false
-var _impact_fx_parent: Node = null
-var _impact_fx_pos := Vector3.ZERO
 
 
 static func spawn(
@@ -275,18 +246,13 @@ static func spawn(
 	if lookdev_flight:
 		projectile.set_meta("lookdev_flight", true)
 		projectile.process_mode = Node.PROCESS_MODE_ALWAYS
-	if projectile is FireballProjectile:
-		var ball := projectile as FireballProjectile
-		ball._direction = direction.normalized()
-		ball._caster = caster
-		ball.apply_charge_power(charge_factor)
 	## Place before add_child so `_ready` light/particles are not at Match origin.
 	if parent != null and projectile is Node3D:
 		SpellEphemeralFxScript.add_child_at(parent, projectile as Node3D, origin)
 	elif parent != null:
 		parent.add_child(projectile)
-	if projectile is Node3D:
-		NetLivenessScript.after_spawn(projectile as Node3D)
+	if projectile is FireballProjectile:
+		(projectile as FireballProjectile).setup_launch(origin, direction, caster, charge_factor)
 	return projectile
 
 
@@ -309,13 +275,14 @@ static func _authored_float(property_name: String, fallback: float, min_value: f
 	return maxf(fallback, min_value)
 
 
-## charge 0 → min damage / baseball AoE / base speed; charge 1 → authored max + speed boost.
+## charge 0 → min damage / baseball look / base speed; charge 1 → authored max + speed boost.
+## Connect hit_radius stays at the authored floor — tap-fire must not shrink the ball.
 func apply_charge_power(charge_factor: float) -> void:
 	var t := clampf(charge_factor, 0.0, 1.0)
-	_speed = SPEED * lerpf(CHARGE_SPEED_MIN_MULT, CHARGE_SPEED_MAX_MULT, t)
-	var splash_max := splash_radius
+	if _launch_speed <= 0.0:
+		_launch_speed = speed
+	speed = _launch_speed * lerpf(CHARGE_SPEED_MIN_MULT, CHARGE_SPEED_MAX_MULT, t)
 	var core_max := core_radius
-	var hit_max := hit_radius
 	var shell_max := shell_radius
 	var light_max := light_radius
 	var smoke_emit_max := smoke_emission_radius
@@ -325,9 +292,7 @@ func apply_charge_power(charge_factor: float) -> void:
 	var ember_puff_max := ember_puff_radius
 	var ember_amt_max := ember_amount
 	_scale_payload_damage(t)
-	splash_radius = lerpf(CHARGE_AOE_MIN_RADIUS, splash_max, t)
 	core_radius = lerpf(CHARGE_AOE_MIN_RADIUS, core_max, t)
-	hit_radius = lerpf(CHARGE_AOE_MIN_RADIUS, hit_max, t)
 	shell_radius = lerpf(CHARGE_AOE_MIN_RADIUS * 1.15, shell_max, t)
 	light_radius = lerpf(CHARGE_AOE_MIN_RADIUS * 2.0, light_max, t)
 	## Trail + impact FX track projectile scale (baseball → full).
@@ -342,6 +307,18 @@ func apply_charge_power(charge_factor: float) -> void:
 		_sync_orb_shape()
 
 
+func setup_launch(
+	origin: Vector3,
+	direction: Vector3,
+	caster: Node3D = null,
+	charge_factor: float = 1.0
+) -> void:
+	if _launch_speed <= 0.0:
+		_launch_speed = speed if speed > 0.0 else SPEED
+	apply_charge_power(charge_factor)
+	super.setup_launch(origin, direction, caster, charge_factor)
+
+
 func _scale_payload_damage(charge_t: float) -> void:
 	payload = _ensure_payload().duplicate(true) as CombatPayload
 	for effect in payload.effects:
@@ -351,47 +328,21 @@ func _scale_payload_damage(charge_t: float) -> void:
 			hit_damage = dmg.amount
 
 
-func _ensure_payload() -> CombatPayload:
-	if payload != null:
-		return payload
-	payload = CombatPayload.new()
-	payload.effects.append(Damage.with(hit_damage))
-	return payload
-
-
-func _is_lookdev_flight() -> bool:
-	return bool(get_meta("lookdev_flight", false))
-
-
 func _ready() -> void:
 	_cache_nodes()
 	_sync_orb_shape()
 	_prepare_runtime_materials()
 	_apply_preview_fx()
 	_update_process_state()
-	NetDisplayCommitScript.bind(_commit_impact_fx)
+	super._ready()
 	if Engine.is_editor_hint() and not _is_lookdev_flight():
-		set_physics_process(false)
 		return
-
-	monitoring = true
-	monitorable = false
-	collision_layer = 0
-	collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
-
 	_configure_travel_light()
-
 	if animate_glow:
 		_start_glow_pulse()
 	_ensure_smoke_trail(true)
 	_ensure_ember_sparks(true)
 	_position_trail_emitters()
-
-	set_physics_process(true)
-
-
-func _exit_tree() -> void:
-	NetDisplayCommitScript.unbind(_commit_impact_fx)
 
 
 func _process(delta: float) -> void:
@@ -412,14 +363,12 @@ func _process(delta: float) -> void:
 
 
 func _cache_nodes() -> void:
-	_collision = get_node_or_null("CollisionShape3D") as CollisionShape3D
+	super._cache_nodes()
 	_core_mesh = get_node_or_null("Core") as MeshInstance3D
 	_flame_shell = get_node_or_null("FlameShell") as MeshInstance3D
 	_travel_light = get_node_or_null("TravelCastLight") as OmniLight3D
 	_smoke_trail = get_node_or_null("SmokeTrail") as CPUParticles3D
 	_ember_sparks = get_node_or_null("EmberSparks") as CPUParticles3D
-	if _collision != null and _collision.shape is SphereShape3D:
-		_hit_shape = _collision.shape as SphereShape3D
 	if _core_mesh != null and _core_mesh.material_override is StandardMaterial3D:
 		_core_material = _core_mesh.material_override as StandardMaterial3D
 	if _flame_shell != null and _flame_shell.material_override is StandardMaterial3D:
@@ -483,13 +432,7 @@ func _sync_orb_shape() -> void:
 		shell_mesh.radius = shell_radius
 		shell_mesh.height = shell_radius * 2.0
 	_sync_shell_visibility()
-	if _collision != null:
-		var shape := _collision.shape as SphereShape3D
-		if shape == null:
-			shape = SphereShape3D.new()
-			_collision.shape = shape
-		shape.radius = hit_radius
-		_hit_shape = shape
+	_sync_hit_shape()
 	_configure_smoke_trail()
 	_configure_ember_sparks()
 	_configure_travel_light()
@@ -705,253 +648,16 @@ func _stop_glow_pulse() -> void:
 	_glow_tween = null
 
 
-func _physics_process(delta: float) -> void:
-	if _finished or not is_inside_tree():
+func _spawn_impact_fx(parent: Node, impact_pos: Vector3) -> void:
+	if impact_fx == null or parent == null:
 		return
-	if Engine.is_editor_hint() and not _is_lookdev_flight():
-		return
-	if NetLivenessScript.skip_engine_physics():
-		return
-	_simulate_flight(delta)
-
-
-func _rollback_tick(delta: float, _tick: int, _is_fresh: bool) -> void:
-	_simulate_flight(delta)
-
-
-func _rollback_spawn() -> void:
-	_finished = false
-	_fx_committed = false
-	NetLivenessScript.activate(self)
-
-
-func _rollback_despawn() -> void:
-	NetLivenessScript.deactivate(self)
-
-
-func simulate_from_tick(fired_tick: int) -> void:
-	if not NetClockScript.is_ticking():
-		return
-	var nt := Engine.get_main_loop()
-	if not (nt is SceneTree):
-		return
-	var time_node := (nt as SceneTree).root.get_node_or_null("NetworkTime")
-	if time_node == null:
-		return
-	var now := int(time_node.get("tick"))
-	var tick_time := float(time_node.get("ticktime"))
-	_combat_enabled = false
-	for _tick in range(fired_tick, now):
-		if _finished:
-			break
-		_simulate_flight(tick_time)
-	_combat_enabled = true
-
-
-func _simulate_flight(delta: float) -> void:
-	if _finished or not is_inside_tree():
-		return
-	_elapsed += delta
-	if FireballFlightScript.should_finish_normal(_elapsed):
-		_finish(null, false)
-		return
-
-	var motion: Vector3 = _direction * _speed * delta
-	if _try_block_ward_overlap():
-		return
-	if _cast_motion_hit(motion):
-		return
-	global_position += motion
-	_probe_players()
-
-
-func apply_net_launch(origin: Vector3, direction: Vector3, charge_factor: float = 1.0) -> void:
-	global_position = origin
-	if direction.length_squared() > 0.0001:
-		_direction = direction.normalized()
-	apply_charge_power(charge_factor)
-
-
-func _cast_motion_hit(motion: Vector3) -> bool:
-	if not is_inside_tree() or _hit_shape == null:
-		return false
-	var space_state := get_world_3d().direct_space_state
-	var params := PhysicsShapeQueryParameters3D.new()
-	params.shape = _hit_shape
-	params.transform = global_transform
-	params.motion = motion
-	params.exclude = _exclude_rids()
-	params.collision_mask = collision_mask
-	var contact := space_state.cast_motion(params)
-	var safe_fraction: float = contact[0]
-	if safe_fraction >= 1.0:
-		return false
-	var ward := _find_ward_along_motion(params, motion * safe_fraction)
-	global_position += motion * safe_fraction
-	if ward == null:
-		ward = _find_ward_in_group_proximity()
-	if ward != null:
-		_finish(ward, true)
-		return true
-	if _try_block_ward_overlap():
-		return true
-	if _probe_players():
-		return true
-	_finish(null, true)
-	return true
-
-
-func _try_block_ward_overlap() -> bool:
-	## Wards win over monster/player overlap at the impact point (ash ward charge, etc.).
-	if not is_inside_tree() or _hit_shape == null or _finished:
-		return false
-	var ward := _find_ward_hit()
-	if ward == null:
-		return false
-	_finish(ward, true)
-	return true
-
-
-func _exclude_rids() -> Array:
-	var rids: Array = [get_rid()]
-	if is_instance_valid(_caster) and _caster is CollisionObject3D:
-		rids.append((_caster as CollisionObject3D).get_rid())
-	return rids
-
-
-func _probe_players() -> bool:
-	if not is_inside_tree() or _hit_shape == null:
-		return false
-	var space_state := get_world_3d().direct_space_state
-	var params := PhysicsShapeQueryParameters3D.new()
-	params.shape = _hit_shape
-	params.transform = global_transform
-	params.exclude = _exclude_rids()
-	params.collision_mask = collision_mask
-	var hits := space_state.intersect_shape(params, 8)
-	for hit in hits:
-		var collider: Variant = hit.get("collider")
-		if collider is Node3D and _try_hit_player(collider as Node3D):
-			return true
-	return false
-
-
-func _finish(blocked_by: Node = null, apply_splash: bool = false) -> void:
-	if _finished or not is_inside_tree():
-		return
-	_finished = true
-	_notify_ward_blocked(blocked_by)
-	_impact_fx_parent = get_parent()
-	_impact_fx_pos = global_position
-	var ward := _ward_from_node(blocked_by) if blocked_by != null else null
-	if apply_splash and _combat_enabled and ward == null:
-		_apply_splash_at(_impact_fx_pos, blocked_by)
-	_clear_projectile_visuals()
-	NetDisplayCommitScript.request(_commit_impact_fx)
-	NetLivenessScript.despawn_or_free(self)
-
-
-func _commit_impact_fx() -> void:
-	if _fx_committed or not _finished:
-		return
-	_fx_committed = true
-	var parent := _impact_fx_parent
-	if parent == null or not is_instance_valid(parent):
-		parent = get_parent()
-	if parent == null:
-		return
-	FireballExplosionEffectScript.spawn(parent, _impact_fx_pos, _charge_fx_scale)
-
-
-func _apply_splash_at(impact_pos: Vector3, hit: Node = null) -> void:
-	if splash_radius <= 0.0:
-		return
-	CombatSplash.apply_at(
-		get_tree(), impact_pos, splash_radius, self, _ensure_payload(), _caster, hit
-	)
-
-
-func _find_ward_hit() -> Node:
-	var ward := _find_ward_along_motion(_shape_query_params(), Vector3.ZERO)
-	if ward != null:
-		return ward
-	return _find_ward_in_group_proximity()
-
-
-func _find_ward_in_group_proximity() -> Node:
-	var tree := get_tree()
-	if tree == null:
-		return null
-	var best: Node = null
-	var best_dist_sq := INF
-	for node in tree.get_nodes_in_group("spell_ward"):
-		if node == null or not node.has_method("notify_spell_blocked"):
-			continue
-		if not (node is Node3D):
-			continue
-		var ward_node := node as Node3D
-		var ward_radius := 1.35
-		if "radius" in ward_node:
-			ward_radius = float(ward_node.get("radius"))
-		var reach := hit_radius + ward_radius * 1.2
-		var dist_sq := global_position.distance_squared_to(ward_node.global_position)
-		if dist_sq <= reach * reach and dist_sq < best_dist_sq:
-			best = ward_node
-			best_dist_sq = dist_sq
-	return best
-
-
-func _shape_query_params() -> PhysicsShapeQueryParameters3D:
-	var params := PhysicsShapeQueryParameters3D.new()
-	params.shape = _hit_shape
-	params.transform = global_transform
-	params.exclude = _exclude_rids()
-	params.collision_mask = collision_mask
-	return params
-
-
-func _find_ward_along_motion(params: PhysicsShapeQueryParameters3D, motion: Vector3) -> Node:
-	if not is_inside_tree() or _hit_shape == null:
-		return null
-	var space_state := get_world_3d().direct_space_state
-	if motion.length_squared() > 0.0001:
-		var origin: Vector3 = params.transform.origin
-		var end: Vector3 = origin + motion
-		var ray := PhysicsRayQueryParameters3D.create(origin, end)
-		ray.exclude = params.exclude
-		ray.collision_mask = params.collision_mask
-		ray.hit_from_inside = true
-		var hit: Dictionary = space_state.intersect_ray(ray)
-		if not hit.is_empty():
-			var ward := _ward_from_collider(hit.get("collider"))
-			if ward != null:
-				return ward
-	for hit_dict in space_state.intersect_shape(params, 8):
-		var ward := _ward_from_collider(hit_dict.get("collider"))
-		if ward != null:
-			return ward
-	return null
-
-
-func _ward_from_collider(collider: Variant) -> Node:
-	if collider is Node:
-		return _ward_from_node(collider as Node)
-	return null
-
-
-func _ward_from_node(node: Node) -> Node:
-	var walk: Node = node
-	while walk != null:
-		if walk.is_in_group("spell_ward") and walk.has_method("notify_spell_blocked"):
-			return walk
-		walk = walk.get_parent()
-	return null
-
-
-func _notify_ward_blocked(blocked_by: Node) -> void:
-	var ward := _ward_from_node(blocked_by) if blocked_by != null else _find_ward_hit()
-	if ward != null:
-		ward.call("notify_spell_blocked", hit_damage, _caster)
+	var fx := impact_fx.instantiate()
+	if fx is Node3D:
+		var fx3d := fx as Node3D
+		fx3d.scale = Vector3.ONE * clampf(_charge_fx_scale, 0.08, 1.0)
+		SpellEphemeralFxScript.add_child_at(parent, fx3d, impact_pos)
+	else:
+		parent.add_child(fx)
 
 
 func _clear_projectile_visuals() -> void:
@@ -969,24 +675,4 @@ func _clear_projectile_visuals() -> void:
 	if _travel_light != null and is_instance_valid(_travel_light):
 		_travel_light.visible = false
 		_travel_light.light_energy = 0.0
-	visible = false
-	set_process(false)
-
-
-func _try_hit_player(body: Node3D) -> bool:
-	## Name kept for call sites; also hits monsters / combat_target (not player-only).
-	if body == null or body == _caster:
-		return false
-	if not (
-		body.is_in_group("player")
-		or body.is_in_group("monster")
-		or body.is_in_group("combat_target")
-	):
-		return false
-	if not Character.is_node_alive(body):
-		return false
-	if _try_block_ward_overlap():
-		return true
-	## Named connect: this body, even if its root sits outside splash_radius.
-	_finish(body, true)
-	return true
+	super._clear_projectile_visuals()

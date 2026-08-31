@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://cflarewpn001"]
+
+[ext_resource type="Script" uid="uid://cbeh2p31wkk04" path="res://scripts/net/net_spell_weapon.gd" id="1_weapon"]
+
+[node name="FlareWeapon" type="Node3D"]
+script = ExtResource("1_weapon")
+effect_id = "flare"

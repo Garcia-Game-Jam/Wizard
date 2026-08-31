@@ -10,7 +10,7 @@ extends RefCounted
 ##
 ## EPHEMERAL — fire-and-forget projectile or volume (fireball, flare, ward).
 ##   NetworkWeapon: spawn immediately on the caster, host confirms, reconcile.
-##   PredictiveSynchronizer + liveness; no queue_free in the tick loop.
+##   Authored projectile scenes fly on physics frames (no PredictiveSynchronizer).
 ##
 ## WORLD_OBJECT — lasting interactive prop (light ball). Host-owned rewindable
 ##   world_prop; later Target / Dispell / touch use SpellWorldSync ids.
@@ -71,12 +71,26 @@ static func is_known(effect_id: String) -> bool:
 	return BY_EFFECT.has(effect_id)
 
 
+static func code_for(effect_id: String) -> int:
+	if effect_id.is_empty():
+		return 0
+	var idx: int = BY_EFFECT.keys().find(effect_id)
+	return idx + 1 if idx >= 0 else 0
+
+
+static func id_for_code(code: int) -> String:
+	var keys: Array = BY_EFFECT.keys()
+	if code <= 0 or code > keys.size():
+		return ""
+	return str(keys[code - 1])
+
+
 static func describe(lane: String) -> String:
 	match lane:
 		PLAYER_BOUND:
 			return "RewindableAction on caster; host-owned pose state."
 		EPHEMERAL:
-			return "NetworkWeapon: predict spawn, host confirm, liveness."
+			return "NetworkWeapon: predict spawn, host confirm, physics-frame flight."
 		WORLD_OBJECT:
 			return "Host-owned rewindable world_prop; later mutate/despawn by id."
 		TARGETED:

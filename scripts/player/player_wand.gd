@@ -8,6 +8,7 @@ extends Node3D
 const WorldVisualLayersScript := preload("res://scripts/world_visual_layers.gd")
 const WandListeningFxScript := preload("res://scripts/player/wand_listening_fx.gd")
 const FireballProjectileScript := preload("res://scripts/spells/fireball_projectile.gd")
+const PlayerWandCastTellScript := preload("res://scripts/player/player_wand_cast_tell.gd")
 
 const WORLD_LIGHT_CULL_MASK := WorldVisualLayersScript.WORLD_LIGHT_MASK
 
@@ -53,6 +54,10 @@ const FLAME_GLOW_EMISSION := 3.2
 @export var defensive_lift_basis_euler_deg: Vector3 = Vector3(22.0, -14.0, 4.0)
 @export_range(0.05, 0.4, 0.01) var shake_wand_fx_sec: float = 0.14
 @export_range(0.05, 0.5, 0.01) var defensive_return_sec: float = 0.18
+## Optional AnimationPlayer clip names. Empty = default charge/release poses.
+@export var default_charge_clip: StringName = &""
+@export var default_release_clip: StringName = &""
+@export var default_fizzle_clip: StringName = &""
 
 var _shaft_mesh: MeshInstance3D
 var _tip_mesh: MeshInstance3D
@@ -75,6 +80,7 @@ var _tip_rest_local: Vector3 = Vector3(0.0, 0.0, -0.28)
 var _raised := false
 var _pose_tween: Tween
 var _cast_charging := false
+var _replicated_phase := 0
 var _cast_charge_spell: SpellDefinition
 var _cast_charge_duration: float = 0.0
 var _cast_charge_elapsed: float = 0.0
@@ -133,12 +139,23 @@ func set_raised(raised: bool, instant: bool = false) -> void:
 		_pose_tween.tween_callback(_restore_default_held_pose)
 
 
-func set_replicated_cast_tell(raised: bool, charge_factor: float) -> void:
-	## Remote pose only: wand raised + growing tip. Not STT / local charge state.
+func set_replicated_cast_tell(
+	raised: bool,
+	charge_factor: float,
+	phase: int = 0,
+	effect_id: String = ""
+) -> void:
+	## Remote pose: wand raised + charge seek + one-shot release/fizzle. Not STT.
 	if raised != _raised:
 		set_raised(raised, true)
 	if _listen_fx != null and _listen_fx.has_method("set_replicated_charge_progress"):
 		_listen_fx.call("set_replicated_charge_progress", charge_factor if raised else 0.0)
+	PlayerWandCastTellScript.apply_phase(self, phase, charge_factor, effect_id)
+	_replicated_phase = phase
+
+
+func clip_for(phase: int, effect_id: String) -> StringName:
+	return PlayerWandCastTellScript.clip_for(self, phase, effect_id)
 
 
 func cache_idle_transform() -> void:

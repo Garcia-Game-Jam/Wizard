@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cfireballexp1"]
+
+[ext_resource type="Script" path="res://scripts/spells/fireball_explosion_effect.gd" id="1_fx"]
+
+[node name="FireballExplosion" type="Node3D"]
+script = ExtResource("1_fx")

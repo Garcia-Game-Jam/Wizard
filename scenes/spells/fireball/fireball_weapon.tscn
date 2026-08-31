@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cfireballwpn1"]
+
+[ext_resource type="Script" uid="uid://cbeh2p31wkk04" path="res://scripts/net/net_spell_weapon.gd" id="1_weapon"]
+[ext_resource type="PackedScene" uid="uid://cfireball001" path="res://scenes/spells/fireball/fireball.tscn" id="2_proj"]
+
+[node name="FireballWeapon" type="Node3D"]
+script = ExtResource("1_weapon")
+effect_id = "fireball"
+projectile_scene = ExtResource("2_proj")

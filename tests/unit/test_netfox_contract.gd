@@ -20,6 +20,7 @@ func _test_lane_primitives() -> int:
 		"haste": NetWorldEventScript.KIND_ACTION,
 		"flashlight_toggle": NetWorldEventScript.KIND_ACTION,
 		"fireball": NetWorldEventScript.KIND_WEAPON,
+		"stone_throw": NetWorldEventScript.KIND_WEAPON,
 		"flare": NetWorldEventScript.KIND_WEAPON,
 		"ward": NetWorldEventScript.KIND_WEAPON,
 		"light_ball": NetWorldEventScript.KIND_WORLD_PROP,
@@ -59,8 +60,26 @@ func _test_profile_split() -> int:
 	if not playable_state.has(":net_charge_factor"):
 		push_error("Charge tell must be playable state")
 		failures += 1
+	if not playable_state.has(":net_cast_phase"):
+		push_error("Cast phase tell must be playable state")
+		failures += 1
+	if not playable_state.has(":net_cast_effect_id"):
+		push_error("Cast effect tell must be playable state")
+		failures += 1
 	if not playable_input.has("Input:charge_factor"):
 		push_error("Charge hold must be gathered as Input")
+		failures += 1
+	if playable_input.has("Input:cast_effect_id"):
+		push_error("Cast effect must be an int Input code, not a string")
+		failures += 1
+	if not playable_input.has("Input:cast_effect_code"):
+		push_error("Cast effect code must be gathered as Input")
+		failures += 1
+	if SpellSyncLane.code_for("") != 0:
+		push_error("Empty effect id must encode as 0")
+		failures += 1
+	if SpellSyncLane.id_for_code(SpellSyncLane.code_for("fireball")) != "fireball":
+		push_error("SpellSyncLane effect codes must round-trip")
 		failures += 1
 	if not playable_input.has("Input:jump"):
 		push_error("Jump must be gathered as Input")

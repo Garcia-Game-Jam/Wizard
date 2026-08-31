@@ -454,6 +454,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _rollback_tick(delta: float, _tick: int, is_fresh: bool) -> void:
+	super._rollback_tick(delta, _tick, is_fresh)
 	if rollback_tick_death_if_active(delta):
 		return
 	if GameState.is_multiplayer and not is_multiplayer_authority():

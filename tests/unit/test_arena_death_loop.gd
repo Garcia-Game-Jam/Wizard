@@ -5,6 +5,8 @@ extends RefCounted
 const PlayerScene := preload("res://scenes/characters/player.tscn")
 const ChargerScene := preload("res://scenes/monsters/charger.tscn")
 const WretchScene := preload("res://scenes/monsters/evaluating/wretch.tscn")
+const FireballScene := preload("res://scenes/spells/fireball/fireball.tscn")
+const StoneThrowScene := preload("res://scenes/spells/stone_throw/stone_throw.tscn")
 const GameOverOverlayScene := preload("res://scenes/ui/game_over_overlay.tscn")
 const ARENA_SCENE_SCRIPT := "res://scripts/arena/arena_scene.gd"
 
@@ -25,7 +27,7 @@ func run() -> int:
 	failures += _test_stone_knocks_corpses_fireball_does_not()
 	failures += _test_ram_launches_corpse_without_stun()
 	failures += _test_walk_nudges_corpse()
-	failures += _test_splash_skips_dead_player()
+	failures += _test_projectile_skips_dead_player()
 	failures += _test_monsters_ignore_ghosts()
 	failures += _test_ghost_forward_matches_living()
 	failures += _test_stage_revive_clears_burn_and_corpse()
@@ -364,7 +366,6 @@ func _test_stone_knocks_corpses_fireball_does_not() -> int:
 	var holder := _holder()
 	if holder == null:
 		return 1
-	var tree := holder.get_tree()
 	var charger := ChargerScene.instantiate() as Charger
 	var player := PlayerScene.instantiate() as Player
 	holder.add_child(charger)
@@ -377,27 +378,25 @@ func _test_stone_knocks_corpses_fireball_does_not() -> int:
 	var clone := player.death_corpse
 	if dump == null or clone == null:
 		holder.queue_free()
-		push_error("Expected monster and player corpses for splash knock")
+		push_error("Expected monster and player corpses for knock")
 		return 1
 	dump.linear_velocity = Vector3.ZERO
 	clone.linear_velocity = Vector3.ZERO
 	player.velocity = Vector3.ZERO
-	var fire := CombatPayload.new()
-	fire.effects.append(Damage.with(8.0))
-	CombatSplash.apply_at(tree, Vector3.ZERO, 2.0, null, fire)
+	var fire := FireballScene.instantiate() as FireballProjectile
+	holder.add_child(fire)
+	fire.global_position = Vector3.ZERO
+	fire.call("_finish", true, [dump, clone, player])
 	var fire_ok := (
 		dump.linear_velocity.is_equal_approx(Vector3.ZERO)
 		and clone.linear_velocity.is_equal_approx(Vector3.ZERO)
 		and player.velocity.is_equal_approx(Vector3.ZERO)
 		and is_equal_approx(player.current_health, 0.0)
 	)
-	var stone := CombatPayload.new()
-	stone.effects.append(Damage.with(8.0))
-	var knock := Knock.new()
-	knock.from_impact = true
-	knock.impulse = Vector3(9.0, 3.5, 0.0)
-	stone.effects.append(knock)
-	CombatSplash.apply_at(tree, Vector3(-1.0, 0.0, 0.0), 3.0, null, stone)
+	var stone := StoneThrowScene.instantiate() as StoneThrowProjectile
+	holder.add_child(stone)
+	stone.global_position = Vector3(-1.0, 0.0, 0.0)
+	stone.call("_finish", true, [dump, clone, player])
 	var stone_ok := (
 		dump.linear_velocity.length() > 1.0
 		and clone.linear_velocity.length() > 1.0
@@ -405,10 +404,10 @@ func _test_stone_knocks_corpses_fireball_does_not() -> int:
 	)
 	holder.queue_free()
 	if not fire_ok:
-		push_error("Fireball Damage-only splash must not shove corpses or the ghost")
+		push_error("Fireball Damage-only hit must not shove corpses or the ghost")
 		return 1
 	if not stone_ok:
-		push_error("Stone knock splash must shove corpses and leave the ghost still")
+		push_error("Stone knock must shove corpses and leave the ghost still")
 		return 1
 	return 0
 
@@ -459,11 +458,10 @@ func _test_walk_nudges_corpse() -> int:
 	return 0
 
 
-func _test_splash_skips_dead_player() -> int:
+func _test_projectile_skips_dead_player() -> int:
 	var holder := _holder()
 	if holder == null:
 		return 1
-	var tree := holder.get_tree()
 	var live := PlayerScene.instantiate() as Player
 	var ghost := PlayerScene.instantiate() as Player
 	holder.add_child(live)
@@ -472,9 +470,10 @@ func _test_splash_skips_dead_player() -> int:
 	ghost.global_position = Vector3(0.2, 0.0, 0.0)
 	ghost.kill()
 	var live_hp := live.current_health
-	var payload := CombatPayload.new()
-	payload.effects.append(Damage.with(8.0))
-	CombatSplash.apply_at(tree, Vector3.ZERO, 1.0, live, payload)
+	var stone := StoneThrowScene.instantiate() as StoneThrowProjectile
+	holder.add_child(stone)
+	stone.global_position = Vector3.ZERO
+	stone.call("_finish", true, [live, ghost])
 	var ok := (
 		not is_equal_approx(live.current_health, live_hp)
 		and is_equal_approx(ghost.current_health, 0.0)
@@ -482,7 +481,7 @@ func _test_splash_skips_dead_player() -> int:
 	)
 	holder.queue_free()
 	if not ok:
-		push_error("Splash must hit the living caster-skip target and ignore the ghost")
+		push_error("Projectile must hit the living body and ignore the ghost")
 		return 1
 	return 0
 

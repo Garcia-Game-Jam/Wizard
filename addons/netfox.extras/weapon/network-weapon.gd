@@ -198,6 +198,10 @@ func _request_projectile(id: String, tick: int, request_data: Dictionary):
 		_logger.error("Projectile %s rejected! Can't reconcile states: [%s, %s]", [id, request_data, local_data])
 		return
 
+	## Shooter aim is truth when origin is close enough; do not re-read the host wand.
+	_apply_data(projectile, request_data)
+	local_data = _get_data(projectile)
+
 	_save_projectile(projectile, id, local_data)
 	_accept_projectile.rpc(id, tick, local_data)
 	_after_fire(projectile)

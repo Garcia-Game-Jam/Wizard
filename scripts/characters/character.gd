@@ -111,6 +111,9 @@ var _eye_light: OmniLight3D = null
 var _eyes_chasing: bool = false
 var _death_physics_active := false
 var _saved_floor_snap := 0.1
+## Physics-frame hits (projectiles) stamp a tick; spent during that tick's
+## _rollback_tick so restore does not drop HP/knock. Kept until history_start.
+var _rewind_applies: Array = []
 
 ## Optional: scenes that author no Head/Body (test probes) leave these null and
 ## the appearance helpers below become no-ops.
@@ -227,6 +230,50 @@ func apply(from: Variant, payload: Resource) -> void:
 	for effect in payload.effects:
 		if effect != null and effect.has_method("apply"):
 			effect.apply(self, from)
+
+
+## Projectiles fly after the tick is recorded. Queue so resim can spend again.
+func _apply_or_queue_rewind(from: Variant, payload: Resource) -> void:
+	if (
+		NetClockScript.is_ticking()
+		and get_node_or_null("RollbackSynchronizer") != null
+	):
+		_queue_rewind_apply(from, payload, NetClockScript.tick())
+		return
+	apply(from, payload)
+
+
+func _queue_rewind_apply(from: Variant, payload: Resource, tick: int) -> void:
+	if payload == null or not _status_authority_ok():
+		return
+	_rewind_applies.append({
+		"tick": tick,
+		"from": from,
+		"payload": payload.duplicate(true),
+	})
+
+
+func _flush_rewind_applies(tick: int) -> void:
+	if _rewind_applies.is_empty():
+		return
+	var history_start := 0
+	var tree := get_tree()
+	var nr := tree.root.get_node_or_null("NetworkRollback") if tree != null else null
+	if nr != null:
+		history_start = int(nr.get("history_start"))
+	var keep: Array = []
+	for entry in _rewind_applies:
+		var at := int(entry.get("tick", -1))
+		if at < history_start:
+			continue
+		if at == tick:
+			apply(entry.get("from"), entry.get("payload"))
+		keep.append(entry)
+	_rewind_applies = keep
+
+
+func _rollback_tick(_delta: float, tick: int, _is_fresh: bool) -> void:
+	_flush_rewind_applies(tick)
 
 
 func combat_speed(base: float) -> float:

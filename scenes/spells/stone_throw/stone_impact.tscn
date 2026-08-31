@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cstoneimpact01"]
+
+[ext_resource type="Script" path="res://scripts/spells/stone_impact_effect.gd" id="1_fx"]
+
+[node name="StoneImpact" type="Node3D"]
+script = ExtResource("1_fx")
