@@ -198,7 +198,7 @@ func _test_ghost_leaves_a_shoveable_corpse() -> int:
 	var blocked := bool(player.call("_wand_controls_blocked"))
 	var ghosted := (
 		not player.is_alive()
-		and player.collision_layer == 0
+		and player.collision_layer == 1
 		and player.collision_mask == 1
 		and not player.is_in_group("combat_target")
 		and blocked
