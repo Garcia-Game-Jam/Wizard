@@ -240,6 +240,7 @@ static func spawn(
 	lookdev_flight: bool = false,
 	charge_factor: float = 1.0
 ) -> Node:
+	## Lookdev / apply() fallback. Live pit instantiates via NetSpellWeapon.
 	## Lazy-load avoids circular preload with fireball.tscn.
 	var packed: PackedScene = load("res://scenes/spells/fireball/fireball.tscn") as PackedScene
 	var projectile: Node = packed.instantiate()

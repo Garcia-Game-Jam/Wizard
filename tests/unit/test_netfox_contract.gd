@@ -11,6 +11,7 @@ func run() -> int:
 	var failures := 0
 	failures += _test_lane_primitives()
 	failures += _test_profile_split()
+	failures += _test_input_schema()
 	return failures
 
 
@@ -151,3 +152,88 @@ func _test_profile_split() -> int:
 		push_error("Charger must attach with CHARGE interpolator profile")
 		failures += 1
 	return failures
+
+
+func _test_input_schema() -> int:
+	var failures := 0
+	var paths := PlayerNetInput.net_input_paths()
+	var schema := PlayerNetInput.net_schema()
+	if schema.size() != paths.size():
+		push_error("Every Input field must have a compact net schema")
+		failures += 1
+	var samples := {
+		"Input:movement": Vector2(1.0, 0.0),
+		"Input:jump": true,
+		"Input:dash": false,
+		"Input:crouch": true,
+		"Input:look_yaw": 1.2,
+		"Input:look_pitch": -0.4,
+		"Input:charging": true,
+		"Input:charge_slot": -1,
+		"Input:charge_factor": 0.5,
+		"Input:cast_phase": 1,
+		"Input:cast_effect_code": 3,
+		"Input:wand_raised": true,
+	}
+	var buffer := StreamPeerBuffer.new()
+	for path in paths:
+		if not schema.has(path):
+			push_error("Input path %s must have a compact net schema" % path)
+			failures += 1
+			continue
+		var serializer := schema[path] as NetworkSchemaSerializer
+		if serializer == null:
+			push_error("Input path %s schema must be a NetworkSchemaSerializer" % path)
+			failures += 1
+			continue
+		if not samples.has(path):
+			push_error("Input schema test needs a sample for %s" % path)
+			failures += 1
+			continue
+		var before := buffer.get_position()
+		serializer.encode(samples[path], buffer)
+		if buffer.get_position() <= before:
+			push_error("Input path %s encoded to 0 bytes" % path)
+			failures += 1
+	## Identity + tick header per redundant snapshot; keep headroom under 508.
+	const MAX_PACKET := 508
+	const REDUNDANCY := 3
+	const PER_TICK_OVERHEAD := 80
+	var packed := (buffer.get_position() + PER_TICK_OVERHEAD) * REDUNDANCY
+	if packed > MAX_PACKET:
+		push_error(
+			"Schemed input is %d bytes over %d redundant ticks; must fit in %d"
+			% [packed, REDUNDANCY, MAX_PACKET]
+		)
+		failures += 1
+	buffer.seek(0)
+	for path in paths:
+		if not schema.has(path) or not samples.has(path):
+			continue
+		var serializer := schema[path] as NetworkSchemaSerializer
+		if serializer == null:
+			continue
+		var decoded: Variant = serializer.decode(buffer)
+		if not _schema_values_match(samples[path], decoded):
+			push_error("Input path %s did not round-trip (%s -> %s)" % [path, samples[path], decoded])
+			failures += 1
+	var mover := FileAccess.get_file_as_string("res://scripts/net/net_rewindable_mover.gd")
+	if not mover.contains("PlayerNetInputScript.net_schema()"):
+		push_error("Playable rollback must set_schema from PlayerNetInput.net_schema")
+		failures += 1
+	var dispatch := FileAccess.get_file_as_string("res://scripts/net/net_world_event.gd")
+	var dispatch_fn := dispatch.find("func dispatch_spell")
+	var next_fn := dispatch.find("\nstatic func", dispatch_fn + 10)
+	var body := dispatch.substr(dispatch_fn, next_fn - dispatch_fn if next_fn > dispatch_fn else -1)
+	if body.contains("if not NetClockScript.is_ticking()"):
+		push_error("dispatch_spell must not dump weapon spells through apply() when the clock is off")
+		failures += 1
+	return failures
+
+
+func _schema_values_match(expected: Variant, got: Variant) -> bool:
+	if expected is Vector2 and got is Vector2:
+		return (expected as Vector2).is_equal_approx(got as Vector2)
+	if expected is float or got is float:
+		return absf(float(expected) - float(got)) < 0.01
+	return expected == got

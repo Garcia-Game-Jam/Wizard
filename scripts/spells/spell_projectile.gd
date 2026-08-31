@@ -109,25 +109,33 @@ func _simulate_flight(delta: float) -> void:
 	if _elapsed >= lifetime:
 		_finish(false)
 		return
+	_integrate_velocity(delta)
+	_advance_and_connect(delta)
 
+
+func _integrate_velocity(delta: float) -> void:
 	if acceleration != 0.0 and _velocity.length_squared() > 0.0001:
 		_velocity += _velocity.normalized() * acceleration * delta
 	if flight_gravity != 0.0:
 		_velocity.y -= flight_gravity * delta
 
+
+## Move one step, then connect. True if this step finished the flyer.
+func _advance_and_connect(delta: float) -> bool:
 	var prev := global_position
 	var motion: Vector3 = _velocity * delta
 	var stop_fraction := _cast_motion_fraction(motion)
 	global_position += motion * stop_fraction
-
 	if SpellWardBlockScript.try_block_along_path(
 		get_tree(), prev, global_position, hit_radius, hit_damage, _caster
 	):
 		_finish(false)
-		return
+		return true
 	var hits := _overlapping_combat(prev, global_position)
 	if not hits.is_empty() or stop_fraction < 1.0:
 		_finish(true, hits)
+		return true
+	return false
 
 
 func _cast_motion_fraction(motion: Vector3) -> float:

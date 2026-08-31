@@ -760,6 +760,7 @@ static func _fireball_origin(player: CharacterBody3D) -> Vector3:
 
 
 static func _apply_fireball(player: CharacterBody3D, params: Dictionary) -> void:
+	## Fallback when the wand has no FireballWeapon (tests, lookdev). Live pit fires the weapon.
 	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
 	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
 	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
@@ -775,6 +776,7 @@ static func _apply_fireball(player: CharacterBody3D, params: Dictionary) -> void
 
 
 static func _apply_stone_throw(player: CharacterBody3D, params: Dictionary) -> void:
+	## Fallback when the wand has no StoneThrowWeapon (tests, lookdev). Live pit fires the weapon.
 	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
 	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
 	SpellEphemeralFxScript.spawn_at(

@@ -43,6 +43,8 @@ static func apply_playable(root: Node, owner_peer_id: int, local_view: bool = fa
 			ti.call("process_settings")
 	if rs != null and rs.has_method("process_settings"):
 		rs.call("process_settings")
+	if rs != null and rs.has_method("set_schema"):
+		rs.call("set_schema", PlayerNetInputScript.net_schema())
 
 
 static func apply_world_prop(root: Node, profile: String = "") -> void:

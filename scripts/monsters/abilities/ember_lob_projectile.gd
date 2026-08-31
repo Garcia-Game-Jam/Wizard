@@ -75,22 +75,10 @@ func _simulate_flight(delta: float) -> void:
 			_diving = true
 			_velocity = EmberLobFlightScript.dive_velocity(global_position, _aim_point)
 
-	var prev := global_position
-	var motion: Vector3 = _velocity * delta
-	var stop_fraction := _cast_motion_fraction(motion)
-	global_position += motion * stop_fraction
-
-	if SpellWardBlockScript.try_block_along_path(
-		get_tree(), prev, global_position, hit_radius, hit_damage, _caster
-	):
-		_finish(false)
-		return
-	var hits := _overlapping_combat(prev, global_position)
-	if not hits.is_empty() or stop_fraction < 1.0:
-		_finish(true, hits)
+	if _advance_and_connect(delta):
 		return
 	if _diving and (
 		global_position.distance_to(_aim_point) <= 0.35
 		or global_position.y <= _aim_point.y
 	):
-		_finish(true, hits)
+		_finish(true)

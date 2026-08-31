@@ -48,6 +48,25 @@ static func net_input_paths() -> Array[String]:
 	return paths
 
 
+## Compact wire types. Unschemed properties use Variant put_var and three
+## redundant ticks miss the 508-byte input packet.
+static func net_schema() -> Dictionary:
+	return {
+		"Input:movement": NetworkSchemas.vec2f32(),
+		"Input:jump": NetworkSchemas.bool8(),
+		"Input:dash": NetworkSchemas.bool8(),
+		"Input:crouch": NetworkSchemas.bool8(),
+		"Input:look_yaw": NetworkSchemas.float32(),
+		"Input:look_pitch": NetworkSchemas.float32(),
+		"Input:charging": NetworkSchemas.bool8(),
+		"Input:charge_slot": NetworkSchemas.int8(),
+		"Input:charge_factor": NetworkSchemas.ufrac8(),
+		"Input:cast_phase": NetworkSchemas.uint8(),
+		"Input:cast_effect_code": NetworkSchemas.uint8(),
+		"Input:wand_raised": NetworkSchemas.bool8(),
+	}
+
+
 func _ready() -> void:
 	var nt := get_tree().root.get_node_or_null("NetworkTime") if is_inside_tree() else null
 	if nt != null and nt.has_signal("before_tick_loop"):

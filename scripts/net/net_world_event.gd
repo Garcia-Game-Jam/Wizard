@@ -47,16 +47,16 @@ static func bind_player(player: Node, owner_peer_id: int, local_view: bool = fal
 static func dispatch_spell(player: CharacterBody3D, params: Dictionary) -> void:
 	if player == null or params.is_empty():
 		return
-	if not NetClockScript.is_ticking():
-		SpellEffectSyncScript.apply(player, params)
-		return
 	var effect_id := str(params.get(SpellEffectSyncScript.KEY_EFFECT_ID, ""))
 	var kind := primitive_for_effect(effect_id)
 	match kind:
 		KIND_WEAPON:
 			_fire_weapon(player, params)
 		KIND_ACTION:
-			_apply_action(player, params)
+			if NetClockScript.is_ticking():
+				_apply_action(player, params)
+			else:
+				SpellEffectSyncScript.apply(player, params)
 		_:
 			SpellEffectSyncScript.apply(player, params)
 
