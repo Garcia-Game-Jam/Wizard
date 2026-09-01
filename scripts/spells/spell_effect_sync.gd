@@ -5,8 +5,6 @@ extends RefCounted
 ## Persistence model: see SpellSyncLane (player_bound / ephemeral / world_object /
 ## targeted). Ephemeral spawns use SpellEphemeralFx; lasting props use SpellWorldSync.
 
-const FireballProjectileScript := preload("res://scripts/spells/fireball_projectile.gd")
-const StoneThrowProjectileScript := preload("res://scripts/spells/stone_throw_projectile.gd")
 const FlareEffectScript := preload("res://scripts/spells/flare_effect.gd")
 const WardShieldScript := preload("res://scripts/spells/ward_shield.gd")
 const LightBallOrbScript := preload("res://scripts/spells/light_ball_orb.gd")
@@ -591,10 +589,9 @@ static func apply(player: CharacterBody3D, params: Dictionary) -> void:
 				float(params.get(KEY_DURATION, DEFAULT_HASTE_DURATION)),
 				float(params.get(KEY_MULTIPLIER, DEFAULT_HASTE_MULTIPLIER))
 			)
-		EFFECT_FIREBALL:
-			_apply_fireball(player, params)
-		EFFECT_STONE_THROW:
-			_apply_stone_throw(player, params)
+		EFFECT_FIREBALL, EFFECT_STONE_THROW:
+			## Wand NetworkWeapon already spawned. apply() is not a projectile door.
+			pass
 		EFFECT_FLARE:
 			_apply_flare(player, params)
 		EFFECT_WARD:
@@ -757,37 +754,6 @@ static func _fireball_origin(player: CharacterBody3D) -> Vector3:
 		return head_origin + forward * 0.6 + Vector3(0.0, 0.1, 0.0)
 	var player_origin := player.global_position if player.is_inside_tree() else player.position
 	return player_origin + forward * 0.6 + Vector3(0.0, 0.1, 0.0)
-
-
-static func _apply_fireball(player: CharacterBody3D, params: Dictionary) -> void:
-	## Fallback when the wand has no FireballWeapon (tests, lookdev). Live pit fires the weapon.
-	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
-	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
-	var charge := clampf(float(params.get(KEY_CHARGE_FACTOR, 1.0)), 0.0, 1.0)
-	SpellEphemeralFxScript.spawn_at(
-		player,
-		origin,
-		direction,
-		func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
-			return FireballProjectileScript.spawn(
-				parent, spawn_origin, spawn_dir, player, false, charge
-			)
-	)
-
-
-static func _apply_stone_throw(player: CharacterBody3D, params: Dictionary) -> void:
-	## Fallback when the wand has no StoneThrowWeapon (tests, lookdev). Live pit fires the weapon.
-	var origin := coerce_vector3(params.get(KEY_ORIGIN, Vector3.ZERO))
-	var direction := coerce_vector3(params.get(KEY_DIRECTION, Vector3.FORWARD))
-	SpellEphemeralFxScript.spawn_at(
-		player,
-		origin,
-		direction,
-		func(parent: Node, spawn_origin: Vector3, spawn_dir: Vector3) -> Node:
-			return StoneThrowProjectileScript.spawn(
-				parent, spawn_origin, spawn_dir, player, false
-			)
-	)
 
 
 static func _apply_flare(player: CharacterBody3D, params: Dictionary) -> void:

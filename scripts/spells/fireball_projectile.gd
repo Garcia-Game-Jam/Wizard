@@ -11,7 +11,7 @@ const DEFAULT_CHARGE_TIME_SEC := 0.8
 const DEFAULT_WAND_CHARGE_POSE_SEC := 0.14
 ## Min charge combat values; max uses authored hit_damage / look radii.
 const CHARGE_DAMAGE_MIN := 5.0
-const CHARGE_AOE_MIN_RADIUS := 0.037
+const CHARGE_LOOK_MIN_RADIUS := 0.037
 const CHARGE_SPEED_MIN_MULT := 0.75
 const CHARGE_SPEED_MAX_MULT := 1.5625
 
@@ -240,7 +240,7 @@ static func spawn(
 	lookdev_flight: bool = false,
 	charge_factor: float = 1.0
 ) -> Node:
-	## Lookdev / apply() fallback. Live pit instantiates via NetSpellWeapon.
+	## Lookdev. Live pit instantiates via NetSpellWeapon.
 	## Lazy-load avoids circular preload with fireball.tscn.
 	var packed: PackedScene = load("res://scenes/spells/fireball/fireball.tscn") as PackedScene
 	var projectile: Node = packed.instantiate()
@@ -293,11 +293,11 @@ func apply_charge_power(charge_factor: float) -> void:
 	var ember_puff_max := ember_puff_radius
 	var ember_amt_max := ember_amount
 	_scale_payload_damage(t)
-	core_radius = lerpf(CHARGE_AOE_MIN_RADIUS, core_max, t)
-	shell_radius = lerpf(CHARGE_AOE_MIN_RADIUS * 1.15, shell_max, t)
-	light_radius = lerpf(CHARGE_AOE_MIN_RADIUS * 2.0, light_max, t)
+	core_radius = lerpf(CHARGE_LOOK_MIN_RADIUS, core_max, t)
+	shell_radius = lerpf(CHARGE_LOOK_MIN_RADIUS * 1.15, shell_max, t)
+	light_radius = lerpf(CHARGE_LOOK_MIN_RADIUS * 2.0, light_max, t)
 	## Trail + impact FX track projectile scale (baseball → full).
-	_charge_fx_scale = lerpf(CHARGE_AOE_MIN_RADIUS / maxf(core_max, 0.01), 1.0, t)
+	_charge_fx_scale = lerpf(CHARGE_LOOK_MIN_RADIUS / maxf(core_max, 0.01), 1.0, t)
 	smoke_emission_radius = smoke_emit_max * _charge_fx_scale
 	smoke_puff_radius = smoke_puff_max * _charge_fx_scale
 	smoke_amount = maxi(2, int(round(float(smoke_amt_max) * _charge_fx_scale)))

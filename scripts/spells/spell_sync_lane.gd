@@ -24,9 +24,10 @@ const EPHEMERAL := "ephemeral"
 const WORLD_OBJECT := "world_object"
 const TARGETED := "targeted"
 
-## effect_id → lane. Adding a spell: pick a lane here. Predicted casts also
-## need spawn_predicted() (ephemeral) or apply() (player-bound). Session RPC
-## lanes only need apply(); world objects attach in their spawn().
+## effect_id → lane. Adding a spell: pick a lane here.
+## EPHEMERAL SpellProjectile (fireball, stone): authored NetSpellWeapon + packed scene.
+## EPHEMERAL flare/ward: spawn_predicted(). PLAYER_BOUND / TARGETED: apply().
+## WORLD_OBJECT: attach in spawn().
 const BY_EFFECT := {
 	"haste": PLAYER_BOUND,
 	"flashlight_toggle": PLAYER_BOUND,

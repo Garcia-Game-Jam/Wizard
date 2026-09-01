@@ -2,7 +2,6 @@ class_name TestSpellEffectSync
 extends RefCounted
 
 const SyncScript := preload("res://scripts/spells/spell_effect_sync.gd")
-const FireballProjectileScript := preload("res://scripts/spells/fireball_projectile.gd")
 const FireballSpell := preload("res://scenes/spells/fireball/fireball.tres")
 const HasteSpell := preload("res://scenes/spells/evaluating/haste/haste.tres")
 const LightSpell := preload("res://scenes/spells/evaluating/light/light.tres")
@@ -24,9 +23,8 @@ func run() -> int:
 	failures += _test_build_haste_params()
 	failures += _test_unsupported_spell_returns_empty_params()
 	failures += _test_apply_haste_from_wire_params()
-	failures += _test_fireball_params_spawn_projectile()
 	failures += _test_fireball_network_round_trip()
-	failures += _test_fireball_wire_params_spawn_projectile()
+	failures += _test_apply_fireball_does_not_spawn()
 	failures += _test_apply_flashlight_toggle()
 	failures += _test_build_light_ball_params()
 	failures += _test_build_target_params()
@@ -165,40 +163,6 @@ func _test_build_haste_params() -> int:
 	return 0
 
 
-func _test_fireball_params_spawn_projectile() -> int:
-	var root := _make_world_root()
-	var player := _make_player_stub()
-	root.add_child(player)
-
-	var params := {
-		SyncScript.KEY_EFFECT_ID: SyncScript.EFFECT_FIREBALL,
-		SyncScript.KEY_ORIGIN: Vector3(1.0, 2.0, 3.0),
-		SyncScript.KEY_DIRECTION: Vector3(0.0, 0.0, -1.0),
-	}
-	SyncScript.apply(player, params)
-
-	var projectile_count := _count_fireball_projectiles(root)
-	_free_world_root(root)
-
-	if projectile_count != 1:
-		push_error("Expected synced fireball params to spawn one projectile")
-		return 1
-	return 0
-
-
-func _count_fireball_projectiles(root: Node) -> int:
-	var count := 0
-	var bucket := root.get_node_or_null("SpellProjectiles")
-	var nodes: Array[Node] = [root]
-	if bucket != null:
-		nodes.append(bucket)
-	for node in nodes:
-		for child in node.get_children():
-			if child.get_script() == FireballProjectileScript:
-				count += 1
-	return count
-
-
 func _test_fireball_network_round_trip() -> int:
 	var params := {
 		SyncScript.KEY_EFFECT_ID: SyncScript.EFFECT_FIREBALL,
@@ -218,25 +182,35 @@ func _test_fireball_network_round_trip() -> int:
 	return 0
 
 
-func _test_fireball_wire_params_spawn_projectile() -> int:
+func _test_apply_fireball_does_not_spawn() -> int:
 	var root := _make_world_root()
 	var player := _make_player_stub()
 	root.add_child(player)
-
-	var wire := SyncScript.pack_for_network({
+	SyncScript.apply(player, {
 		SyncScript.KEY_EFFECT_ID: SyncScript.EFFECT_FIREBALL,
-		SyncScript.KEY_ORIGIN: Vector3(4.0, 5.0, 6.0),
-		SyncScript.KEY_DIRECTION: Vector3(1.0, 0.0, 0.0),
+		SyncScript.KEY_ORIGIN: Vector3(1.0, 2.0, 3.0),
+		SyncScript.KEY_DIRECTION: Vector3(0.0, 0.0, -1.0),
 	})
-	SyncScript.apply(player, SyncScript.resolve_network_params(FireballSpell, player, wire))
-
-	var projectile_count := _count_fireball_projectiles(root)
+	SyncScript.apply(player, {
+		SyncScript.KEY_EFFECT_ID: SyncScript.EFFECT_STONE_THROW,
+		SyncScript.KEY_ORIGIN: Vector3(1.0, 2.0, 3.0),
+		SyncScript.KEY_DIRECTION: Vector3(0.0, 0.0, -1.0),
+	})
+	var spawned := _count_player_projectiles(root)
 	_free_world_root(root)
-
-	if projectile_count != 1:
-		push_error("Expected wire-format fireball params to spawn one projectile")
+	if spawned != 0:
+		push_error("apply() must not spawn fireball or stone throw (wand weapon does)")
 		return 1
 	return 0
+
+
+func _count_player_projectiles(node: Node) -> int:
+	var n := 0
+	if node is FireballProjectile or node is StoneThrowProjectile:
+		n += 1
+	for child in node.get_children():
+		n += _count_player_projectiles(child)
+	return n
 
 
 func _test_apply_flashlight_toggle() -> int:
