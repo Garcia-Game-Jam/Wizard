@@ -10,19 +10,19 @@
 [ext_resource type="Script" uid="uid://bcqyf4grpegj6" path="res://scripts/characters/player_stun.gd" id="10_stun"]
 [ext_resource type="PackedScene" uid="uid://7shalb8dn4r4" path="res://scenes/fx/stun_stars.tscn" id="11_stars"]
 [ext_resource type="Script" uid="uid://cg3awqqjxne53" path="res://scripts/spells/spell_hotbar.gd" id="12_hotbar"]
-[ext_resource type="Script" path="res://scripts/characters/character_death.gd" id="13_death"]
+[ext_resource type="Script" uid="uid://bqkwb66qsqaho" path="res://scripts/characters/character_death.gd" id="13_death"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_playable"]
-radius = 0.2368164
+radius = 0.21533203
 height = 0.72
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7vyk4"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2l4js"]
 resource_local_to_scene = true
 albedo_color = Color(0.25, 0.65, 0.95, 1)
 metallic = 0.05
 roughness = 0.62
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2l4js"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jk2m4"]
 resource_local_to_scene = true
 albedo_color = Color(0.32, 0.7, 0.97, 1)
 metallic = 0.05
@@ -55,10 +55,10 @@ crouch_slide_friction = 35.0
 shape = SubResource("CapsuleShape3D_playable")
 
 [node name="Body" parent="." index="1" unique_id=73058391]
-surface_material_override/0 = SubResource("StandardMaterial3D_7vyk4")
+surface_material_override/0 = SubResource("StandardMaterial3D_2l4js")
 
 [node name="HeadMesh" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="0" unique_id=1294118041]
-surface_material_override/0 = SubResource("StandardMaterial3D_2l4js")
+surface_material_override/0 = SubResource("StandardMaterial3D_jk2m4")
 
 [node name="CameraPivot" type="Node3D" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="1" unique_id=1649868741]
 unique_name_in_owner = true
@@ -112,7 +112,7 @@ starting_items = Array[String](["book", "spellbook"])
 editor_description = "Charger ram stun: locks move/cast, ballistic launch, shared stun stars + camera 'stunned' word."
 script = ExtResource("10_stun")
 
-[node name="Death" type="Node" parent="." index="8"]
+[node name="Death" type="Node" parent="." index="8" unique_id=1451144845]
 editor_description = "Death presentation: ghost visuals + shoveable Corpse under Arena/Corpses. Commits after the tick loop; stage calls despawn(); revive only un-ghosts."
 script = ExtResource("13_death")
 
