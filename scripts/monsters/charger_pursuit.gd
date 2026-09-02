@@ -357,8 +357,11 @@ static func probe_wall_ahead(c: Charger) -> bool:
 	var step := ChargerChargeScript.charge_speed(Player.SPRINT_SPEED, c.charge_speed_mult)
 	step *= maxf(c._sim_delta, 1.0 / 60.0)
 	var reach := maxf(charge_radius(c) + step + 0.08, 0.2)
+	## Lift the swept capsule clear of the floor slab so a flat ram does not read
+	## the ground it is standing on as a wall.
+	var from := c.global_transform.translated(Vector3(0.0, 0.3, 0.0))
 	var probe := KinematicCollision3D.new()
-	if not c.test_move(c.global_transform, dir.normalized() * reach, probe):
+	if not c.test_move(from, dir.normalized() * reach, probe):
 		return false
 	return ChargerChargeScript.is_wall_collider(probe.get_collider(), probe.get_normal())
 
