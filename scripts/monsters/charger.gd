@@ -358,7 +358,9 @@ func _process(delta: float) -> void:
 
 
 func _validate_property(property: Dictionary) -> void:
-	## Charger ignores kite/KEEP_AWAY timers — hide them so Combat stays readable.
+	## The charger runs its own stalk → telegraph → ram → recover loop, so the
+	## generic Monster kite / chase-approach / route-patrol knobs do nothing here.
+	## Hide them to keep the inspector to the dials that actually tune this fight.
 	var hidden := PackedStringArray([
 		"chase_style",
 		"keep_away_range",
@@ -370,6 +372,12 @@ func _validate_property(property: Dictionary) -> void:
 		"chase_retreat_max_sec",
 		"chase_optimal_eps",
 		"face_turn_speed_rad",
+		"move_speed",
+		"chase_range",
+		"attack_range",
+		"idle_duration_sec",
+		"patrol_speed",
+		"patrol_radius",
 	])
 	if hidden.has(property.name):
 		property.usage = (

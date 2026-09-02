@@ -19,7 +19,11 @@ const DEFAULT_PLAYER_WIDTH_M := 0.55
 @export var sight_urgency: float = 1.4
 ## If on, only players inside the forward wedge are seen (not a full disc).
 @export var use_vision_cone: bool = false
-## Wedge width (m) at sight_range. Charger uses a wide value; Wretch is player-thin.
+## Full horizontal FOV of the vision cone, in degrees. When > 0 this wins over
+## Cone Width At Max Range. ~110-160 reads as a convincing "looking that way".
+@export_range(0.0, 340.0, 1.0, "suffix:°") var cone_angle_deg: float = 0.0
+## Legacy wedge width (m) at sight_range. Used only when Cone Angle Deg is 0
+## (Wretch keeps this at a player-thin 0.55 m).
 @export_range(0.05, 40.0, 0.01) var cone_width_at_max_range: float = DEFAULT_PLAYER_WIDTH_M
 ## If on, this sense is ignored until the monster is already ALERT or CHASE.
 @export var only_when_alert_or_chase: bool = false
@@ -73,12 +77,24 @@ func _in_vision_cone(monster: CharacterBody3D, flat_to_player: Vector3) -> bool:
 		return true
 	forward = forward.normalized()
 	var dir := flat_to_player.normalized()
-	return forward.angle_to(dir) <= cone_half_angle(sight_range, cone_width_at_max_range)
+	return forward.angle_to(dir) <= effective_half_angle(
+		sight_range, cone_width_at_max_range, cone_angle_deg
+	)
 
 
 static func cone_half_angle(range_m: float, width_at_max_m: float) -> float:
 	var half_width := maxf(width_at_max_m, 0.05) * 0.5
 	return atan(half_width / maxf(range_m, 0.01))
+
+
+## Cone half-angle (rad). A positive angle_deg (full FOV) wins over the legacy
+## width-at-range form. Shared by the AI check and the sense gizmos.
+static func effective_half_angle(
+	range_m: float, width_at_max_m: float, angle_deg: float
+) -> float:
+	if angle_deg > 0.0:
+		return deg_to_rad(clampf(angle_deg, 0.0, 340.0) * 0.5)
+	return cone_half_angle(range_m, width_at_max_m)
 
 
 func _has_line_of_sight(monster: CharacterBody3D, target: Node3D) -> bool:
