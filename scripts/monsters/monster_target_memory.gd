@@ -18,10 +18,10 @@ func configure(p_memory_sec: float) -> void:
 
 
 ## Refresh from a live sighting.
-func note_seen(target_id: int, world_pos: Vector3) -> void:
+func note_seen(seen_id: int, world_pos: Vector3) -> void:
 	_has_goal = true
 	_goal = world_pos
-	_target_id = target_id
+	_target_id = seen_id
 	_age = 0.0
 
 

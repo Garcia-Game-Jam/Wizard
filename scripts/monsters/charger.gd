@@ -141,25 +141,28 @@ var _head_pitch: float = 0.0
 var _head_pitch_goal: float = 0.0
 var _head_pitch_speed: float = 3.0
 var _lookdev_launch_stuns: Array[Node] = []
-var _search_base_yaw: float = 0.0
-var _search_about_faced: bool = false
 var _painted_tint: Color = Color(0, 0, 0, 0)
 ## Ram book-keeping: start pose for the commit window / whiff cap, and a stall
 ## counter for the belt-and-suspenders "wedged against geometry" check.
 var _charge_start_pos: Vector3 = Vector3.ZERO
 var _charge_prev_pos: Vector3 = Vector3.ZERO
 var _charge_stall_ticks: int = 0
-## Stalk timers. Reset on entering STALK.
+## Shortens the next telegraph (double-charge after a recovery).
+var _telegraph_scale: float = 1.0
+
+## Phase state the ChargerPursuit helper drives (search sweep, stalk timers,
+## once-per-phase mixup rolls). Declared here so it survives rollback with the
+## Charger; the analyzer only sees intra-class use, hence the suppression.
+@warning_ignore_start("unused_private_class_variable")
+var _search_base_yaw: float = 0.0
+var _search_about_faced: bool = false
 var _stalk_lost_sec: float = 0.0
 var _stalk_dwell: float = 0.0
 var _stalk_still_sec: float = 0.0
 var _stalk_last_target_pos: Vector3 = Vector3.ZERO
-## Shortens the next telegraph (double-charge after a recovery).
-var _telegraph_scale: float = 1.0
-## Mixup decisions are rolled once on phase entry (a fresh tick) so rollback
-## resim of the phase does not re-roll RNG.
 var _stalk_feint_planned: bool = false
 var _recover_double_planned: bool = false
+@warning_ignore_restore("unused_private_class_variable")
 
 
 func _ready() -> void:
