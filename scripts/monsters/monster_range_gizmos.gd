@@ -19,8 +19,10 @@ static func refresh_specs(
 		if radius <= 0.05:
 			continue
 		var color: Color = spec.get("color", Color(1, 1, 1, 0.2))
+		## set_editor_owner false: the disc renders in the viewport but is NOT
+		## an owned child, so toggling the gizmo never bakes it into the .tscn.
 		out.append(ensure_disc(
-			host, null, str(spec.get("name", "RangeGizmo")), radius, color, disc_height
+			host, null, str(spec.get("name", "RangeGizmo")), radius, color, disc_height, false
 		))
 	return out
 

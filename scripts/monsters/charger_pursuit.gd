@@ -12,6 +12,10 @@ const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 
 ## How near the last-seen spot counts as "arrived" and starts the peek search.
 const STALK_ARRIVE_M := 1.6
+## How near the computed staging spot counts as "in position", and how much over
+## charge_range still counts as banded once it is lined up.
+const STAGE_ARRIVE_M := 2.2
+const STAGE_BAND_SLACK_M := 2.5
 
 
 ## --- Stalk: prowl toward the player, wait for a clean charge lane ---
@@ -74,33 +78,7 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 	var dist := flat.length()
 
 	if Charger.is_player_charge_target(live):
-		c._stalk_search_sec = 0.0
-		if live != c._charge_target:
-			## Re-prioritised onto a different (closer, still-visible) player.
-			c._charge_target = live
-			c._stalk_dwell = 0.0
-			c._stalk_still_sec = 0.0
-			c._stalk_last_target_pos = goal
-		c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
-		var lane_clear := lane_to_target_clear(c, flat)
-		var in_range := dist <= c.charge_range and dist >= c.charge_min_range
-		if in_range and lane_clear:
-			c._stalk_dwell += delta
-		else:
-			c._stalk_dwell = 0.0
-		var moved := c._stalk_last_target_pos.distance_to(goal)
-		c._stalk_last_target_pos = goal
-		if moved <= c.combat_speed(c.stalk_speed) * delta * 0.35:
-			c._stalk_still_sec += delta
-		else:
-			c._stalk_still_sec = 0.0
-		if in_range and lane_clear and c._stalk_dwell >= c.stalk_dwell_sec:
-			enter_charge_sequence(c, live)
-			return
-		if in_range and c._stalk_still_sec >= c.stalk_patience_sec:
-			enter_charge_sequence(c, live)
-			return
-		_drive_stalk_move(c, goal, dist, live)
+		_tick_stalk_live(c, live, delta)
 		return
 
 	## No live player — walk to the last-seen spot, never charging blind.
@@ -109,7 +87,14 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 	if dist > STALK_ARRIVE_M:
 		c._stalk_search_sec = 0.0
 		c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
-		_drive_stalk_move(c, goal, dist, null)
+		var nav := MonsterAIScript.avoid_obstacles(
+			c.get_world_3d(), c.global_position, goal, c.get_rid(), 0.0
+		)
+		var mv := Vector3(nav.x - c.global_position.x, 0.0, nav.z - c.global_position.z)
+		if mv.length_squared() > 0.0001:
+			mv = mv.normalized() * c.combat_speed(c.stalk_speed)
+		c.velocity.x = mv.x
+		c.velocity.z = mv.z
 		return
 
 	## Arrived — peek around the nearby cover, sweeping for the player.
@@ -119,6 +104,58 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		c._reset_to_idle()
 		return
 	_peek_around(c, goal, delta)
+
+
+## Live player in sight: pick a staging spot with a clean charge lane and room
+## off the walls, walk there, and once set up + still in the band + clear lane,
+## commit to the charge (or a feint). One goal, one check.
+static func _tick_stalk_live(c: Charger, live: Node3D, delta: float) -> void:
+	c._stalk_search_sec = 0.0
+	if live != c._charge_target:
+		c._charge_target = live
+		c._stalk_dwell = 0.0
+		c._stalk_still_sec = 0.0
+	var here := c.global_position
+	var pp := live.global_position
+	var to_p := Vector3(pp.x - here.x, 0.0, pp.z - here.z)
+	var d_p := to_p.length()
+	c._face_horizontal_at_speed(to_p, delta, c.lock_on_turn_speed_rad * 1.6)
+
+	var stage: Dictionary = MonsterAIScript.pick_charge_staging(
+		c.get_world_3d(), here, pp, c.charge_range, c.wall_clearance_m, c.get_rid()
+	)
+	var s: Vector3 = stage.get("pos")
+	var at_stage := Vector3(s.x - here.x, 0.0, s.z - here.z).length() <= STAGE_ARRIVE_M
+	var lane_clear := lane_to_target_clear(c, to_p)
+	var banded := (
+		d_p >= c.charge_min_range and d_p <= c.charge_range + STAGE_BAND_SLACK_M
+	)
+	var set_up := at_stage and lane_clear and banded
+
+	c._stalk_dwell = (c._stalk_dwell + delta) if set_up else 0.0
+	var moved := c._stalk_last_target_pos.distance_to(pp)
+	c._stalk_last_target_pos = pp
+	c._stalk_still_sec = (c._stalk_still_sec + delta) if moved < 0.15 else 0.0
+	var turtling := c._stalk_still_sec >= c.stalk_patience_sec and lane_clear and banded
+
+	if (set_up and c._stalk_dwell >= c.stalk_dwell_sec) or turtling:
+		enter_charge_sequence(c, live)
+		return
+
+	## Walk to the staging spot, only dodging things directly in the lane (the
+	## spot itself already accounts for wall clearance, so no repulsion here).
+	if at_stage:
+		c.velocity.x = move_toward(c.velocity.x, 0.0, c.combat_speed(c.stalk_speed) * delta * 4.0)
+		c.velocity.z = move_toward(c.velocity.z, 0.0, c.combat_speed(c.stalk_speed) * delta * 4.0)
+		return
+	var nav: Vector3 = MonsterAIScript.avoid_obstacles(
+		c.get_world_3d(), here, s, c.get_rid(), 0.0
+	)
+	var mv := Vector3(nav.x - here.x, 0.0, nav.z - here.z)
+	if mv.length_squared() > 0.0001:
+		mv = mv.normalized() * c.combat_speed(c.stalk_speed)
+	c.velocity.x = mv.x
+	c.velocity.z = mv.z
 
 
 ## Slow orbit + view-sweep around the last-seen spot while it searches.
@@ -136,26 +173,6 @@ static func _peek_around(c: Charger, centre: Vector3, delta: float) -> void:
 	c.velocity.x = mv.x
 	c.velocity.z = mv.z
 	c._face_horizontal_at_speed(tangent, delta, c.search_turn_speed_rad)
-
-
-static func _drive_stalk_move(c: Charger, goal: Vector3, dist: float, live: Node3D) -> void:
-	var spd := c.combat_speed(c.stalk_speed)
-	var flat := Vector3(goal.x - c.global_position.x, 0.0, goal.z - c.global_position.z)
-	var dir := Vector3.ZERO
-	if flat.length_squared() > 0.0001:
-		var to := flat.normalized()
-		if not Charger.is_player_charge_target(live) or dist > c.charge_range:
-			## Closing in (or pursuing a remembered spot) — steer around cover.
-			var nav := c._nav_goal(goal)
-			var nf := Vector3(nav.x - c.global_position.x, 0.0, nav.z - c.global_position.z)
-			dir = nf.normalized() if nf.length_squared() > 0.0001 else to
-		elif dist < c.charge_min_range:
-			dir = -to * 0.7
-		else:
-			var side := MonsterAIScript.strafe_sign_further_from_player(c.global_position, goal)
-			dir = MonsterAIScript.angled_strafe_dir(c.global_position, goal, side, 0.2) * 0.85
-	c.velocity.x = dir.x * spd
-	c.velocity.z = dir.z * spd
 
 
 static func enter_charge_sequence(c: Charger, target: Node3D) -> void:

@@ -209,6 +209,54 @@ static func wall_repulsion(
 	return Vector3(push.x, 0.0, push.z)
 
 
+## Best spot to line up a threatening charge at `player`: `charge_range` out on a
+## bearing that has a clear straight lane to the player, open ground behind for
+## the run-up, and room off the walls. Samples a fan biased toward the charger's
+## current side so it does not circle the arena. Returns {pos, ok} — ok is false
+## when nothing clean exists (deeply cornered player); pos is then the least-bad
+## fallback straight out from the player toward the charger.
+static func pick_charge_staging(
+	world: World3D,
+	charger_pos: Vector3,
+	player_pos: Vector3,
+	charge_range: float,
+	clearance: float,
+	self_rid: RID
+) -> Dictionary:
+	var radius := maxf(charge_range, 1.0)
+	var to_charger := Vector3(charger_pos.x - player_pos.x, 0.0, charger_pos.z - player_pos.z)
+	var fallback: Vector3 = player_pos + (
+		to_charger.normalized() if to_charger.length_squared() > 0.01 else Vector3.FORWARD
+	) * radius
+	fallback.y = charger_pos.y
+	if world == null or world.direct_space_state == null:
+		return {"pos": fallback, "ok": true}
+	var base := atan2(to_charger.z, to_charger.x) if to_charger.length_squared() > 0.01 else 0.0
+	var up := Vector3(0.0, 0.6, 0.0)
+	var pe: Vector3 = player_pos + up
+	var best := Vector3.ZERO
+	var best_score := -INF
+	for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.95, -0.95, 1.35, -1.35]:
+		var a: float = base + off
+		var s: Vector3 = player_pos + Vector3(cos(a), 0.0, sin(a)) * radius
+		s.y = charger_pos.y
+		var se: Vector3 = s + up
+		if _lane_blocked(world, se, pe, self_rid):
+			continue  # can't see / can't ram straight through
+		var behind: Vector3 = s + (s - player_pos).normalized() * (radius * 0.3)
+		if _lane_blocked(world, se, behind + up, self_rid):
+			continue  # no run-up room behind the staging point
+		if wall_repulsion(world, se, self_rid, clearance).length() > 0.85:
+			continue  # jammed against a wall
+		var score := -charger_pos.distance_to(s) - absf(off) * radius * 0.6
+		if score > best_score:
+			best_score = score
+			best = s
+	if best_score == -INF:
+		return {"pos": fallback, "ok": false}
+	return {"pos": best, "ok": true}
+
+
 static func _lane_blocked(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> bool:
 	var q := PhysicsRayQueryParameters3D.create(a, b)
 	q.collide_with_areas = false
