@@ -7,14 +7,33 @@
 [ext_resource type="Script" uid="uid://c351okyuslg8j" path="res://scripts/monsters/abilities/charger_ward_ability.gd" id="5_ward"]
 [ext_resource type="PackedScene" uid="uid://7shalb8dn4r4" path="res://scenes/fx/stun_stars.tscn" id="6_stars"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t1nia"]
+resource_local_to_scene = true
+albedo_color = Color(0.22, 0.72, 0.28, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wnooq"]
+resource_local_to_scene = true
+albedo_color = Color(0.28239998, 0.74240005, 0.3376, 1)
+metallic = 0.05
+roughness = 0.62
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_n7dji"]
+resource_local_to_scene = true
+shading_mode = 0
+albedo_color = Color(0.96, 0.96, 0.94, 1)
+
 [node name="Charger" unique_id=473758256 instance=ExtResource("1_monster")]
 editor_description = "Rammer: sight-cone spot, stalk, telegraph, homing-then-locked ram, wall stun or skid recovery, feint. Greybox is the monster shell plus one collider."
+transform = Transform3D(-0.665572, 0, 0.74633366, 0, 1, 0, -0.74633366, 0, -0.665572, 0, 0, 0)
+collision_mask = 3
 script = ExtResource("2_charger")
-telegraph_sec = 1.3
-lock_on_turn_speed_rad = 2.2
-walk_turn_speed_rad = 1.4
-search_turn_speed_rad = 2.0
-charge_speed_mult = 3.6
+telegraph_sec = 1.0
+lock_on_turn_speed_rad = 3.0
+walk_turn_speed_rad = 2.0
+search_turn_speed_rad = 3.0
+charge_speed_mult = 3.9
 self_stun_sec = 3.0
 search_sec = 3.2
 charge_head_plunge_deg = 330.0
@@ -30,31 +49,62 @@ charge_band_min_m = 4.0
 charge_band_max_m = 14.0
 stalk_dwell_sec = 0.45
 stalk_patience_sec = 2.4
+stalk_giveup_sec = 2.0
 charge_commit_dist_m = 3.0
+commit_turn_speed_rad = 4.5
 charge_max_dist_m = 15.0
 recover_sec = 1.0
 feint_chance = 0.3
+feint_sec = 0.45
 double_charge_chance = 0.35
+double_charge_telegraph_scale = 0.45
 body_tint = Color(0.22, 0.72, 0.28, 1)
-eye_glow_color = Color(0.96, 0.96, 0.94, 1)
+lookdev_override = false
+show_combat_ranges = false
+show_sense_ranges = false
 touch_damage = 0.0
-alert_duration_sec = 6.0
+last_known_memory_sec = 6.0
+chase_style = 0
+keep_away_range = 20.0
+face_turn_speed_rad = 10.0
+chase_wait_min_sec = 1.0
+chase_wait_max_sec = 3.0
+chase_strafe_min_sec = 1.2
+chase_strafe_max_sec = 2.0
+chase_retreat_min_sec = 1.2
+chase_retreat_max_sec = 3.2
+chase_optimal_eps = 0.55
+eye_glow_color = Color(0.96, 0.96, 0.94, 1)
 max_health = 60.0
+current_health = 60.0
 
-[node name="Eyes" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="1"]
-visible = true
+[node name="Body" parent="." index="1" unique_id=73058391]
+surface_material_override/0 = SubResource("StandardMaterial3D_t1nia")
+
+[node name="HeadMesh" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="0" unique_id=1294118041]
+surface_material_override/0 = SubResource("StandardMaterial3D_wnooq")
+
+[node name="Eyes" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="1" unique_id=910001010]
 editor_description = "Always on. White at rest; red on LOS / ram."
+visible = true
 
-[node name="Glow" parent="Head/Eyes" index="2"]
+[node name="LeftEye" parent="Head/Eyes" index="0" unique_id=910001011]
+surface_material_override/0 = SubResource("StandardMaterial3D_n7dji")
+
+[node name="RightEye" parent="Head/Eyes" index="1" unique_id=910001012]
+surface_material_override/0 = SubResource("StandardMaterial3D_n7dji")
+
+[node name="Glow" parent="Head/Eyes" index="2" unique_id=910001013]
 light_color = Color(0.96, 0.96, 0.94, 1)
 light_energy = 0.832
+light_cull_mask = 3
 
-[node name="StunStars" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="2" instance=ExtResource("6_stars")]
+[node name="StunStars" parent="Head" parent_id_path=PackedInt32Array(1186111743) index="2" unique_id=972422630 instance=ExtResource("6_stars")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 orbit_radius = 0.23
 star_size = 0.075
 
-[node name="Sight" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="0"]
+[node name="Sight" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="0" unique_id=451902179]
 editor_description = "Facing cone. Tune Sight Range / Cone Angle Deg / Eye Height. Walls block it."
 script = ExtResource("3_sight")
 sight_range = 40.0
@@ -63,21 +113,21 @@ sight_urgency = 1.6
 use_vision_cone = true
 cone_angle_deg = 80.0
 
-[node name="Hearing" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="1"]
+[node name="Hearing" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="1" unique_id=847676490]
 editor_description = "Keep hear range tiny so the charger is almost deaf."
 script = ExtResource("4_hear")
 hear_range = 2.0
 speech_urgency = 0.7
 heard_linger_sec = 1.0
 
-[node name="ShieldHold" type="Marker3D" parent="."]
+[node name="ShieldHold" type="Marker3D" parent="." index="6" unique_id=93506905]
 editor_description = "Held ward parents here, in front of the body."
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.55)
 
-[node name="Abilities" type="Node3D" parent="."]
+[node name="Abilities" type="Node3D" parent="." index="7" unique_id=1929003826]
 editor_description = "Charge Ward: held shield at windup."
 
-[node name="ChargeWard" type="Node3D" parent="Abilities"]
+[node name="ChargeWard" type="Node3D" parent="Abilities" index="0" unique_id=1753135926]
 script = ExtResource("5_ward")
 ability_id = "charger_ward"
 display_name = "Charge Ward"
