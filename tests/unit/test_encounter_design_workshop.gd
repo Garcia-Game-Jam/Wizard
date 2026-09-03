@@ -22,6 +22,11 @@ func _test_loads_default_level(tree: SceneTree) -> int:
 	var failures := 0
 	var workshop := WorkshopScene.instantiate()
 	tree.root.add_child(workshop)
+	## The workshop is a live editing tool — its .tscn's own `level` reflects
+	## whatever a real editor session last had open, not necessarily
+	## default_level.tres. Assign it explicitly so this test verifies the
+	## default level's own data, independent of that.
+	workshop.set("level", load("res://scenes/arenas/levels/default_level.tres"))
 
 	var level: Resource = workshop.get("level")
 	if level == null:

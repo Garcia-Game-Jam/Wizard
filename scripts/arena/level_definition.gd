@@ -16,7 +16,15 @@ const ArenaCatalogScript := preload("res://scripts/arena/arena_catalog.gd")
 const EncounterDefinitionScript := preload("res://scripts/arena/encounter_definition.gd")
 
 @export var level_name: String = "New Level"
-@export var map_id: String = ""
+
+## The setter strips a leaked "Label:value" enum hint down to just the id —
+## same Inspector-write-back leak as MonsterSpawnEntry.kind/spawn_animation
+## (see that file's note); map_id's dropdown is the dynamic one built by
+## _validate_property() below, in the same "Display Name:id" shape.
+@export var map_id: String = "":
+	set(value):
+		map_id = value.substr(value.rfind(":") + 1) if value.contains(":") else value
+
 @export var encounters: Array[EncounterDefinitionScript] = []
 
 

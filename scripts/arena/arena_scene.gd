@@ -350,10 +350,14 @@ func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
 func rpc_show_telegraph(encounter_index: int) -> void:
 	if _active_level() != null:
 		## Level-authored monsters spawn at free positions, not fixed pad
-		## indices, so there's no pad to light up or gate to open for them —
-		## each monster gets its own SpawnTelegraphFx at its exact spot
-		## instead (see _play_level_telegraph_fx()). No gate to open either.
+		## indices, so there's no pad to light up for them — each monster
+		## gets its own SpawnTelegraphFx at its exact spot instead (see
+		## _play_level_telegraph_fx()). A gate can still open, purely as set
+		## dressing: whichever GateN indices the encounter's
+		## open_gate_indices names, independent of where its monsters
+		## actually spawn.
 		_play_level_telegraph_fx(encounter_index)
+		_open_level_gates(encounter_index)
 		return
 	var pads := ArenaEncountersScript.pads_for(encounter_index)
 	if spawn_telegraph != null and spawn_telegraph.has_method("show_pads"):
@@ -521,6 +525,23 @@ func _play_level_telegraph_fx(encounter_index: int) -> void:
 		var fx := SpawnTelegraphFxScript.new()
 		fx_root.add_child(fx)
 		fx.global_position = m.position
+
+
+## open_gate_indices names raw GateN indices, the same numbering
+## ArenaEncountersScript.pads_for()'s classic pad ids already use — SpawnTelegraph.
+## open_gates() just treats its argument as bit indices either way, so the
+## classic pad-index path above and this one can share the one method.
+func _open_level_gates(encounter_index: int) -> void:
+	var enc := _level_encounter(encounter_index)
+	if enc == null or spawn_telegraph == null or not spawn_telegraph.has_method("open_gates"):
+		return
+	var indices: Array = enc.get("open_gate_indices")
+	if indices.is_empty():
+		return
+	var gates := PackedInt32Array()
+	for i in indices:
+		gates.append(int(i))
+	spawn_telegraph.call("open_gates", gates)
 
 
 func _level_telegraph_root() -> Node3D:

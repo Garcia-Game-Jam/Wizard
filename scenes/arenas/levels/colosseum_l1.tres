@@ -1,0 +1,54 @@
+[gd_resource type="Resource" script_class="LevelDefinition" format=3 uid="uid://cu0vdtjefjj5y"]
+
+[ext_resource type="Script" uid="uid://lch3c2px2rba" path="res://scripts/arena/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" uid="uid://oagxbmho0luy" path="res://scripts/arena/monster_spawn_entry.gd" id="2_mon"]
+[ext_resource type="Script" uid="uid://c74n45g40fg6d" path="res://scripts/arena/level_definition.gd" id="3_level"]
+
+[sub_resource type="Resource" id="Resource_hyaya"]
+script = ExtResource("2_mon")
+kind = "ember"
+position = Vector3(0, 0, 29.715567)
+spawn_animation = "Classic Beam:classic_beam"
+metadata/_custom_type_script = "uid://oagxbmho0luy"
+
+[sub_resource type="Resource" id="Resource_43pyl"]
+script = ExtResource("2_mon")
+kind = "ash"
+position = Vector3(30.29433, 0, 0)
+spawn_animation = "Classic Beam:classic_beam"
+metadata/_custom_type_script = "uid://oagxbmho0luy"
+
+[sub_resource type="Resource" id="Resource_bq7ac"]
+script = ExtResource("2_mon")
+kind = "ash"
+position = Vector3(20.388582, 0, 20.729742)
+metadata/_custom_type_script = "uid://oagxbmho0luy"
+
+[sub_resource type="Resource" id="Resource_e08vm"]
+script = ExtResource("1_enc")
+monsters = Array[ExtResource("2_mon")]([SubResource("Resource_hyaya"), SubResource("Resource_43pyl"), SubResource("Resource_bq7ac")])
+open_gate_indices = Array[int]([0, 1, 2])
+metadata/_custom_type_script = "uid://lch3c2px2rba"
+
+[sub_resource type="Resource" id="Resource_brx8q"]
+script = ExtResource("2_mon")
+spawn_animation = "Classic Beam:classic_beam"
+metadata/_custom_type_script = "uid://oagxbmho0luy"
+
+[sub_resource type="Resource" id="Resource_hc2a3"]
+script = ExtResource("2_mon")
+kind = "Charger:charger"
+spawn_animation = "Classic Beam:classic_beam"
+metadata/_custom_type_script = "uid://oagxbmho0luy"
+
+[sub_resource type="Resource" id="Resource_ugmfq"]
+script = ExtResource("1_enc")
+monsters = Array[ExtResource("2_mon")]([SubResource("Resource_brx8q"), SubResource("Resource_hc2a3")])
+open_gate_indices = Array[int]([2, 0])
+metadata/_custom_type_script = "uid://lch3c2px2rba"
+
+[resource]
+script = ExtResource("3_level")
+level_name = "Colosseum L1"
+map_id = "colosseum"
+encounters = Array[ExtResource("1_enc")]([SubResource("Resource_e08vm"), SubResource("Resource_ugmfq")])

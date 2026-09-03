@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://bwwklo2pj2rcp"]
 
 [ext_resource type="Script" uid="uid://cqhurncntvnax" path="res://scripts/arena/encounter_design_workshop.gd" id="1_workshop"]
-[ext_resource type="Resource" uid="uid://bgpuvlfj7dxnl" path="res://scenes/arenas/levels/default_level.tres" id="2_default_level"]
+[ext_resource type="Resource" uid="uid://cu0vdtjefjj5y" path="res://scenes/arenas/levels/colosseum_l1.tres" id="2_00k43"]
 
 [node name="EncounterDesignWorkshop" type="Node3D" unique_id=1423030752]
 process_mode = 3
 editor_description = "Encounter design workshop. Select this node to edit the `Level` field in the Inspector: its own resource picker (dropdown arrow) is New/Load/Save As; expand it to add/remove encounters, and expand an encounter to add/remove its monsters/obstacle_positions — all native Inspector array controls, nothing custom. IMPORTANT: that picker's own \"Save\" only writes whatever is already stored in the resource — it does NOT pull in-viewport marker drags first. Use the \"Save Level\" action (in this node's own Inspector, below `Level`) to actually persist drags/deletes/adds to disk; it syncs markers into Level and writes the file in one step. `Selected Encounter Index` picks which encounter's monsters (spheres, color-coded red/orange/blue for charger/ember/ash) and obstacles (tan boxes) preview under EncounterPreview below against the real arena geometry under MapPreview — switching it auto-syncs the encounter you're leaving, so a drag is never silently lost just from changing this. Markers are ordinary selectable/draggable nodes — click one in the viewport and move it with the gizmo. A monster marker also has its own `Kind` and `Spawn Animation` dropdowns right in the Inspector — pick charger/ember/ash, or which spawn-telegraph light effect plays before it appears (only \"Classic Beam\" exists so far), on the spawn point itself and either writes back immediately (no need to Save Level just for one of these, though it doesn't hurt). To delete, select one or more markers and run \"Delete Selected Markers\" (NOT the viewport's own Delete key — that only removes the node, not the underlying Level entry, so it reappears on the next rebuild). \"Add Monster/Obstacle At Camera Focus\" appends a new entry in front of wherever the editor camera is looking."
 script = ExtResource("1_workshop")
-level = ExtResource("2_default_level")
+level = ExtResource("2_00k43")

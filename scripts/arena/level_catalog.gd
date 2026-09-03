@@ -64,8 +64,13 @@ static func display_name_for_id(level_id: String) -> String:
 	return display_name if not display_name.is_empty() else level_id
 
 
+## CACHE_MODE_REPLACE, not plain load()/CACHE_MODE_REUSE — levels are live-
+## edited content (encounter_design_workshop.tscn saves over the same path
+## repeatedly during a single dev session), and a stale ResourceCache entry
+## from an earlier load in this same process would otherwise silently mask
+## every edit made since, in-editor preview and a running match alike.
 static func load_level(level_id: String) -> Resource:
 	var path := path_for_id(level_id)
 	if path.is_empty():
 		return null
-	return load(path)
+	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
