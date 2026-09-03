@@ -1,0 +1,350 @@
+[gd_scene format=3 uid="uid://h46a7muqmquu"]
+
+[ext_resource type="Script" uid="uid://carenascn001" path="res://scripts/arena/arena_scene.gd" id="1_arena"]
+[ext_resource type="Script" uid="uid://bkvka4fuy7rl2" path="res://scripts/spells/spell_registry.gd" id="6_registry"]
+[ext_resource type="Script" uid="uid://bfnrfxnwjg02y" path="res://scripts/ui/aim_cursor.gd" id="9_aim"]
+[ext_resource type="Script" uid="uid://crdov1cq8kly5" path="res://scripts/ui/game_hud.gd" id="9_hud"]
+[ext_resource type="PackedScene" uid="uid://cfpo0lb3smm3y" path="res://scenes/ui/player_menu.tscn" id="9_player_menu"]
+[ext_resource type="Script" uid="uid://c3khbmmmkw14b" path="res://scripts/ui/spell_word_banner.gd" id="9_spell_word"]
+[ext_resource type="Script" uid="uid://yf2yi73fbs6o" path="res://scripts/spells/voice_spell_validator.gd" id="10_validator"]
+[ext_resource type="Script" uid="uid://cgo2lkhlxtcky" path="res://scripts/spells/spell_validation_runner.gd" id="11_runner"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="14_game_over"]
+[ext_resource type="PackedScene" uid="uid://cswbhealth001" path="res://scenes/ui/scaffolding/health_bar.tscn" id="14_health"]
+[ext_resource type="PackedScene" uid="uid://cpausemenu001" path="res://scenes/ui/pause_menu.tscn" id="14_pause"]
+[ext_resource type="Resource" uid="uid://dud80ue7p23rt" path="res://scenes/spells/fireball/fireball.tres" id="15_fireball"]
+[ext_resource type="Script" uid="uid://dtymt6tugqqxx" path="res://scripts/arena/arena_cover.gd" id="16_cover"]
+[ext_resource type="Script" uid="uid://grlb8nli07gx" path="res://scripts/arena/spawn_telegraph.gd" id="17_spot"]
+[ext_resource type="Resource" uid="uid://djudlmjak0msk" path="res://scenes/spells/ward/ward.tres" id="35_ward"]
+[ext_resource type="Resource" uid="uid://dstonethrow01" path="res://scenes/spells/stone_throw/stone_throw.tres" id="36_stone_throw"]
+[ext_resource type="Script" uid="uid://wea2wejyivdb" path="res://scripts/arena/colosseum_gate_ring.gd" id="38_gate_ring"]
+
+[sub_resource type="Environment" id="Environment_arena"]
+background_mode = 1
+background_color = Color(0.08, 0.09, 0.12, 1)
+ambient_light_source = 1
+ambient_light_color = Color(0.72, 0.74, 0.8, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.32, 0.3, 0.26, 1)
+
+[sub_resource type="CylinderMesh" id="Mesh_floor"]
+top_radius = 28.0
+bottom_radius = 28.0
+height = 1.0
+
+[sub_resource type="CylinderShape3D" id="Shape_floor"]
+height = 1.0
+radius = 28.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.2, 0.18, 0.16, 1)
+
+[sub_resource type="CylinderMesh" id="Mesh_wall_outer"]
+material = SubResource("Mat_wall")
+top_radius = 29.5
+bottom_radius = 29.5
+height = 7.0
+
+[sub_resource type="CylinderMesh" id="Mesh_wall_inner"]
+top_radius = 27.0
+bottom_radius = 27.0
+height = 7.4
+
+[sub_resource type="StandardMaterial3D" id="Mat_beam"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.89, 0.67, 0.26, 0.55)
+
+[sub_resource type="CylinderMesh" id="Mesh_beam"]
+material = SubResource("Mat_beam")
+top_radius = 1.1
+bottom_radius = 1.6
+height = 21.0
+radial_segments = 12
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Mat_ring"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.89, 0.67, 0.26, 0.85)
+
+[sub_resource type="CylinderMesh" id="Mesh_ring"]
+material = SubResource("Mat_ring")
+top_radius = 1.8
+bottom_radius = 1.8
+height = 0.08
+radial_segments = 20
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Mat_cover"]
+albedo_color = Color(0.42, 0.36, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_cover"]
+material = SubResource("Mat_cover")
+size = Vector3(2.4, 2, 2.4)
+
+[sub_resource type="BoxShape3D" id="Shape_cover"]
+size = Vector3(2.4, 2, 2.4)
+
+[node name="ArenaBulls" type="Node3D" unique_id=248825525]
+editor_description = "Colosseum match arena. Same spawning contract as scenes/arena.tscn (arena_scene.gd), swapped for a round floor, a ring wall, and 8 domed gates. A gate opens (its door lowers into the floor) while its telegraph light is shown; monsters actually spawn on a platform just outside that gate once the telegraph timer ends, then walk in through the opening — see Gates/colosseum_gate_ring.gd, which generates Gate/Pad/Zone/SpawnPoint/Spot/Omni/Beam/Ring for all 8 from one angle array."
+script = ExtResource("1_arena")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1966422283]
+environment = SubResource("Environment_arena")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=532557861]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 28, 0)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=1274307713]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14, 0)
+light_energy = 1.6
+omni_range = 70.0
+
+[node name="Colosseum" type="Node3D" parent="." unique_id=959027791]
+
+[node name="Floor" type="StaticBody3D" parent="Colosseum" unique_id=290074848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Colosseum/Floor" unique_id=1809929097]
+material_override = SubResource("Mat_floor")
+mesh = SubResource("Mesh_floor")
+
+[node name="Collision" type="CollisionShape3D" parent="Colosseum/Floor" unique_id=146303009]
+shape = SubResource("Shape_floor")
+
+[node name="Wall" type="Node3D" parent="Colosseum" unique_id=119820877]
+
+[node name="Ring" type="CSGMesh3D" parent="Colosseum/Wall" unique_id=644033541]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+use_collision = true
+collision_layer = 2
+mesh = SubResource("Mesh_wall_outer")
+
+[node name="InnerCut" type="CSGMesh3D" parent="Colosseum/Wall/Ring" unique_id=79385486]
+operation = 2
+mesh = SubResource("Mesh_wall_inner")
+
+[node name="Gates" type="Node3D" parent="." unique_id=1434447267]
+editor_description = "Generates GateN (scenes/arenas/colosseum_gate.tscn), the matching GateCutN doorway notch in Colosseum/Wall/Ring, PadN (the inner telegraph warning-light anchor, just inside the gate), ZoneN/SpawnPointN (a walkable platform + the actual monster spawn point, just outside the gate), and the SpotN/OmniN/BeamN/RingN telegraph light cluster on ../SpawnTelegraph — one angle per index drives all of them, so none can end up out of alignment with each other. Rebuilds live when any exported value changes; do not hand-author GateN/GateCutN/PadN/ZoneN/SpawnPointN/SpotN/OmniN/BeamN/RingN here — see colosseum_gate_ring.gd."
+script = ExtResource("38_gate_ring")
+angles_deg = PackedFloat32Array(234.4623, 125.5377, 54.4623, 305.5377, 90, 180, 270, 0)
+wall_ring_path = NodePath("../Colosseum/Wall/Ring")
+pads_root_path = NodePath("../Pads")
+spawn_zones_root_path = NodePath("../Pads")
+zone_material = SubResource("Mat_floor")
+telegraph_root_path = NodePath("../SpawnTelegraph")
+beam_mesh = SubResource("Mesh_beam")
+beam_material = SubResource("Mat_beam")
+ring_mesh = SubResource("Mesh_ring")
+ring_material = SubResource("Mat_ring")
+
+[node name="Cover" type="Node3D" parent="." unique_id=1190013758]
+
+[node name="Block0" type="StaticBody3D" parent="Cover" unique_id=1482305625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1, -4)
+script = ExtResource("16_cover")
+
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block0" unique_id=1854654983]
+mesh = SubResource("Mesh_cover")
+
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block0" unique_id=1040408003]
+shape = SubResource("Shape_cover")
+
+[node name="Block1" type="StaticBody3D" parent="Cover" unique_id=1348961367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 3)
+script = ExtResource("16_cover")
+
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block1" unique_id=386800172]
+mesh = SubResource("Mesh_cover")
+
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block1" unique_id=1537360202]
+shape = SubResource("Shape_cover")
+
+[node name="Block2" type="StaticBody3D" parent="Cover" unique_id=914663266]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 8)
+script = ExtResource("16_cover")
+
+[node name="Mesh" type="MeshInstance3D" parent="Cover/Block2" unique_id=318689536]
+mesh = SubResource("Mesh_cover")
+
+[node name="Collision" type="CollisionShape3D" parent="Cover/Block2" unique_id=494038232]
+shape = SubResource("Shape_cover")
+
+[node name="SpawnTelegraph" type="Node3D" parent="." unique_id=686479060]
+editor_description = "SpotN/OmniN/BeamN/RingN and GateN (under ../Gates) are generated by ../Gates (colosseum_gate_ring.gd), not authored here — do not add SpotN/OmniN/BeamN/RingN by hand. See spawn_telegraph.gd for how they're driven."
+script = ExtResource("17_spot")
+gates_root_path = NodePath("../Gates")
+
+[node name="Pads" type="Node3D" parent="." unique_id=587173666]
+editor_description = "PadN and ZoneN/SpawnPointN are generated by ../Gates (colosseum_gate_ring.gd). PadN sits just inside its gate (telegraph light anchor only). ZoneN is a walkable platform just outside its gate, and SpawnPointN — the node arena_scene.gd actually spawns monsters on — sits at its center, facing in. Do not add any of these by hand."
+
+[node name="Players" type="Node3D" parent="." unique_id=1166543948]
+
+[node name="PlayerSpawn_0" type="Marker3D" parent="Players" unique_id=1849325314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, 14)
+
+[node name="PlayerSpawn_1" type="Marker3D" parent="Players" unique_id=1676323461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 14)
+
+[node name="PlayerSpawn_2" type="Marker3D" parent="Players" unique_id=2095128268]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1, 16)
+
+[node name="PlayerSpawn_3" type="Marker3D" parent="Players" unique_id=1870021646]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
+
+[node name="Monsters" type="Node3D" parent="." unique_id=825523486]
+
+[node name="Corpses" type="Node3D" parent="." unique_id=1179988877]
+unique_name_in_owner = true
+
+[node name="SpellRegistry" type="Node" parent="." unique_id=1215369227]
+script = ExtResource("6_registry")
+spells = Array[Resource]([ExtResource("15_fireball"), ExtResource("35_ward"), ExtResource("36_stone_throw")])
+
+[node name="VoiceSpellValidator" type="Node" parent="." unique_id=1482853803]
+script = ExtResource("10_validator")
+
+[node name="SpellValidationRunner" type="Node" parent="VoiceSpellValidator" unique_id=690491657]
+script = ExtResource("11_runner")
+
+[node name="GameHUD" type="CanvasLayer" parent="." unique_id=1538663880]
+script = ExtResource("9_hud")
+
+[node name="HealthBar" parent="GameHUD" unique_id=1067244306 instance=ExtResource("14_health")]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -156.0
+offset_right = 160.0
+offset_bottom = -136.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="AimCursor" type="Control" parent="GameHUD" unique_id=2078003226]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_aim")
+
+[node name="PlayerMenu" parent="GameHUD" unique_id=1006478428 instance=ExtResource("9_player_menu")]
+visible = false
+
+[node name="MarginContainer" type="MarginContainer" parent="GameHUD" unique_id=17834825]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 48.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+
+[node name="PromptLabel" type="Label" parent="GameHUD/MarginContainer" unique_id=823931913]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="SpellWordBanner" type="Control" parent="GameHUD" unique_id=1565641202]
+z_index = 64
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = 136.0
+offset_right = 420.0
+offset_bottom = 224.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_spell_word")
+
+[node name="SpellWordLabel" type="Label" parent="GameHUD/SpellWordBanner" unique_id=1724539180]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 68
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CastingPanel" type="PanelContainer" parent="GameHUD" unique_id=349293312]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -346.0
+offset_right = 260.0
+offset_bottom = -120.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="GameHUD/CastingPanel" unique_id=302972846]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="GameHUD/CastingPanel/MarginContainer" unique_id=511457262]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=1703877243]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Casting"
+
+[node name="WordsLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=206614307]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="GuideLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=1608733586]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.82, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 2
+
+[node name="StatusLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=1015785068]
+layout_mode = 2
+
+[node name="MicLevelBar" type="ProgressBar" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=29682043]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+show_percentage = false
+
+[node name="FeedbackLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=2040145463]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.75, 0.45, 1)
+autowrap_mode = 2
+
+[node name="DetailLabel" type="Label" parent="GameHUD/CastingPanel/MarginContainer/VBox" unique_id=1902233428]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.58, 0.78, 1)
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 2
+
+[node name="PauseMenu" parent="." unique_id=844225547 instance=ExtResource("14_pause")]
+visible = false
+
+[node name="GameOverOverlay" parent="." unique_id=1579410652 instance=ExtResource("14_game_over")]
+visible = false

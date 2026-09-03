@@ -10,6 +10,7 @@ const SCAN_ROOTS := [
 
 const EXTRA_SCENES := [
 	"res://scenes/arena.tscn",
+	"res://scenes/arenas/arena_bulls.tscn",
 	"res://scenes/menu.tscn",
 	"res://scenes/characters/character.tscn",
 	"res://scenes/characters/player.tscn",

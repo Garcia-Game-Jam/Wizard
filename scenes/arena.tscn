@@ -8,9 +8,9 @@
 [ext_resource type="Script" uid="uid://c3khbmmmkw14b" path="res://scripts/ui/spell_word_banner.gd" id="9_spell_word"]
 [ext_resource type="Script" uid="uid://yf2yi73fbs6o" path="res://scripts/spells/voice_spell_validator.gd" id="10_validator"]
 [ext_resource type="Script" uid="uid://cgo2lkhlxtcky" path="res://scripts/spells/spell_validation_runner.gd" id="11_runner"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="14_game_over"]
 [ext_resource type="PackedScene" uid="uid://cswbhealth001" path="res://scenes/ui/scaffolding/health_bar.tscn" id="14_health"]
 [ext_resource type="PackedScene" uid="uid://cpausemenu001" path="res://scenes/ui/pause_menu.tscn" id="14_pause"]
-[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="14_game_over"]
 [ext_resource type="Resource" uid="uid://dud80ue7p23rt" path="res://scenes/spells/fireball/fireball.tres" id="15_fireball"]
 [ext_resource type="Script" uid="uid://dtymt6tugqqxx" path="res://scripts/arena/arena_cover.gd" id="16_cover"]
 [ext_resource type="Script" uid="uid://grlb8nli07gx" path="res://scripts/arena/spawn_telegraph.gd" id="17_spot"]
@@ -28,27 +28,14 @@ tonemap_mode = 2
 [sub_resource type="StandardMaterial3D" id="Mat_floor"]
 albedo_color = Color(0.32, 0.3, 0.26, 1)
 
-[sub_resource type="StandardMaterial3D" id="Mat_wall"]
-albedo_color = Color(0.2, 0.18, 0.16, 1)
-
-[sub_resource type="StandardMaterial3D" id="Mat_lip"]
-albedo_color = Color(0.16, 0.15, 0.14, 1)
-
-[sub_resource type="StandardMaterial3D" id="Mat_cover"]
-albedo_color = Color(0.42, 0.36, 0.3, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_cover"]
-material = SubResource("Mat_cover")
-size = Vector3(2.4, 2, 2.4)
-
-[sub_resource type="BoxShape3D" id="Shape_cover"]
-size = Vector3(2.4, 2, 2.4)
-
 [sub_resource type="BoxMesh" id="Mesh_pit_floor"]
 size = Vector3(52, 1, 38)
 
 [sub_resource type="BoxShape3D" id="Shape_pit_floor"]
 size = Vector3(52, 1, 38)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.2, 0.18, 0.16, 1)
 
 [sub_resource type="BoxMesh" id="Mesh_pit_wall_x"]
 size = Vector3(2, 24, 40)
@@ -62,11 +49,24 @@ size = Vector3(56, 24, 2)
 [sub_resource type="BoxShape3D" id="Shape_pit_wall_z"]
 size = Vector3(56, 24, 2)
 
+[sub_resource type="StandardMaterial3D" id="Mat_lip"]
+albedo_color = Color(0.16, 0.15, 0.14, 1)
+
 [sub_resource type="BoxMesh" id="Mesh_pit_ceiling"]
 size = Vector3(56, 2, 40)
 
 [sub_resource type="BoxShape3D" id="Shape_pit_ceiling"]
 size = Vector3(56, 2, 40)
+
+[sub_resource type="StandardMaterial3D" id="Mat_cover"]
+albedo_color = Color(0.42, 0.36, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_cover"]
+material = SubResource("Mat_cover")
+size = Vector3(2.4, 2, 2.4)
+
+[sub_resource type="BoxShape3D" id="Shape_cover"]
+size = Vector3(2.4, 2, 2.4)
 
 [sub_resource type="StandardMaterial3D" id="Mat_beam"]
 transparency = 1
@@ -110,66 +110,66 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14, 0)
 light_energy = 1.6
 omni_range = 70.0
 
-[node name="Pit" type="Node3D" parent="."]
+[node name="Pit" type="Node3D" parent="." unique_id=1148556892]
 
-[node name="Floor" type="StaticBody3D" parent="Pit"]
+[node name="Floor" type="StaticBody3D" parent="Pit" unique_id=1138928304]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 
-[node name="Mesh" type="MeshInstance3D" parent="Pit/Floor"]
-mesh = SubResource("Mesh_pit_floor")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/Floor" unique_id=1535900143]
 material_override = SubResource("Mat_floor")
+mesh = SubResource("Mesh_pit_floor")
 
-[node name="Collision" type="CollisionShape3D" parent="Pit/Floor"]
+[node name="Collision" type="CollisionShape3D" parent="Pit/Floor" unique_id=352344174]
 shape = SubResource("Shape_pit_floor")
 
-[node name="WallEast" type="StaticBody3D" parent="Pit"]
+[node name="WallEast" type="StaticBody3D" parent="Pit" unique_id=466767683]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 12, 0)
 
-[node name="Mesh" type="MeshInstance3D" parent="Pit/WallEast"]
-mesh = SubResource("Mesh_pit_wall_x")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallEast" unique_id=1794282834]
 material_override = SubResource("Mat_wall")
+mesh = SubResource("Mesh_pit_wall_x")
 
-[node name="Collision" type="CollisionShape3D" parent="Pit/WallEast"]
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallEast" unique_id=1536804912]
 shape = SubResource("Shape_pit_wall_x")
 
-[node name="WallWest" type="StaticBody3D" parent="Pit"]
+[node name="WallWest" type="StaticBody3D" parent="Pit" unique_id=1663899957]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 12, 0)
 
-[node name="Mesh" type="MeshInstance3D" parent="Pit/WallWest"]
-mesh = SubResource("Mesh_pit_wall_x")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallWest" unique_id=1249098010]
 material_override = SubResource("Mat_wall")
+mesh = SubResource("Mesh_pit_wall_x")
 
-[node name="Collision" type="CollisionShape3D" parent="Pit/WallWest"]
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallWest" unique_id=1198930002]
 shape = SubResource("Shape_pit_wall_x")
 
-[node name="WallNorth" type="StaticBody3D" parent="Pit"]
+[node name="WallNorth" type="StaticBody3D" parent="Pit" unique_id=1934798737]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 20)
 
-[node name="Mesh" type="MeshInstance3D" parent="Pit/WallNorth"]
-mesh = SubResource("Mesh_pit_wall_z")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallNorth" unique_id=1407138975]
 material_override = SubResource("Mat_wall")
+mesh = SubResource("Mesh_pit_wall_z")
 
-[node name="Collision" type="CollisionShape3D" parent="Pit/WallNorth"]
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallNorth" unique_id=232712155]
 shape = SubResource("Shape_pit_wall_z")
 
-[node name="WallSouth" type="StaticBody3D" parent="Pit"]
+[node name="WallSouth" type="StaticBody3D" parent="Pit" unique_id=660103088]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, -20)
 
-[node name="Mesh" type="MeshInstance3D" parent="Pit/WallSouth"]
-mesh = SubResource("Mesh_pit_wall_z")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/WallSouth" unique_id=2119381958]
 material_override = SubResource("Mat_wall")
+mesh = SubResource("Mesh_pit_wall_z")
 
-[node name="Collision" type="CollisionShape3D" parent="Pit/WallSouth"]
+[node name="Collision" type="CollisionShape3D" parent="Pit/WallSouth" unique_id=1322548219]
 shape = SubResource("Shape_pit_wall_z")
 
-[node name="Ceiling" type="StaticBody3D" parent="Pit"]
+[node name="Ceiling" type="StaticBody3D" parent="Pit" unique_id=1472675182]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
 
-[node name="Mesh" type="MeshInstance3D" parent="Pit/Ceiling"]
-mesh = SubResource("Mesh_pit_ceiling")
+[node name="Mesh" type="MeshInstance3D" parent="Pit/Ceiling" unique_id=790866236]
 material_override = SubResource("Mat_lip")
+mesh = SubResource("Mesh_pit_ceiling")
 
-[node name="Collision" type="CollisionShape3D" parent="Pit/Ceiling"]
+[node name="Collision" type="CollisionShape3D" parent="Pit/Ceiling" unique_id=1507333730]
 shape = SubResource("Shape_pit_ceiling")
 
 [node name="Cover" type="Node3D" parent="." unique_id=1678427664]
@@ -361,7 +361,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1, 16)
 
 [node name="Monsters" type="Node3D" parent="." unique_id=185664855]
 
-[node name="Corpses" type="Node3D" parent="."]
+[node name="Corpses" type="Node3D" parent="." unique_id=1021707091]
 unique_name_in_owner = true
 
 [node name="SpellRegistry" type="Node" parent="." unique_id=232182131]
@@ -508,5 +508,5 @@ autowrap_mode = 2
 [node name="PauseMenu" parent="." unique_id=2113642032 instance=ExtResource("14_pause")]
 visible = false
 
-[node name="GameOverOverlay" parent="." instance=ExtResource("14_game_over")]
+[node name="GameOverOverlay" parent="." unique_id=1874927169 instance=ExtResource("14_game_over")]
 visible = false

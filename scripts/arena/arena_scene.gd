@@ -6,6 +6,8 @@ enum Staging { NONE, COVER, SPOTLIGHT }
 
 const ArenaRunScript := preload("res://scripts/arena/arena_run.gd")
 const ArenaEncountersScript := preload("res://scripts/arena/arena_encounters.gd")
+const LevelCatalogScript := preload("res://scripts/arena/level_catalog.gd")
+const SpawnTelegraphFxScript := preload("res://scripts/arena/spawn_telegraph_fx.gd")
 const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
@@ -35,6 +37,8 @@ var _enemies_killed := 0
 var _player_deaths := 0
 var _intentional_revive := false
 var _corpse_beat := 0.0
+var _level_cache: Resource
+var _level_cache_loaded := false
 
 @onready var players_root: Node3D = $Players
 @onready var monsters_root: Node3D = $Monsters
@@ -98,7 +102,9 @@ func _exit_tree() -> void:
 
 
 func _apply_pit_collision_layers() -> void:
-	for root_name in ["Pit", "Cover"]:
+	## "Pit" is the box arena's world geometry; "Colosseum" is the round arena's
+	## (floor/wall/gates) — different arena scenes, only one root is ever present.
+	for root_name in ["Pit", "Colosseum", "Cover"]:
 		var root := get_node_or_null(root_name)
 		if root != null:
 			_set_world_collision_layer(root)
@@ -280,6 +286,11 @@ func _host_begin_staging() -> void:
 	var restage := ArenaEncountersScript.should_restage_cover(
 		encounter, randf(), _cover_misses
 	)
+	if _active_level() != null:
+		## A custom level authors its own obstacle layout per encounter —
+		## always restage so it actually shows what was placed for THIS
+		## encounter, instead of the classic table's probabilistic cadence.
+		restage = true
 	if encounter > 0:
 		if restage:
 			_cover_misses = 0
@@ -328,12 +339,27 @@ func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
 	_revive_dead_players()
 	if restage_cover:
 		_restage_cover(encounter_index)
+	## Last round's gates stay down through its whole fight; snap them all
+	## shut here, at the start of the next round's staging, before that
+	## round's own gates start their slow drop in rpc_show_telegraph.
+	if spawn_telegraph != null and spawn_telegraph.has_method("close_all_gates"):
+		spawn_telegraph.call("close_all_gates")
 
 
 @rpc("authority", "call_local", "reliable")
 func rpc_show_telegraph(encounter_index: int) -> void:
+	if _active_level() != null:
+		## Level-authored monsters spawn at free positions, not fixed pad
+		## indices, so there's no pad to light up or gate to open for them —
+		## each monster gets its own SpawnTelegraphFx at its exact spot
+		## instead (see _play_level_telegraph_fx()). No gate to open either.
+		_play_level_telegraph_fx(encounter_index)
+		return
+	var pads := ArenaEncountersScript.pads_for(encounter_index)
 	if spawn_telegraph != null and spawn_telegraph.has_method("show_pads"):
-		spawn_telegraph.call("show_pads", ArenaEncountersScript.pads_for(encounter_index))
+		spawn_telegraph.call("show_pads", pads)
+	if spawn_telegraph != null and spawn_telegraph.has_method("open_gates"):
+		spawn_telegraph.call("open_gates", pads)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -345,8 +371,9 @@ func rpc_begin_fight(encounter_index: int) -> void:
 	_clear_monsters()
 	if spawn_telegraph != null and spawn_telegraph.has_method("clear_pads"):
 		spawn_telegraph.call("clear_pads")
+	_clear_level_telegraph_fx()
 	NetDiag.mark("dump_cleared", "%d_us" % (Time.get_ticks_usec() - t0))
-	_spawn_dump(encounter_index, ArenaEncountersScript.dump_for(encounter_index))
+	_spawn_dump(encounter_index, _resolve_dump(encounter_index))
 	NetDiag.mark("dump_done", "%d %d_us" % [encounter_index, Time.get_ticks_usec() - t0])
 	_wave_live = true
 	_staging = Staging.NONE
@@ -435,7 +462,7 @@ func _bind_telegraph() -> void:
 
 
 func _restage_cover(encounter_index: int) -> void:
-	var positions := ArenaEncountersScript.cover_positions(encounter_index)
+	var positions := _resolve_cover_positions(encounter_index)
 	var i := 0
 	for child in cover_root.get_children():
 		if i >= positions.size():
@@ -443,6 +470,88 @@ func _restage_cover(encounter_index: int) -> void:
 		if child.has_method("restage_to"):
 			child.call("restage_to", positions[i])
 		i += 1
+
+
+## A custom level's obstacle_positions is per-encounter and can hold any
+## count, but cover_root only ever has the arena's fixed, pre-authored
+## StaticBody3D blocks (3 today) — extra authored obstacles past that count
+## are silently dropped rather than dynamically spawning/enrolling more
+## rollback-tracked bodies mid-match.
+func _resolve_cover_positions(encounter_index: int) -> Array[Vector3]:
+	var level_enc := _level_encounter(encounter_index)
+	if level_enc != null:
+		return level_enc.obstacle_positions
+	return ArenaEncountersScript.cover_positions(encounter_index)
+
+
+## null unless GameState.selected_level_id resolves to a LevelCatalog level
+## with at least one encounter — cached for the life of the match, since it
+## can't change mid-match.
+func _active_level() -> Resource:
+	if not _level_cache_loaded:
+		_level_cache_loaded = true
+		_level_cache = LevelCatalogScript.load_level(GameState.selected_level_id)
+		if _level_cache != null and (_level_cache.get("encounters") as Array).is_empty():
+			_level_cache = null
+	return _level_cache
+
+
+func _level_encounter(encounter_index: int) -> Resource:
+	var level := _active_level()
+	if level == null:
+		return null
+	var encounters: Array = level.get("encounters")
+	return encounters[encounter_index % encounters.size()]
+
+
+## One SpawnTelegraphFx per monster, at its own authored position — the
+## pad-based cluster (SpotN/OmniN/BeamN/RingN) has nothing to key off of for
+## a free-placed spawn. MonsterSpawnEntry.spawn_animation only has one real
+## option today ("classic_beam", SpawnTelegraphFx's look), so every monster
+## gets the same effect regardless of what it's set to; once a second
+## animation exists (a new @export_enum option on monster_spawn_entry.gd
+## alongside a new FX script), branch on m.spawn_animation here to pick
+## between them.
+func _play_level_telegraph_fx(encounter_index: int) -> void:
+	var enc := _level_encounter(encounter_index)
+	if enc == null:
+		return
+	var fx_root := _level_telegraph_root()
+	for m in (enc.monsters as Array):
+		var fx := SpawnTelegraphFxScript.new()
+		fx_root.add_child(fx)
+		fx.global_position = m.position
+
+
+func _level_telegraph_root() -> Node3D:
+	var node := get_node_or_null("LevelTelegraphFx") as Node3D
+	if node != null:
+		return node
+	node = Node3D.new()
+	node.name = "LevelTelegraphFx"
+	add_child(node)
+	return node
+
+
+func _clear_level_telegraph_fx() -> void:
+	var node := get_node_or_null("LevelTelegraphFx")
+	if node == null:
+		return
+	for child in node.get_children():
+		child.queue_free()
+
+
+## {kind, position, facing_deg} per monster when a custom level is active
+## (spawned exactly where authored), else the classic {kind, pad} table that
+## _spawn_dump resolves through pads_root/_pad_marker as before.
+func _resolve_dump(encounter_index: int) -> Array[Dictionary]:
+	var level_enc := _level_encounter(encounter_index)
+	if level_enc == null:
+		return ArenaEncountersScript.dump_for(encounter_index)
+	var out: Array[Dictionary] = []
+	for m in (level_enc.monsters as Array):
+		out.append({"kind": m.kind, "position": m.position, "facing_deg": m.facing_deg})
+	return out
 
 
 func _warn_wide_rollback() -> void:
@@ -478,7 +587,6 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 	var slot := 0
 	for entry in dump:
 		var kind := str(entry.get("kind", ""))
-		var pad := int(entry.get("pad", 0))
 		var t_load := Time.get_ticks_usec()
 		var packed := _dump_packed_scene(kind)
 		var load_us := Time.get_ticks_usec() - t_load
@@ -489,7 +597,20 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 		var monster := packed.instantiate() as Node3D
 		if monster == null:
 			continue
-		var spawn := _pad_position(pad)
+		var spawn: Vector3
+		var facing_deg := 0.0
+		if entry.has("position"):
+			## Level-authored: the exact spot/facing picked in
+			## encounter_design_workshop.tscn, no pad lookup involved.
+			spawn = entry["position"]
+			facing_deg = float(entry.get("facing_deg", 0.0))
+		else:
+			var marker := _pad_marker(int(entry.get("pad", 0)))
+			spawn = marker.global_position if marker != null else Vector3(0.0, 0.05, 0.0)
+			## A generated SpawnPointN (colosseum_gate_ring.gd) faces the arena
+			## center, so a monster spawned behind a gate walks in facing the
+			## right way instead of whatever the scene's default forward is.
+			facing_deg = rad_to_deg(marker.global_rotation.y) if marker != null else 0.0
 		monster.name = ArenaEncountersScript.dump_node_name(encounter_index, slot)
 		monster.set_meta("lookdev_live_ai", true)
 		monster.set_meta("patrol_home", spawn)
@@ -500,7 +621,7 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 			monster.set("patrol_radius", 12.0)
 		monsters_root.add_child(monster)
 		monster.global_position = spawn
-		monster.rotation = Vector3.ZERO
+		monster.rotation = Vector3(0.0, deg_to_rad(facing_deg), 0.0)
 		monster.set_multiplayer_authority(1)
 		if monster is Character:
 			var body := monster as Character
@@ -516,15 +637,27 @@ func _spawn_dump(encounter_index: int, dump: Array[Dictionary]) -> void:
 		slot += 1
 
 
-func _pad_position(pad: int) -> Vector3:
-	var marker := pads_root.get_node_or_null("Pad%d" % pad)
+## SpawnPointN (behind a gate, where a colosseum monster actually appears)
+## wins over PadN (the telegraph's inner-floor warning-light anchor) when
+## both exist. arena.tscn has no SpawnPointN, so it keeps spawning on PadN.
+func _pad_marker(pad: int) -> Node3D:
+	var marker := pads_root.get_node_or_null("SpawnPoint%d" % pad)
+	if marker == null:
+		marker = pads_root.get_node_or_null("Pad%d" % pad)
 	if marker is Node3D:
-		return (marker as Node3D).global_position
+		return marker as Node3D
 	var count := pads_root.get_child_count()
 	if count > 0:
 		var child := pads_root.get_child(pad % count)
 		if child is Node3D:
-			return (child as Node3D).global_position
+			return child as Node3D
+	return null
+
+
+func _pad_position(pad: int) -> Vector3:
+	var marker := _pad_marker(pad)
+	if marker != null:
+		return marker.global_position
 	return Vector3(0.0, 0.05, 0.0)
 
 

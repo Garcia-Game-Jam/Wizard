@@ -9,6 +9,7 @@ const MicCaptureBrokerScript := preload("res://scripts/voice/mic_capture_broker.
 const MicGainUtilScript := preload("res://scripts/voice/mic_gain_util.gd")
 const InputRebindCatalogScript := preload("res://scripts/ui/keybinds/input_rebind_catalog.gd")
 const InputRebindStoreScript := preload("res://scripts/ui/keybinds/input_rebind_store.gd")
+const LevelCatalogScript := preload("res://scripts/arena/level_catalog.gd")
 
 const INPUT_KEY_MIGRATE := {
 	"sprint": "dash",
@@ -44,6 +45,11 @@ var crosshair_show_dot: bool = true
 var dev_solo_role: int = GameState.PlayerRole.APPRENTICE
 var lobby_voice_default: bool = true
 var dev_allow_any_lobby_size: bool = false
+## When true, start_game() rolls the level at random (LevelCatalog.random_id()) —
+## a level pins both its map and its encounter sequence. When false, it uses
+## dev_selected_level_id instead.
+var dev_random_level: bool = true
+var dev_selected_level_id: String = ""
 ## When true, netfox's own logger is Debug (tree dumps, identity IDs). Off = Warning.
 var netfox_debug_logs: bool = false:
 	set(value):
@@ -310,6 +316,10 @@ func load_settings() -> void:
 	)
 	netfox_debug_logs = bool(config.get_value("dev", "netfox_debug_logs", netfox_debug_logs))
 	net_diag_capture = bool(config.get_value("dev", "net_diag_capture", net_diag_capture))
+	dev_random_level = bool(config.get_value("dev", "dev_random_level", dev_random_level))
+	dev_selected_level_id = str(
+		config.get_value("dev", "dev_selected_level_id", dev_selected_level_id)
+	)
 	_load_input_binds(config)
 	if persist_display:
 		save_settings()
@@ -384,6 +394,15 @@ func apply_solo_dev_loadout_to_game_state() -> void:
 	GameState.apply_solo_dev_loadout(GameState.PlayerRole.APPRENTICE)
 
 
+## What NetworkManager.start_game() should ship as the match's level id: a
+## fresh random pick unless Dev Settings pinned a specific known level. The
+## level's own map_id decides which arena scene loads.
+func resolve_match_level_id() -> String:
+	if dev_random_level or not LevelCatalogScript.is_known_id(dev_selected_level_id):
+		return LevelCatalogScript.random_id()
+	return dev_selected_level_id
+
+
 func save_settings() -> void:
 	var config := ConfigFile.new()
 	config.set_value("display", "window_width", window_width)
@@ -405,6 +424,8 @@ func save_settings() -> void:
 	config.set_value("dev", "dev_allow_any_lobby_size", dev_allow_any_lobby_size)
 	config.set_value("dev", "netfox_debug_logs", netfox_debug_logs)
 	config.set_value("dev", "net_diag_capture", net_diag_capture)
+	config.set_value("dev", "dev_random_level", dev_random_level)
+	config.set_value("dev", "dev_selected_level_id", dev_selected_level_id)
 	var binds := pack_live_input_binds()
 	for action in binds.keys():
 		config.set_value("input", str(action), binds[action])

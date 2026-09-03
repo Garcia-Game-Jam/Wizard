@@ -16,7 +16,9 @@ const COVER_RESTAGE_STEP := 0.25
 const COVER_HALF_XZ := 1.2
 const COVER_SPAWN_CLEAR_M := COVER_HALF_XZ + 2.3
 
-## Matches scenes/arena.tscn PlayerSpawn_* so restage cannot sit on a pad.
+## Matches PlayerSpawn_* in every registered arena (scenes/arena.tscn and
+## scenes/arenas/arena_bulls.tscn currently share these coordinates) so
+## restage cannot sit on a pad. Retune if a future arena's spawns differ.
 const PLAYER_SPAWN_POSITIONS: Array[Vector3] = [
 	Vector3(-4.0, 1.0, 14.0),
 	Vector3(4.0, 1.0, 14.0),

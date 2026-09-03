@@ -12,9 +12,12 @@ signal state_changed(state: int)
 enum AppState { MAIN_MENU, JOIN, LOBBY, MATCH }
 
 ## Path only. GameApp is @tool; preloading arena.tscn at parse time
-## pulls the match world into every editor load of the main menu.
+## pulls the match world into every editor load of the main menu. Also the
+## fallback when nothing has rolled a map yet (editor preview, GameState not
+## running) — see _resolve_match_scene_path().
 const MATCH_SCENE := "res://scenes/arena.tscn"
 const MicCaptureBrokerScript := preload("res://scripts/voice/mic_capture_broker.gd")
+const ArenaCatalogScript := preload("res://scripts/arena/arena_catalog.gd")
 
 @export var debug_voice: bool = false
 
@@ -369,11 +372,28 @@ func _load_match() -> void:
 
 
 func _instantiate_match_world() -> Node:
-	var packed := load(MATCH_SCENE) as PackedScene
+	var scene_path := _resolve_match_scene_path()
+	var packed := load(scene_path) as PackedScene
 	if packed == null:
-		push_error("GameApp: could not load %s" % MATCH_SCENE)
+		push_error("GameApp: could not load %s" % scene_path)
 		return null
 	return packed.instantiate()
+
+
+## NetworkManager.start_game() rolls one map id (1/N across ArenaCatalog) and
+## ships it to every peer via GameState.selected_map_id before enter_match()
+## runs, so every peer resolves the identical path here. Falls back to
+## MATCH_SCENE for editor preview and any path that reaches this without going
+## through that flow (GameState may not be running in the editor at all).
+func _resolve_match_scene_path() -> String:
+	if Engine.is_editor_hint() or not is_inside_tree():
+		return MATCH_SCENE
+	var state := get_node_or_null("/root/GameState")
+	if state == null:
+		return MATCH_SCENE
+	var map_id := str(state.get("selected_map_id"))
+	var scene_path := ArenaCatalogScript.scene_path_for_id(map_id)
+	return scene_path if not scene_path.is_empty() else MATCH_SCENE
 
 
 func _unload_match() -> void:

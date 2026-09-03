@@ -29,6 +29,8 @@ const SpellEffectSyncScript := preload("res://scripts/spells/spell_effect_sync.g
 const GameWorldScript := preload("res://scripts/game_world.gd")
 const NetWorldEventScript := preload("res://scripts/net/net_world_event.gd")
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const ArenaCatalogScript := preload("res://scripts/arena/arena_catalog.gd")
+const LevelCatalogScript := preload("res://scripts/arena/level_catalog.gd")
 
 var transport: MultiplayerTransport
 var is_session_active: bool = false
@@ -292,15 +294,24 @@ func start_game() -> void:
 		status_changed.emit(lobby.get_start_block_reason(peer_ids))
 		return
 	var run_seed := randi()
+	## Rolled once here (host/solo) and shipped to every peer alongside the seed —
+	## each peer must load the identical level (and therefore map), never
+	## re-roll it independently. SettingsManager.resolve_match_level_id() is
+	## the host's own Dev Settings override (or a fresh random pick when
+	## Random Level is on). A level pins its map, so map_id is derived from
+	## it rather than chosen separately.
+	var level_id := SettingsManager.resolve_match_level_id()
+	var level: Resource = LevelCatalogScript.load_level(level_id)
+	var map_id := str(level.get("map_id")) if level != null else ArenaCatalogScript.default_id()
 	var roles_payload := _pack_roles_for_current_peers()
 	var configs_payload := _pack_character_configs_for_current_peers()
 	var match_snapshot := MatchStateSnapshot.pack_initial(DEFAULT_HORROR_CONFIG)
 	TomeDebug.log(
 		"NetworkManager",
-		"Starting game seed=%s roles=%s configs=%s remote_peers=%s"
-		% [run_seed, roles_payload, configs_payload, multiplayer.get_peers()]
+		"Starting game seed=%s level=%s map=%s roles=%s configs=%s remote_peers=%s"
+		% [run_seed, level_id, map_id, roles_payload, configs_payload, multiplayer.get_peers()]
 	)
-	_rpc_start_game.rpc(run_seed, roles_payload, configs_payload, match_snapshot)
+	_rpc_start_game.rpc(run_seed, roles_payload, configs_payload, match_snapshot, map_id, level_id)
 
 
 func disconnect_session() -> void:
@@ -443,17 +454,19 @@ func _rpc_start_game(
 	run_seed: int,
 	roles: Dictionary,
 	character_configs: Dictionary,
-	match_snapshot: Dictionary
+	match_snapshot: Dictionary,
+	map_id: String = "",
+	level_id: String = ""
 ) -> void:
 	TomeDebug.log(
 		"NetworkManager",
-		"Start game RPC received (peer_id=%s, seed=%s)"
-		% [multiplayer.get_unique_id(), run_seed]
+		"Start game RPC received (peer_id=%s, seed=%s, level=%s, map=%s)"
+		% [multiplayer.get_unique_id(), run_seed, level_id, map_id]
 	)
 	# Every peer (host + clients) must drop lobby chat before loading the match.
 	SteamProximityVoiceHub.set_mode(SteamProximityVoiceHub.Mode.OFF)
 	MatchStateManager.reset()
-	GameState.prepare_match(run_seed, roles, character_configs)
+	GameState.prepare_match(run_seed, roles, character_configs, map_id, level_id)
 	## Synchronize the deterministic clock used by clouds and other time-driven effects.
 	GameState.match_start_time_msec = Time.get_ticks_msec()
 	if not match_snapshot.is_empty():

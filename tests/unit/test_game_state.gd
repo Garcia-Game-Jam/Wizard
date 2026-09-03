@@ -9,6 +9,8 @@ func run() -> int:
 	var failures := 0
 	failures += _test_reset_for_new_game()
 	failures += _test_prepare_match()
+	failures += _test_prepare_match_stores_map_id()
+	failures += _test_prepare_match_stores_level_id()
 	failures += _test_get_team_for_peer()
 	failures += _test_get_player_color_wraps()
 	return failures
@@ -30,6 +32,32 @@ func _test_reset_for_new_game() -> int:
 		return 1
 	if state.run_seed < 0:
 		push_error("Expected solo reset to assign a run seed")
+		return 1
+	if not state.selected_map_id.is_empty():
+		push_error("Expected reset to clear selected_map_id until a match rolls one")
+		return 1
+	if not state.selected_level_id.is_empty():
+		push_error("Expected reset to clear selected_level_id until a match rolls one")
+		return 1
+	return 0
+
+
+func _test_prepare_match_stores_map_id() -> int:
+	var state := _make_state()
+	state.reset_for_new_game()
+	state.prepare_match(1, {1: GameStateScript.PlayerRole.APPRENTICE}, {}, "colosseum")
+	if state.selected_map_id != "colosseum":
+		push_error("Expected prepare_match to store the RPC'd map id")
+		return 1
+	return 0
+
+
+func _test_prepare_match_stores_level_id() -> int:
+	var state := _make_state()
+	state.reset_for_new_game()
+	state.prepare_match(1, {1: GameStateScript.PlayerRole.APPRENTICE}, {}, "pit", "default_level")
+	if state.selected_level_id != "default_level":
+		push_error("Expected prepare_match to store the RPC'd level id")
 		return 1
 	return 0
 

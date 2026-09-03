@@ -6,6 +6,8 @@ res://tests/unit/test_lan_transport.gd
 res://tests/unit/test_match_state.gd
 res://tests/unit/test_arena_run.gd
 res://tests/unit/test_arena_encounters.gd
+res://tests/unit/test_arena_catalog.gd
+res://tests/unit/test_level_catalog.gd
 res://tests/unit/test_arena_death_loop.gd
 res://tests/unit/test_role_assignment.gd
 res://tests/unit/test_player_character_config.gd
