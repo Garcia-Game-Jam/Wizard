@@ -5,13 +5,10 @@ extends Monster
 ## Rat Queen: weak eyes, moderate ears, shares rat sight, rituals when a player is known.
 
 const HEARING_SOURCE := &"hearing"
-const LAST_KNOWN_SOURCE := &"last_known"
 const SUMMON_SIGHT_SOURCE := &"summon_sight"
 const SUMMON_HEARING_SOURCE := &"summon_hearing"
-const LAST_KNOWN_URGENCY := 1.55
 const COMMAND_ABILITY_ID := "command_pack"
-## Alert hearing extends beyond chase hearing (outer ring only → alert).
-const ALERT_HEAR_RANGE_MULT := 1.33
+## LAST_KNOWN_SOURCE / LAST_KNOWN_URGENCY are inherited from Monster now.
 const RitualPoseScript := preload("res://scripts/monsters/wretch_ritual_pose.gd")
 
 @export var ambient_summon_cooldown_sec: float = 20.0
@@ -159,16 +156,8 @@ func _sync_summons_to_ai_state() -> void:
 
 
 func _tick_alert_hearing() -> void:
-	## Outer hearing ring (chase hear * 1.33) raises alert without forcing chase.
-	if is_ai_chasing():
-		return
-	if not _has_alert_band_hearing():
-		return
-	if is_ai_alert():
-		## Keep alert fresh while the outer-band noise continues.
-		_alert_timer = 0.0
-	else:
-		_enter_alert()
+	## The ALERT band is gone with the FSM collapse — a live wretch always hunts.
+	pass
 
 
 func _chase_hear_range() -> float:
@@ -179,40 +168,7 @@ func _chase_hear_range() -> float:
 
 
 func _alert_hear_range() -> float:
-	return _chase_hear_range() * ALERT_HEAR_RANGE_MULT
-
-
-func _has_alert_band_hearing() -> bool:
-	var chase_r := _chase_hear_range()
-	var alert_r := _alert_hear_range()
-	var hearing := get_node_or_null("Senses/Hearing")
-	if hearing != null and bool(hearing.get("has_last_heard")):
-		var heard_pos: Vector3 = hearing.get("last_heard_position") as Vector3
-		if _distance_in_band(heard_pos, chase_r, alert_r):
-			return true
-	var tree := get_tree()
-	if tree == null:
-		return false
-	var hub := tree.root.get_node_or_null("SteamProximityVoiceHub")
-	for node in tree.get_nodes_in_group("player"):
-		if not (node is Node3D):
-			continue
-		var player := node as Node3D
-		if not _player_is_speaking(hub, player):
-			continue
-		if _distance_in_band(player.global_position, chase_r, alert_r):
-			return true
-	return false
-
-
-func _distance_in_band(world_position: Vector3, inner_r: float, outer_r: float) -> bool:
-	var flat := Vector3(
-		world_position.x - global_position.x,
-		0.0,
-		world_position.z - global_position.z
-	)
-	var dist := flat.length()
-	return dist > inner_r and dist <= outer_r
+	return _chase_hear_range() * 1.33
 
 
 func _player_is_speaking(hub: Node, player: Node3D) -> bool:
@@ -431,14 +387,13 @@ func _on_ability_cast_fired(ability: Node) -> void:
 
 
 func _reassess_aggro_after_command_pack() -> void:
-	## Orb is the lost-contact recovery shot — always drop to alert afterward.
+	## Orb is the lost-contact recovery shot.
 	_interest = null
 	_clear_chase_move()
 	if _has_last_known_player:
 		var host := get_summon_host()
 		if host != null and host.has_method("sync_alert_sound"):
 			host.call("sync_alert_sound", _last_known_player_pos)
-	_enter_alert()
 
 
 func _tick_alert(delta: float) -> void:

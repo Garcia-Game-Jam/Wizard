@@ -65,18 +65,62 @@ static func prefer_highest_urgency(candidates: Array) -> RefCounted:
 	return best
 
 
-## Interest always forces CHASE. Without interest, CHASE/ALERT persist so the
-## monster can time CHASE→ALERT (lost target) and ALERT→PATROL. IDLE→PATROL is
-## owned by the monster idle tick.
-static func resolve_state(current: State, has_chase_target: bool) -> State:
-	if has_chase_target:
-		return State.CHASE
-	return current
+## The arena is a closed pit — a living monster is always hunting. Kept as a
+## function (and the State enum kept) so callers/subclasses do not have to change.
+static func resolve_state(_current: State, _has_chase_target: bool) -> State:
+	return State.CHASE
 
 
-## Eyes stay on while chasing or alert (lost-player vigilance).
+## Eyes stay on while a monster is hunting (which is always, while alive).
 static func chase_eyes_visible(state: State) -> bool:
 	return state == State.CHASE or state == State.ALERT
+
+
+## Composite "chase this one" score for a candidate player. Higher wins.
+## proximity dominates; being dead-ahead and being seen (vs heard/remembered)
+## add on; the current target gets a stickiness bonus to stop flip-flop.
+static func score_player_target(
+	from_pos: Vector3,
+	facing_flat: Vector3,
+	player_pos: Vector3,
+	sense_range: float,
+	seen: bool,
+	is_current: bool
+) -> float:
+	var flat := Vector3(player_pos.x - from_pos.x, 0.0, player_pos.z - from_pos.z)
+	var dist := flat.length()
+	var rng := maxf(sense_range, 0.5)
+	var score := (1.0 - clampf(dist / rng, 0.0, 1.0)) * 2.0
+	if dist > 0.05:
+		var fwd := Vector3(facing_flat.x, 0.0, facing_flat.z)
+		if fwd.length_squared() > 0.0001:
+			score += maxf(0.0, fwd.normalized().dot(flat / dist)) * 0.5
+	if seen:
+		score += 0.6
+	if is_current:
+		score += 0.4
+	return score
+
+
+## Where a monster with no target and no memory should advance: the centroid of
+## PlayerSpawn* markers under `scene_root`, else `fallback` (arena centre).
+static func hunt_seek_goal(scene_root: Node, fallback: Vector3) -> Vector3:
+	if scene_root == null:
+		return fallback
+	var sum := Vector3.ZERO
+	var n := 0
+	var stack: Array[Node] = [scene_root]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		if node is Node3D and str(node.name).begins_with("PlayerSpawn"):
+			sum += (node as Node3D).global_position
+			n += 1
+			continue
+		for child in node.get_children():
+			stack.append(child)
+	if n == 0:
+		return fallback
+	return Vector3(sum.x / float(n), fallback.y, sum.z / float(n))
 
 
 static func lookdev_eyes_visible(pose: LookdevPose) -> bool:

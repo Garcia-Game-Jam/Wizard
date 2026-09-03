@@ -33,9 +33,9 @@ var preview_search_action := preview_search
 ## How fast it turns to face the locked player during telegraph. Lower = slower.
 @export_range(0.2, 12.0, 0.1, "suffix:rad/s")
 var lock_on_turn_speed_rad: float = 2.2
-## How fast it turns while walking the patrol path. Lower = slower.
+## How fast it turns while walking (stalk approach / advancing on the fight).
 @export_range(0.2, 12.0, 0.1, "suffix:rad/s")
-var patrol_turn_speed_rad: float = 1.4
+var walk_turn_speed_rad: float = 1.4
 ## How fast it about-faces and sweeps during search. Lower = slower.
 @export_range(0.2, 8.0, 0.1, "suffix:rad/s")
 var search_turn_speed_rad: float = 1.1
@@ -134,7 +134,6 @@ var _recover_double_planned: bool = false
 
 func _ready() -> void:
 	super._ready()
-	patrol_speed = ChargerLaunchScript.patrol_speed(Player.WALK_SPEED)
 	_los_eye = eye_glow_color
 	rest_tint = body_tint
 	_body_lean = get_node_or_null("%Body") as Node3D
@@ -375,9 +374,6 @@ func _validate_property(property: Dictionary) -> void:
 		"move_speed",
 		"chase_range",
 		"attack_range",
-		"idle_duration_sec",
-		"patrol_speed",
-		"patrol_radius",
 	])
 	if hidden.has(property.name):
 		property.usage = (
@@ -398,7 +394,7 @@ func _net_state_extra() -> PackedStringArray:
 
 
 func _face_horizontal(desired_vel: Vector3) -> void:
-	_face_horizontal_at_speed(desired_vel, _face_delta(), patrol_turn_speed_rad)
+	_face_horizontal_at_speed(desired_vel, _face_delta(), walk_turn_speed_rad)
 
 
 func _physics_process(delta: float) -> void:
@@ -466,16 +462,15 @@ func _sync_charge_net_pose() -> void:
 		net_telegraph = 0.0
 
 
-func _tick_chase(delta: float) -> void:
-	if not _interest_is_actionable(_interest):
-		super._tick_chase(delta)
-		return
-	if _interest_source() == SIGHT_SOURCE:
+func _tick_hunt(delta: float) -> void:
+	## See a live player → commit to the stalk machine; otherwise fall back to the
+	## base hunt (walk to last-known / advance toward the fight).
+	if _interest_is_actionable(_interest) and _interest_source() == SIGHT_SOURCE:
 		var target := get_chase_target()
 		if is_player_charge_target(target):
 			ChargerPursuitScript.begin_stalk(self, target)
 			return
-	super._tick_chase(delta)
+	super._tick_hunt(delta)
 
 
 func _tick_locked_phase(delta: float) -> void:
@@ -588,6 +583,7 @@ func _tick_charging(delta: float) -> void:
 	_face_horizontal_at_speed(_charge.locked_dir, delta, lock_on_turn_speed_rad * 4.0)
 
 
+## Charge sequence aborted / finished — hand control back to the base hunt loop.
 func _reset_to_idle() -> void:
 	_shatter_ward()
 	_set_stun_stars(false)
@@ -602,7 +598,7 @@ func _reset_to_idle() -> void:
 	_charge_target = null
 	_clear_ram_ghosts()
 	_tick_ram_hits.clear()
-	_enter_idle()
+	_enter_hunt()
 
 
 func _spawn_held_ward() -> Node:
@@ -761,12 +757,6 @@ func _find_sandbox_player() -> Node3D:
 		if is_player_charge_target(node) and node is Node3D:
 			return node as Node3D
 	return null
-
-
-func _interest_source() -> StringName:
-	if _interest == null:
-		return &""
-	return _interest.get("source") as StringName
 
 
 func _target_is_valid() -> bool:

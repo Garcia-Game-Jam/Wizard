@@ -10,6 +10,10 @@ extends RefCounted
 const ChargerChargeScript := preload("res://scripts/monsters/charger_charge.gd")
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 
+## Seconds of no sight-lock during STALK before the charger drops back to the
+## base hunt (advance toward last-known / the fight).
+const STALK_LOST_GIVEUP_SEC := 2.0
+
 
 ## --- Stalk: prowl toward the player, wait for a clean charge lane ---
 
@@ -46,7 +50,7 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		var brake := c.combat_speed(c.stalk_speed) * delta * 4.0
 		c.velocity.x = move_toward(c.velocity.x, 0.0, brake)
 		c.velocity.z = move_toward(c.velocity.z, 0.0, brake)
-		if c._stalk_lost_sec >= c.lost_chase_to_alert_sec * 0.5:
+		if c._stalk_lost_sec >= STALK_LOST_GIVEUP_SEC:
 			c._reset_to_idle()
 		return
 	c._stalk_lost_sec = 0.0
@@ -243,7 +247,7 @@ static func tick_search(c: Charger, delta: float) -> void:
 	if try_search_lock(c):
 		return
 	if c._charge.search_ready(c.search_sec):
-		finish_search_to_patrol(c)
+		finish_search(c)
 
 
 static func _tick_search_about_face(c: Charger, delta: float) -> void:
@@ -266,7 +270,7 @@ static func try_search_lock(c: Charger) -> bool:
 	return true
 
 
-static func finish_search_to_patrol(c: Charger) -> void:
+static func finish_search(c: Charger) -> void:
 	c._shatter_ward()
 	c._set_stun_stars(false)
 	c._apply_charge_tint(0.0)
@@ -280,7 +284,7 @@ static func finish_search_to_patrol(c: Charger) -> void:
 	c._charge_target = null
 	c._clear_ram_ghosts()
 	c._tick_ram_hits.clear()
-	c._begin_patrol()
+	c._enter_hunt()
 
 
 ## --- Ram contact / wall / whiff detection ---

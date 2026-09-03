@@ -12,7 +12,7 @@ editor_description = "Rammer: sight-cone spot, stalk, telegraph, homing-then-loc
 script = ExtResource("2_charger")
 telegraph_sec = 1.3
 lock_on_turn_speed_rad = 2.2
-patrol_turn_speed_rad = 1.4
+walk_turn_speed_rad = 1.4
 search_turn_speed_rad = 2.0
 charge_speed_mult = 3.6
 self_stun_sec = 3.0
@@ -61,7 +61,7 @@ sight_range = 40.0
 eye_height = 0.58
 sight_urgency = 1.6
 use_vision_cone = true
-cone_angle_deg = 130.0
+cone_angle_deg = 80.0
 
 [node name="Hearing" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="1"]
 editor_description = "Keep hear range tiny so the charger is almost deaf."
