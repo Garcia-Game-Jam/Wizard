@@ -196,7 +196,9 @@ func _action_delete_selected_encounter() -> void:
 		return
 	var idx := clampi(selected_encounter_index, 0, level.encounters.size() - 1)
 	level.encounters.remove_at(idx)
-	selected_encounter_index = clampi(selected_encounter_index, 0, maxi(level.encounters.size() - 1, 0))
+	selected_encounter_index = clampi(
+		selected_encounter_index, 0, maxi(level.encounters.size() - 1, 0)
+	)
 	_refresh_preview()
 
 

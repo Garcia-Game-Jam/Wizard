@@ -22,6 +22,14 @@ extends Node3D
 const GateScene := preload("res://scenes/arenas/colosseum_gate.tscn")
 const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
+const SPOT_COLOR := Color(1.0, 0.92, 0.7, 1.0)
+const SPOT_RANGE := 32.0
+const SPOT_ATTENUATION := 0.2
+const SPOT_ANGLE := 24.0
+const OMNI_COLOR := Color(1.0, 0.88, 0.55, 1.0)
+const OMNI_RANGE := 9.0
+const OMNI_ATTENUATION := 0.2
+
 ## One entry per gate, in world degrees (0 = +Z/"north", 90 = +X/"east", ...).
 ## Index N produces GateN/PadN/SpotN/OmniN/BeamN/RingN — order matters where
 ## SpawnTelegraph/ArenaEncounters expect a specific pad index to release from a
@@ -165,14 +173,6 @@ const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 	set(value):
 		ring_height = value
 		_rebuild()
-
-const SPOT_COLOR := Color(1.0, 0.92, 0.7, 1.0)
-const SPOT_RANGE := 32.0
-const SPOT_ATTENUATION := 0.2
-const SPOT_ANGLE := 24.0
-const OMNI_COLOR := Color(1.0, 0.88, 0.55, 1.0)
-const OMNI_RANGE := 9.0
-const OMNI_ATTENUATION := 0.2
 
 
 func _ready() -> void:

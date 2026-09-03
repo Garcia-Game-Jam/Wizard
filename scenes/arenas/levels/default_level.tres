@@ -8,16 +8,10 @@
 script = ExtResource("2_e0unw")
 position = Vector3(-14, 0.05, -10)
 
-[sub_resource type="Resource" id="Resource_ygr3k"]
-script = ExtResource("2_e0unw")
-kind = "Ember Wretch:ember"
-spawn_animation = "Classic Beam:classic_beam"
-metadata/_custom_type_script = "uid://oagxbmho0luy"
-
 [sub_resource type="Resource" id="Resource_whanh"]
 script = ExtResource("1_ygr3k")
 label = "Encounter 0"
-monsters = Array[ExtResource("2_e0unw")]([SubResource("Resource_rqnsy"), SubResource("Resource_ygr3k")])
+monsters = Array[ExtResource("2_e0unw")]([SubResource("Resource_rqnsy")])
 obstacle_positions = Array[Vector3]([Vector3(-6, 1, -4), Vector3(6, 1, 3), Vector3(0, 1, 8)])
 
 [sub_resource type="Resource" id="Resource_2wmdw"]

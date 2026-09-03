@@ -10,7 +10,9 @@ extends Resource
 ## in practice) write the whole @export_enum hint string back as the value
 ## instead of parsing it, which would otherwise silently corrupt this into
 ## an unrecognized kind (SCENE_BY_KIND.get() miss -> monster never spawns).
-@export_enum("Charger:charger", "Ember Wretch:ember", "Ash Wretch:ash") var kind: String = "charger":
+@export_enum(
+	"Charger:charger", "Ember Wretch:ember", "Ash Wretch:ash"
+) var kind: String = "charger":
 	set(value):
 		## TEMP diagnostic for the "kind corrupts to 'Label:value' when picked
 		## right after adding a monster" investigation — remove once closed.

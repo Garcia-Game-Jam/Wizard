@@ -32,13 +32,14 @@ const GATE_OPEN_SEC := 2.2
 var requested_mask: int = 0
 var pad_mask: int = 0
 var spot_energy: float = 0.0
-var _display_energy: float = 0.0
 
 ## Which gate indices are currently open (down) — set by open_gates(), only
 ## ever cleared (all at once) by close_all_gates(). Same "RPC intent, not
 ## rewindable" shape as requested_mask above; purely cosmetic, so it never
 ## needs to be netfox state.
 var gate_mask: int = 0
+
+var _display_energy: float = 0.0
 var _gate_energy: float = 0.0
 
 var _spots: Array[SpotLight3D] = []

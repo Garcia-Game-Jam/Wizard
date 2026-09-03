@@ -21,7 +21,9 @@ const DEFAULT_COLOR := Color(0.8, 0.2, 0.8, 0.9)
 ## The setter strips a leaked "Label:value" enum hint down to just the value
 ## — see monster_spawn_entry.gd's identical note on its own kind setter,
 ## which this marker's kind is meant to always mirror.
-@export_enum("Charger:charger", "Ember Wretch:ember", "Ash Wretch:ash") var kind: String = "charger":
+@export_enum(
+	"Charger:charger", "Ember Wretch:ember", "Ash Wretch:ash"
+) var kind: String = "charger":
 	set(value):
 		var stripped := value.substr(value.rfind(":") + 1) if value.contains(":") else value
 		if kind == stripped and _mesh_instance != null:

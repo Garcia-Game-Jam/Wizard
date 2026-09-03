@@ -90,7 +90,9 @@ func _test_add_delete_actions(tree: SceneTree) -> int:
 		failures += 1
 
 	var marker_root := workshop.get_node_or_null("EncounterPreview")
-	var moved_marker := marker_root.get_node_or_null("Monster0") as Node3D if marker_root != null else null
+	var moved_marker: Node3D = null
+	if marker_root != null:
+		moved_marker = marker_root.get_node_or_null("Monster0") as Node3D
 	if moved_marker == null:
 		push_error("Expected a Monster0 marker for the newly added monster")
 		failures += 1

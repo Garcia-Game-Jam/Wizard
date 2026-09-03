@@ -66,7 +66,9 @@ func _test_monster_entry_spawn_animation() -> int:
 	var script := load("res://scripts/arena/monster_spawn_entry.gd")
 	var entry: Resource = script.new()
 	if entry.get("spawn_animation") != "classic_beam":
-		push_error("Expected default spawn_animation='classic_beam', got '%s'" % entry.get("spawn_animation"))
+		push_error(
+			"Expected default spawn_animation='classic_beam', got '%s'" % entry.get("spawn_animation")
+		)
 		failures += 1
 	entry.set("spawn_animation", "Classic Beam:classic_beam")
 	if entry.get("spawn_animation") != "classic_beam":
@@ -98,8 +100,10 @@ func _test_arena_scene_plays_fx_per_monster(tree: SceneTree) -> int:
 	var fx_root := node.get_node_or_null("LevelTelegraphFx")
 	if fx_root == null or fx_root.get_child_count() != 1:
 		push_error(
-			"Expected LevelTelegraphFx to hold 1 FX for default_level's encounter 0 (1 monster), got count=%d"
-			% (fx_root.get_child_count() if fx_root != null else -1)
+			(
+				"Expected LevelTelegraphFx to hold 1 FX for default_level's "
+				+ "encounter 0 (1 monster), got count=%d"
+			) % (fx_root.get_child_count() if fx_root != null else -1)
 		)
 		failures += 1
 	else:

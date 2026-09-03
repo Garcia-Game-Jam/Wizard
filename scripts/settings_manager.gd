@@ -86,12 +86,6 @@ func get_resolution_presets() -> Array[Vector2i]:
 	return DisplayResolutionPresetsScript.build_presets(Vector2i(window_width, window_height))
 
 
-func set_window_resolution(width: int, height: int) -> void:
-	var size := DisplayResolutionPresetsScript.normalize_size(Vector2i(width, height))
-	window_width = size.x
-	window_height = size.y
-
-
 func set_window_resolution_preset_index(index: int) -> void:
 	var current := Vector2i(window_width, window_height)
 	var size := DisplayResolutionPresetsScript.get_preset(index, current)

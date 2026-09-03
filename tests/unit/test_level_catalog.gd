@@ -122,8 +122,10 @@ func _test_arena_scene_resolves_from_level() -> int:
 	var dump: Array = node.call("_resolve_dump", 0)
 	if dump.size() != (expected0.get("monsters") as Array).size():
 		push_error(
-			"Expected level-driven _resolve_dump(0) to match default_level's encounter 0 monster count, got %d vs %d"
-			% [dump.size(), (expected0.get("monsters") as Array).size()]
+			(
+				"Expected level-driven _resolve_dump(0) to match default_level's "
+				+ "encounter 0 monster count, got %d vs %d"
+			) % [dump.size(), (expected0.get("monsters") as Array).size()]
 		)
 		failures += 1
 	elif dump.size() > 0:

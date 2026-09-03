@@ -9,16 +9,6 @@ const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 
 const HOST_PEER_ID := NetAuthorityScript.HOST_PEER_ID
 
-@export var effect_id: String = ""
-@export var projectile_scene: PackedScene
-@export var charge_clip: StringName = &""
-@export var release_clip: StringName = &""
-@export var fizzle_clip: StringName = &""
-
-var _pending: Dictionary = {}
-var _owner_peer_id: int = 0
-
-
 ## A non-host cast only ever reaches _is_reconcilable() (host casts skip it
 ## entirely — the weapon's own multiplayer authority is always the host, so
 ## fire() takes the call_local _accept_projectile branch for them, never
@@ -33,6 +23,15 @@ var _owner_peer_id: int = 0
 ## ever hit anything. Sized to comfortably clear a dash-speed sprint across a
 ## realistic worst-case round trip instead of a walking-pace guess.
 const _WAND_RECONCILE_DISTANCE := 8.0
+
+@export var effect_id: String = ""
+@export var projectile_scene: PackedScene
+@export var charge_clip: StringName = &""
+@export var release_clip: StringName = &""
+@export var fizzle_clip: StringName = &""
+
+var _pending: Dictionary = {}
+var _owner_peer_id: int = 0
 
 
 func configure(p_effect_id: String, peer_id: int) -> void:
