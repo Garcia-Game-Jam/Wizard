@@ -109,8 +109,7 @@ var _target_memory := MonsterTargetMemoryScript.new()
 var _seek_goal_cache: Variant = null
 var _rng := RandomNumberGenerator.new()
 var _senses_root: Node = null
-var _chase_range_mesh: MeshInstance3D = null
-var _attack_range_mesh: MeshInstance3D = null
+var _range_gizmo_meshes: Array = []
 var _cast_windup_left: float = 0.0
 var _casting_ability: Node = null
 var _cast_prefer_index: int = 0
@@ -369,12 +368,18 @@ func _refresh_lookdev_eyes() -> void:
 
 
 func _refresh_range_gizmos() -> void:
-	var result: Dictionary = MonsterRangeGizmosScript.refresh(
-		self, show_combat_ranges, _chase_range_mesh, _attack_range_mesh,
-		chase_range, attack_range, RANGE_DISC_HEIGHT
+	_range_gizmo_meshes = MonsterRangeGizmosScript.refresh_specs(
+		self, show_combat_ranges, _range_gizmo_specs(), _range_gizmo_meshes, RANGE_DISC_HEIGHT
 	)
-	_chase_range_mesh = result.get("chase") as MeshInstance3D
-	_attack_range_mesh = result.get("attack") as MeshInstance3D
+
+
+## Editor combat-range discs. Override per monster to show the ranges that
+## actually drive its behaviour.
+func _range_gizmo_specs() -> Array:
+	return [
+		{"name": "ChaseRangeGizmo", "radius": chase_range, "color": Color(1.0, 0.35, 0.2, 0.2)},
+		{"name": "AttackRangeGizmo", "radius": attack_range, "color": Color(1.0, 0.85, 0.2, 0.26)},
+	]
 
 
 ## Collects candidates (default players + senses) and prefers one. Override to replace.

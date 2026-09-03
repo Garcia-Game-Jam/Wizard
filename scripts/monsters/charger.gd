@@ -98,9 +98,13 @@ var preview_feint_action := preview_feint
 ## Anti-turtle: if the player holds still in range this long, charge even if the
 ## lane is not perfectly clear.
 @export_range(0.5, 8.0, 0.1, "suffix:s") var stalk_patience_sec: float = 2.4
-## Seconds the charger keeps stalking a player it has lost sight of before it
-## drops to the base hunt (walk to last-known / advance on the fight).
-@export_range(0.5, 6.0, 0.1, "suffix:s") var stalk_giveup_sec: float = 2.0
+## Seconds the charger keeps stalking a player it has lost sight of (walking to
+## their last-seen spot) before it forgets and drops to the base hunt. It will
+## switch to any closer player it can still see instead.
+@export_range(0.5, 12.0, 0.1, "suffix:s") var stalk_giveup_sec: float = 6.0
+## On reaching the last-seen spot with no re-sight, seconds spent peeking around
+## the nearby cover before giving up.
+@export_range(0.0, 6.0, 0.1, "suffix:s") var stalk_search_sec: float = 2.5
 ## How far into the ram the charger keeps homing at the player before it
 ## hard-locks its heading. 0 = locked from the first frame (dodge early and it
 ## whiffs); higher = it tracks a late sidestep and clips you.
@@ -159,6 +163,7 @@ var _search_about_faced: bool = false
 var _stalk_lost_sec: float = 0.0
 var _stalk_dwell: float = 0.0
 var _stalk_still_sec: float = 0.0
+var _stalk_search_sec: float = 0.0
 var _stalk_last_target_pos: Vector3 = Vector3.ZERO
 var _stalk_feint_planned: bool = false
 var _recover_double_planned: bool = false
@@ -421,6 +426,15 @@ func _uses_continuous_chase_move_timer() -> bool:
 	return false
 
 
+## Show Combat Ranges draws the charger's real trigger rings, not the unused
+## base chase/attack discs. The sight cone is on Show Sense Ranges.
+func _range_gizmo_specs() -> Array:
+	return [
+		{"name": "ChargeRangeGizmo", "radius": charge_range, "color": Color(1.0, 0.4, 0.15, 0.16)},
+		{"name": "ChargeMinRangeGizmo", "radius": charge_min_range, "color": Color(1.0, 0.1, 0.1, 0.3)},
+	]
+
+
 func _net_state_extra() -> PackedStringArray:
 	return PackedStringArray([
 		":net_phase", ":net_telegraph", ":_head_pitch", "Head:rotation", "Body:rotation"
@@ -554,8 +568,12 @@ func _tick_telegraph(delta: float) -> void:
 	velocity.z = 0.0
 	_charge.tick(delta)
 	if not _charge.pose_only:
-		if not _target_is_valid():
-			_reset_to_idle()
+		var live := ChargerPursuitScript.reacquire_sight_target(self)
+		if not is_player_charge_target(live) or live != _charge_target:
+			## Lost sight of the target mid-windup, or a closer visible player is
+			## now the priority — never charge blind. Back to the stalk, which
+			## re-locks the new player or walks to the last-seen spot.
+			ChargerPursuitScript.begin_stalk(self, live)
 			return
 		_face_horizontal_at_speed(_flat_to_target(), delta, lock_on_turn_speed_rad)
 	var t := _charge.telegraph_progress(_effective_telegraph_sec())

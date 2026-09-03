@@ -10,6 +10,9 @@ extends RefCounted
 const ChargerChargeScript := preload("res://scripts/monsters/charger_charge.gd")
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 
+## How near the last-seen spot counts as "arrived" and starts the peek search.
+const STALK_ARRIVE_M := 1.6
+
 
 ## --- Stalk: prowl toward the player, wait for a clean charge lane ---
 
@@ -22,6 +25,7 @@ static func begin_stalk(c: Charger, target: Node3D) -> void:
 	c._stalk_lost_sec = 0.0
 	c._stalk_dwell = 0.0
 	c._stalk_still_sec = 0.0
+	c._stalk_search_sec = 0.0
 	c._stalk_feint_planned = c._charge.roll_feint(c._rng, c.feint_chance)
 	if is_instance_valid(target):
 		c._stalk_last_target_pos = target.global_position
@@ -64,20 +68,20 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		return
 	c._stalk_lost_sec = 0.0
 
-	## Chase the resolved goal — the live player, or its last-known spot.
+	## Chase the resolved goal — the live player, or its last-seen spot.
 	var goal := c.get_chase_goal(c.global_position)
 	var flat := Vector3(goal.x - c.global_position.x, 0.0, goal.z - c.global_position.z)
 	var dist := flat.length()
-	c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
-
-	## Walked to a remembered spot and still nothing — forget it, hand to the base hunt.
-	if not Charger.is_player_charge_target(live) and dist <= c.charge_min_range:
-		c._target_memory.clear()
-		c._reset_to_idle()
-		return
 
 	if Charger.is_player_charge_target(live):
-		c._charge_target = live
+		c._stalk_search_sec = 0.0
+		if live != c._charge_target:
+			## Re-prioritised onto a different (closer, still-visible) player.
+			c._charge_target = live
+			c._stalk_dwell = 0.0
+			c._stalk_still_sec = 0.0
+			c._stalk_last_target_pos = goal
+		c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
 		var lane_clear := lane_to_target_clear(c, flat)
 		var in_range := dist <= c.charge_range and dist >= c.charge_min_range
 		if in_range and lane_clear:
@@ -90,17 +94,48 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 			c._stalk_still_sec += delta
 		else:
 			c._stalk_still_sec = 0.0
-		var ready := in_range and lane_clear and c._stalk_dwell >= c.stalk_dwell_sec
-		var impatient := in_range and c._stalk_still_sec >= c.stalk_patience_sec
-		if ready or impatient:
+		if in_range and lane_clear and c._stalk_dwell >= c.stalk_dwell_sec:
 			enter_charge_sequence(c, live)
 			return
-	else:
-		## Only pursuing a remembered / heard position — never charge blind.
-		c._stalk_dwell = 0.0
-		c._stalk_still_sec = 0.0
+		if in_range and c._stalk_still_sec >= c.stalk_patience_sec:
+			enter_charge_sequence(c, live)
+			return
+		_drive_stalk_move(c, goal, dist, live)
+		return
 
-	_drive_stalk_move(c, goal, dist, live)
+	## No live player — walk to the last-seen spot, never charging blind.
+	c._stalk_dwell = 0.0
+	c._stalk_still_sec = 0.0
+	if dist > STALK_ARRIVE_M:
+		c._stalk_search_sec = 0.0
+		c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
+		_drive_stalk_move(c, goal, dist, null)
+		return
+
+	## Arrived — peek around the nearby cover, sweeping for the player.
+	c._stalk_search_sec += delta
+	if c._stalk_search_sec >= c.stalk_search_sec:
+		c._target_memory.clear()
+		c._reset_to_idle()
+		return
+	_peek_around(c, goal, delta)
+
+
+## Slow orbit + view-sweep around the last-seen spot while it searches.
+static func _peek_around(c: Charger, centre: Vector3, delta: float) -> void:
+	var spd := c.combat_speed(c.stalk_speed) * 0.5
+	var radial := Vector3(c.global_position.x - centre.x, 0.0, c.global_position.z - centre.z)
+	if radial.length_squared() < 0.04:
+		radial = -c.global_transform.basis.z
+	radial = radial.normalized()
+	var tangent := Vector3(-radial.z, 0.0, radial.x)
+	var step := c._nav_goal(c.global_position + tangent * 2.0 - radial * 0.4)
+	var mv := Vector3(step.x - c.global_position.x, 0.0, step.z - c.global_position.z)
+	if mv.length_squared() > 0.0001:
+		mv = mv.normalized() * spd
+	c.velocity.x = mv.x
+	c.velocity.z = mv.z
+	c._face_horizontal_at_speed(tangent, delta, c.search_turn_speed_rad)
 
 
 static func _drive_stalk_move(c: Charger, goal: Vector3, dist: float, live: Node3D) -> void:
