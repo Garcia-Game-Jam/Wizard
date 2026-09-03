@@ -9,6 +9,21 @@ const NetAuthorityScript := preload("res://scripts/net/net_authority.gd")
 
 const HOST_PEER_ID := NetAuthorityScript.HOST_PEER_ID
 
+## A non-host cast only ever reaches _is_reconcilable() (host casts skip it
+## entirely — the weapon's own multiplayer authority is always the host, so
+## fire() takes the call_local _accept_projectile branch for them, never
+## _request_projectile). It declines the shot outright if the host's replica
+## of the caster's wand disagrees with the reported origin by more than this
+## — and Player.dash_speed is 20 m/s, so even a single ~100ms round trip
+## while dashing covers ~2m, well past a tight threshold. 1.5m only ever
+## worked because the pit is small enough that players are usually
+## stationary at engagement range; the colosseum's much larger floor means
+## guests are routinely still moving (or just dashed) when they fire, so
+## every one of their shots was getting silently discarded before it could
+## ever hit anything. Sized to comfortably clear a dash-speed sprint across a
+## realistic worst-case round trip instead of a walking-pace guess.
+const _WAND_RECONCILE_DISTANCE := 8.0
+
 @export var effect_id: String = ""
 @export var projectile_scene: PackedScene
 @export var charge_clip: StringName = &""
@@ -23,7 +38,7 @@ func configure(p_effect_id: String, peer_id: int) -> void:
 	if not p_effect_id.is_empty():
 		effect_id = p_effect_id
 	_owner_peer_id = peer_id
-	distance_threshold = 1.5
+	distance_threshold = _WAND_RECONCILE_DISTANCE
 	set_multiplayer_authority(HOST_PEER_ID)
 
 

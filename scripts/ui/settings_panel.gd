@@ -7,6 +7,7 @@ const DisplayResolutionPresetsScript := preload("res://scripts/ui/display_resolu
 const SettingsEditSessionScript := preload("res://scripts/ui/settings_edit_session.gd")
 const SettingsControlsTabScript := preload("res://scripts/ui/keybinds/settings_controls_tab.gd")
 const ValueSliderScript := preload("res://scripts/ui/scaffolding/value_slider.gd")
+const LevelCatalogScript := preload("res://scripts/arena/level_catalog.gd")
 const EXIT_LABEL := "Exit"
 
 var _mic_test_active := false
@@ -34,6 +35,8 @@ var _crosshair_preview: Control
 var _dev_allow_any_lobby_size_checkbox: CheckBox
 var _netfox_debug_logs_checkbox: CheckBox
 var _net_diag_capture_checkbox: CheckBox
+var _random_level_checkbox: CheckBox
+var _level_option: OptionButton
 var _session: SettingsEditSessionScript = SettingsEditSessionScript.new()
 var _exit_style_normal: StyleBoxFlat
 var _exit_style_dirty: StyleBoxFlat
@@ -50,6 +53,9 @@ var _exit_wobble: Tween
 )
 @onready var _dev_vbox: VBoxContainer = (
 	$Panel/MarginContainer/VBox/TabContainer/Developer/MarginContainer/DevVBox
+)
+@onready var _dev_settings_vbox: VBoxContainer = (
+	$"Panel/MarginContainer/VBox/TabContainer/Dev Settings/MarginContainer/DevSettingsVBox"
 )
 @onready var _controls_tab: SettingsControlsTabScript = (
 	$Panel/MarginContainer/VBox/TabContainer/Controls/SettingsControlsTab
@@ -90,6 +96,8 @@ func _ready() -> void:
 	_dev_allow_any_lobby_size_checkbox.toggled.connect(_on_dev_flags_changed)
 	_netfox_debug_logs_checkbox.toggled.connect(_on_dev_flags_changed)
 	_net_diag_capture_checkbox.toggled.connect(_on_dev_flags_changed)
+	_random_level_checkbox.toggled.connect(_on_random_level_toggled)
+	_level_option.item_selected.connect(_on_level_selected)
 	NetworkManager.lobby_roster_changed.connect(_on_lobby_roster_changed)
 	_populate_from_settings()
 
@@ -176,6 +184,8 @@ func _cache_node_refs() -> void:
 	_dev_allow_any_lobby_size_checkbox = _dev_vbox.get_node("DevAllowAnyLobbySizeCheckBox")
 	_netfox_debug_logs_checkbox = _dev_vbox.get_node("NetfoxDebugLogsCheckBox")
 	_net_diag_capture_checkbox = _dev_vbox.get_node("NetDiagCaptureCheckBox")
+	_random_level_checkbox = _dev_settings_vbox.get_node("RandomLevelCheckBox")
+	_level_option = _dev_settings_vbox.get_node("LevelOptionButton")
 
 
 func _populate_from_settings() -> void:
@@ -216,6 +226,10 @@ func _populate_from_settings() -> void:
 	)
 	_netfox_debug_logs_checkbox.set_pressed_no_signal(SettingsManager.netfox_debug_logs)
 	_net_diag_capture_checkbox.set_pressed_no_signal(SettingsManager.net_diag_capture)
+	_populate_level_options()
+	_random_level_checkbox.set_pressed_no_signal(SettingsManager.dev_random_level)
+	_select_level_option(SettingsManager.dev_selected_level_id)
+	_level_option.disabled = SettingsManager.dev_random_level
 
 
 func _populate_display_mode_options() -> void:
@@ -288,6 +302,33 @@ func _select_device(option: OptionButton, saved_device: String) -> void:
 	option.select(0)
 
 
+func _populate_level_options() -> void:
+	_level_option.clear()
+	for level_id in LevelCatalogScript.all_ids():
+		_level_option.add_item(LevelCatalogScript.display_name_for_id(level_id))
+		_level_option.set_item_metadata(_level_option.item_count - 1, level_id)
+
+
+func _select_level_option(level_id: String) -> void:
+	if _level_option.item_count == 0:
+		return
+	var target := level_id
+	if not LevelCatalogScript.is_known_id(target):
+		target = LevelCatalogScript.default_id()
+	_level_option.set_block_signals(true)
+	for i in _level_option.item_count:
+		if str(_level_option.get_item_metadata(i)) == target:
+			_level_option.select(i)
+			break
+	_level_option.set_block_signals(false)
+
+
+func _selected_level_id() -> String:
+	if _level_option.selected < 0:
+		return ""
+	return str(_level_option.get_item_metadata(_level_option.selected))
+
+
 func _apply_to_manager() -> void:
 	## Push UI into live SettingsManager + audio/display systems.
 	## Does not write settings.cfg — that happens on Save.
@@ -310,6 +351,8 @@ func _apply_to_manager() -> void:
 	)
 	SettingsManager.netfox_debug_logs = _netfox_debug_logs_checkbox.button_pressed
 	SettingsManager.net_diag_capture = _net_diag_capture_checkbox.button_pressed
+	SettingsManager.dev_random_level = _random_level_checkbox.button_pressed
+	SettingsManager.dev_selected_level_id = _selected_level_id()
 	SettingsManager.apply_audio_settings()
 	SettingsManager.apply_display_settings()
 
@@ -424,6 +467,17 @@ func _on_dev_flags_changed(_on: bool) -> void:
 	)
 	SettingsManager.netfox_debug_logs = _netfox_debug_logs_checkbox.button_pressed
 	SettingsManager.net_diag_capture = _net_diag_capture_checkbox.button_pressed
+	_refresh_footer()
+
+
+func _on_random_level_toggled(enabled: bool) -> void:
+	SettingsManager.dev_random_level = enabled
+	_level_option.disabled = enabled
+	_refresh_footer()
+
+
+func _on_level_selected(_index: int) -> void:
+	SettingsManager.dev_selected_level_id = _selected_level_id()
 	_refresh_footer()
 
 

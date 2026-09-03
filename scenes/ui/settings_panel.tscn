@@ -593,6 +593,46 @@ theme_override_font_sizes/font_size = 13
 text = "Saved locally. Lobby size override lets you start with any player count. Netfox debug uses the addon's own logger (Debug vs Warning). Netcode diagnostics writes a per-frame rollback/CPU capture per match and shows a red overlay while recording."
 autowrap_mode = 2
 
+[node name="Dev Settings" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 5
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/VBox/TabContainer/Dev Settings"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="DevSettingsVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBox/TabContainer/Dev Settings/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="DevSettingsHeaderLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Dev Settings/MarginContainer/DevSettingsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.84, 0.68, 1)
+text = "Dev Settings"
+
+[node name="RandomLevelCheckBox" type="CheckBox" parent="Panel/MarginContainer/VBox/TabContainer/Dev Settings/MarginContainer/DevSettingsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 1)
+button_pressed = true
+text = "Random level"
+
+[node name="LevelOptionButton" type="OptionButton" parent="Panel/MarginContainer/VBox/TabContainer/Dev Settings/MarginContainer/DevSettingsVBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+disabled = true
+
+[node name="DevSettingsHintLabel" type="Label" parent="Panel/MarginContainer/VBox/TabContainer/Dev Settings/MarginContainer/DevSettingsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.5, 0.42, 1)
+theme_override_font_sizes/font_size = 13
+text = "Saved locally. A level pins both its map and its encounter sequence — see encounter_design_workshop.tscn. With Random level on, every match rolls one uniformly from scenes/arenas/levels/. Turn it off to pin a specific level for testing."
+autowrap_mode = 2
+
 [node name="Footer" type="HBoxContainer" parent="Panel/MarginContainer/VBox" unique_id=416638249]
 layout_mode = 2
 theme_override_constants/separation = 10

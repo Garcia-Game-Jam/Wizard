@@ -1,0 +1,78 @@
+[gd_scene format=3 uid="uid://cgatecoloss01"]
+
+[ext_resource type="Script" path="res://scripts/arena/colosseum_gate.gd" id="1_gate"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_frame"]
+albedo_color = Color(0.34, 0.31, 0.27, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_pillar"]
+material = SubResource("StandardMaterial3D_frame")
+size = Vector3(1.0, 7.0, 1.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pillar"]
+size = Vector3(1.0, 7.0, 1.6)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_crown"]
+material = SubResource("StandardMaterial3D_frame")
+top_radius = 2.6
+bottom_radius = 2.6
+height = 1.2
+
+[sub_resource type="SphereMesh" id="SphereMesh_dome"]
+material = SubResource("StandardMaterial3D_frame")
+radius = 2.6
+height = 2.6
+is_hemisphere = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_door"]
+albedo_color = Color(0.22, 0.2, 0.18, 1)
+metallic = 0.25
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="BoxMesh_door"]
+material = SubResource("StandardMaterial3D_door")
+size = Vector3(2.3, 6.8, 1.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_door"]
+size = Vector3(2.3, 6.8, 1.4)
+
+[node name="ColosseumGate" type="Node3D"]
+editor_description = "Domed spawn gate. Door starts inlaid in the frame; SpawnTelegraph slides it into the floor via set_open_amount() as this gate's pad lights up. Do not rename Door/Door-CollisionShape3D — colosseum_gate.gd expects those names."
+script = ExtResource("1_gate")
+
+[node name="Frame" type="StaticBody3D" parent="."]
+collision_layer = 2
+
+[node name="LeftPillar" type="MeshInstance3D" parent="Frame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, 3.5, 0)
+mesh = SubResource("BoxMesh_pillar")
+
+[node name="LeftPillarCollision" type="CollisionShape3D" parent="Frame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, 3.5, 0)
+shape = SubResource("BoxShape3D_pillar")
+
+[node name="RightPillar" type="MeshInstance3D" parent="Frame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 3.5, 0)
+mesh = SubResource("BoxMesh_pillar")
+
+[node name="RightPillarCollision" type="CollisionShape3D" parent="Frame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 3.5, 0)
+shape = SubResource("BoxShape3D_pillar")
+
+[node name="Crown" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.4, 0)
+mesh = SubResource("CylinderMesh_crown")
+
+[node name="Dome" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.0, 0)
+mesh = SubResource("SphereMesh_dome")
+
+[node name="Door" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
+collision_layer = 2
+
+[node name="Mesh" type="MeshInstance3D" parent="Door"]
+mesh = SubResource("BoxMesh_door")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Door"]
+shape = SubResource("BoxShape3D_door")

@@ -89,6 +89,14 @@ func _assert_match(role: String) -> void:
 		return _monsters_root() != null
 	):
 		return
+	## start_game() rolls (or a dev override pins) the level once and ships it
+	## to every peer — surfaced here so a run's log says which level/arena it
+	## actually covered, since LevelCatalog.random_id() means it isn't
+	## always the same one.
+	print(
+		"E2E_LEVEL %s %s map=%s"
+		% [role, str(_game().get("selected_level_id")), str(_game().get("selected_map_id"))]
+	)
 	if not await _assert_session(role):
 		return
 	if not _assert_world_props(role):

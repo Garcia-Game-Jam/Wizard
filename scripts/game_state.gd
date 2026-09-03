@@ -23,6 +23,16 @@ var run_seed: int = -1
 var match_start_time_msec: int = 0
 var peer_roles: Dictionary = {}
 var peer_character_configs: Dictionary = {}
+## ArenaCatalog id chosen for this match. Empty = nothing has picked one yet;
+## GameApp falls back to its own default rather than this class guessing.
+## NetworkManager.start_game() rolls this once (host) and ships it in the same
+## RPC as run_seed, so every peer loads the identical map. Derived from
+## selected_level_id's own map_id — see LevelCatalog.
+var selected_map_id: String = ""
+## LevelCatalog id chosen for this match — a level pins both the map above
+## and its encounter sequence. Empty = no level resolved (arena_scene.gd
+## falls back to the classic hardcoded ArenaEncounters table).
+var selected_level_id: String = ""
 
 
 func reset_for_new_game() -> void:
@@ -31,12 +41,16 @@ func reset_for_new_game() -> void:
 	match_start_time_msec = Time.get_ticks_msec()
 	peer_roles = {}
 	peer_character_configs = {}
+	selected_map_id = ""
+	selected_level_id = ""
 
 
 func prepare_match(
 	match_seed: int,
 	roles: Dictionary,
-	character_configs: Dictionary = {}
+	character_configs: Dictionary = {},
+	map_id: String = "",
+	level_id: String = ""
 ) -> void:
 	is_multiplayer = true
 	run_seed = match_seed
@@ -44,6 +58,8 @@ func prepare_match(
 	match_start_time_msec = 0
 	peer_roles = _normalize_peer_roles(roles)
 	peer_character_configs = _normalize_peer_configs(character_configs)
+	selected_map_id = map_id
+	selected_level_id = level_id
 
 
 func get_local_role() -> PlayerRole:
