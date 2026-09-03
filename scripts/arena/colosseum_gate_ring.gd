@@ -33,9 +33,13 @@ const OMNI_ATTENUATION := 0.2
 ## One entry per gate, in world degrees (0 = +Z/"north", 90 = +X/"east", ...).
 ## Index N produces GateN/PadN/SpotN/OmniN/BeamN/RingN — order matters where
 ## SpawnTelegraph/ArenaEncounters expect a specific pad index to release from a
-## specific gate.
+## specific gate. Evenly spaced 45° apart starting due north so GateN's index
+## always matches its clock position going clockwise (Gate0 = north, Gate1 =
+## 45°, ... Gate7 = 315°) — an encounter's open_gate_indices is then readable
+## from the index alone, no in-viewport marker needed to see which gate an
+## index means.
 @export var angles_deg: PackedFloat32Array = PackedFloat32Array(
-	[234.4623, 125.5377, 54.4623, 305.5377, 90.0, 180.0, 270.0, 0.0]
+	[0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
 ):
 	set(value):
 		angles_deg = value

@@ -56,16 +56,35 @@ static func is_known_id(level_id: String) -> bool:
 	return not path_for_id(level_id).is_empty()
 
 
+## Plain load() (CACHE_MODE_REUSE), deliberately NOT load_level()'s
+## CACHE_MODE_REPLACE below — this is a read-only "what's this level called"
+## lookup (level-select UI, dropdowns, ...), not a "give me the live level"
+## one. Going through load_level() here would force-replace whatever's
+## already cached for level_id on every single call — including a
+## LevelDefinition another part of the process (encounter_design_workshop.gd
+## editing it live, a match's own _active_level()) currently holds unsaved
+## in-memory changes to, silently discarding them.
 static func display_name_for_id(level_id: String) -> String:
-	var level := load_level(level_id)
+	var path := path_for_id(level_id)
+	if path.is_empty():
+		return level_id
+	var level := load(path)
 	if level == null:
 		return level_id
 	var display_name := str(level.get("level_name"))
 	return display_name if not display_name.is_empty() else level_id
 
 
+## CACHE_MODE_REPLACE, not plain load()/CACHE_MODE_REUSE — levels are live-
+## edited content (encounter_design_workshop.tscn saves over the same path
+## repeatedly during a single dev session), and a stale ResourceCache entry
+## from an earlier load in this same process would otherwise silently mask
+## every edit made since, in-editor preview and a running match alike. Only
+## call this where "the freshest saved copy" is actually the intent — e.g.
+## a match resolving which level to actually play; a mere display-name
+## lookup should use display_name_for_id() above instead.
 static func load_level(level_id: String) -> Resource:
 	var path := path_for_id(level_id)
 	if path.is_empty():
 		return null
-	return load(path)
+	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)

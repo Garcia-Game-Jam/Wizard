@@ -132,7 +132,7 @@ mesh = SubResource("Mesh_wall_inner")
 [node name="Gates" type="Node3D" parent="." unique_id=1434447267]
 editor_description = "Generates GateN (scenes/arenas/colosseum_gate.tscn), the matching GateCutN doorway notch in Colosseum/Wall/Ring, PadN (the inner telegraph warning-light anchor, just inside the gate), ZoneN/SpawnPointN (a walkable platform + the actual monster spawn point, just outside the gate), and the SpotN/OmniN/BeamN/RingN telegraph light cluster on ../SpawnTelegraph — one angle per index drives all of them, so none can end up out of alignment with each other. Rebuilds live when any exported value changes; do not hand-author GateN/GateCutN/PadN/ZoneN/SpawnPointN/SpotN/OmniN/BeamN/RingN here — see colosseum_gate_ring.gd."
 script = ExtResource("38_gate_ring")
-angles_deg = PackedFloat32Array(234.4623, 125.5377, 54.4623, 305.5377, 90, 180, 270, 0)
+angles_deg = PackedFloat32Array(0, 45, 90, 135, 180, 225, 270, 315)
 wall_ring_path = NodePath("../Colosseum/Wall/Ring")
 pads_root_path = NodePath("../Pads")
 spawn_zones_root_path = NodePath("../Pads")
