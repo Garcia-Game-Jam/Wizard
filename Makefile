@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help setup-dev setup-voice lint warnings test test-e2e-lan check verify-pinned-versions verify-voice
+.PHONY: help setup-dev setup-voice setup-blender lint warnings test test-e2e-lan check verify-pinned-versions verify-voice verify-blender
 
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
@@ -28,6 +28,7 @@ help:
 	@echo ""
 	@echo "  make setup-dev             pip install -r requirements-dev.txt (uses .venv)"
 	@echo "  make setup-voice           gdvosk + Vosk model (~500 MB first run)"
+	@echo "  make setup-blender         Blender MCP for Cursor (uv + addon + mcp.json)"
 	@echo "  make lint                  gdlint + GDScript analyzer warnings"
 	@echo "  make warnings              GDScript analyzer warning probe (requires Godot)"
 	@echo "  make test                  Godot unit tests"
@@ -35,6 +36,7 @@ help:
 	@echo "  make check                 lint + test"
 	@echo "  make verify-pinned-versions  CI guard: workflows match tools/versions.env"
 	@echo "  make verify-voice          quick file check for gdvosk install"
+	@echo "  make verify-blender        uv + .cursor/mcp.json blender entry"
 	@echo ""
 	@echo "Override Godot binary: make test GODOT=/path/to/godot"
 	@echo "Windows default Godot: tools/versions.env GODOT_EDITOR_WIN"
@@ -54,6 +56,9 @@ ifeq ($(OS),Windows_NT)
 else
 	bash tools/setup_gdvosk.sh
 endif
+
+setup-blender:
+	$(RUN_PYTHON) tools/setup_blender_mcp.py
 
 lint:
 	$(RUN_PYTHON) tools/run_checks.py --lint-only
@@ -82,3 +87,6 @@ else
 		(echo "Vosk model missing. Run: make setup-voice" >&2; exit 1)
 	@echo "Voice dependencies OK ($(GDVOSK_ZIP), $(VOSK_MODEL_ZIP))"
 endif
+
+verify-blender:
+	$(RUN_PYTHON) tools/setup_blender_mcp.py --verify
