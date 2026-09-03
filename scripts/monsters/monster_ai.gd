@@ -124,43 +124,89 @@ static func hunt_seek_goal(scene_root: Node, fallback: Vector3) -> Vector3:
 	return Vector3(sum.x / float(n), fallback.y, sum.z / float(n))
 
 
-## Local obstacle avoidance. If the straight lane from `from` to `goal` is blocked
-## by world geometry (pit walls, cover blocks), return a nudged goal that steers
-## around the blocker's edge. One bounce only — cheap and deterministic (static
-## geometry raycasts), enough for a few convex blocks in an open pit. Returns
-## `goal` unchanged when the lane is clear or when both detours are also blocked.
+## Local obstacle steering. Returns a nudged goal that (a) rounds the near edge
+## of anything blocking the straight lane and (b) pushes away from nearby walls
+## so the monster keeps `clearance_m` of breathing room and takes a wide arc
+## around corners instead of hugging them. Cheap and deterministic (static
+## geometry raycasts). One detour bounce; returns `goal` when nothing applies.
 static func avoid_obstacles(
 	world: World3D,
 	from: Vector3,
 	goal: Vector3,
 	self_rid: RID,
+	clearance_m: float = 0.0,
 	probe_height: float = 0.6,
-	lookahead: float = 5.5,
-	side_step: float = 1.0
+	lookahead: float = 6.0,
+	side_step: float = 1.6
 ) -> Vector3:
 	if world == null or world.direct_space_state == null:
 		return goal
 	var flat := Vector3(goal.x - from.x, 0.0, goal.z - from.z)
 	var dist := flat.length()
-	if dist < 0.6:
+	if dist < 0.5:
 		return goal
 	var dir := flat / dist
 	var reach := minf(dist, lookahead)
 	var eye := from + Vector3(0.0, probe_height, 0.0)
-	if not _lane_blocked(world, eye, eye + dir * reach, self_rid):
+	var lane_open := not _lane_blocked(world, eye, eye + dir * reach, self_rid)
+	if lane_open and clearance_m <= 0.05:
 		return goal
-	var right := Vector3(-dir.z, 0.0, dir.x)
-	## Bias the first probe toward whichever side the goal already leans past the
-	## blocker, so the monster peels off the near edge instead of doubling back.
-	var first := 1.0 if right.dot(flat) >= 0.0 else -1.0
-	for s in [first, -first]:
-		var blend: Vector3 = (dir * 0.4 + right * (s * maxf(side_step, 0.1)))
-		if blend.length_squared() < 0.0001:
+
+	## 1. Round a blocker in the lane — take the near edge on a wide arc, or if
+	## both sides are blocked, commit to sliding along the clearer one.
+	if not lane_open:
+		var right := Vector3(-dir.z, 0.0, dir.x)
+		var first := 1.0 if right.dot(flat) >= 0.0 else -1.0
+		var found := false
+		for s in [first, -first]:
+			var blend: Vector3 = dir + right * (s * maxf(side_step, 0.1))
+			if blend.length_squared() < 0.0001:
+				continue
+			var b_dir := blend.normalized()
+			if not _lane_blocked(world, eye, eye + b_dir * reach, self_rid):
+				dir = b_dir
+				found = true
+				break
+		if not found:
+			dir = (right * first + dir * 0.2).normalized()
+
+	## 2. Push off nearby walls (also widens the arc at corners).
+	if clearance_m > 0.05:
+		var repel := wall_repulsion(world, eye, self_rid, clearance_m)
+		if repel.length_squared() > 0.0001:
+			var steered: Vector3 = dir + repel
+			if steered.length_squared() > 0.0001:
+				dir = steered.normalized()
+
+	return from + dir * reach
+
+
+## Sum of "get away from me" pushes from world surfaces within `clearance` of
+## `eye`, each weighted by how close it is. Zero when nothing is near.
+static func wall_repulsion(
+	world: World3D, eye: Vector3, self_rid: RID, clearance: float
+) -> Vector3:
+	if world == null or world.direct_space_state == null or clearance <= 0.0:
+		return Vector3.ZERO
+	var push := Vector3.ZERO
+	for i in 8:
+		var ang := float(i) * TAU / 8.0
+		var probe := Vector3(cos(ang), 0.0, sin(ang))
+		var q := PhysicsRayQueryParameters3D.create(eye, eye + probe * clearance)
+		q.collide_with_areas = false
+		q.collision_mask = CollisionLayersScript.WORLD
+		if self_rid.is_valid():
+			q.exclude = [self_rid]
+		var hit := world.direct_space_state.intersect_ray(q)
+		if hit.is_empty():
 			continue
-		var way: Vector3 = from + blend.normalized() * reach
-		if not _lane_blocked(world, eye, Vector3(way.x, eye.y, way.z), self_rid):
-			return Vector3(way.x, goal.y, way.z)
-	return goal
+		var d := eye.distance_to(hit.get("position"))
+		var strength := 1.0 - clampf(d / clearance, 0.0, 1.0)
+		var away := Vector3((hit.get("normal") as Vector3).x, 0.0, (hit.get("normal") as Vector3).z)
+		if away.length_squared() < 0.01:
+			away = -probe
+		push += away.normalized() * strength
+	return Vector3(push.x, 0.0, push.z)
 
 
 static func _lane_blocked(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> bool:

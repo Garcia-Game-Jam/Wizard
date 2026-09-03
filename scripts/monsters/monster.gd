@@ -84,9 +84,12 @@ const HUNT_SCAN_SPEED_RAD := 0.7
 
 @export var touch_damage: float = 8.0
 @export var gravity: float = 18.0
-## How long a monster keeps chasing a player's last-seen spot after losing every
-## live sense of them, before it forgets and advances toward the fight instead.
+## Seconds a monster keeps chasing a lost player's last-seen spot before it
+## forgets and advances toward the fight instead.
 @export_range(0.0, 20.0, 0.25, "suffix:s") var last_known_memory_sec: float = 6.0
+## Room the monster keeps from walls / cover while walking — rounds corners wide
+## instead of hugging them. 0 = only dodge what is directly in the lane.
+@export_range(0.0, 6.0, 0.1, "suffix:m") var wall_clearance_m: float = 1.5
 ## CLOSE_IN rushes melee. KEEP_AWAY holds at keep_away_range.
 @export var chase_style: ChaseStyle = ChaseStyle.CLOSE_IN
 @export_range(1.0, 40.0, 0.5) var keep_away_range: float = 20.0
@@ -373,8 +376,7 @@ func _refresh_range_gizmos() -> void:
 	)
 
 
-## Editor combat-range discs. Override per monster to show the ranges that
-## actually drive its behaviour.
+## Editor combat-range discs; override per monster for the ranges that matter.
 func _range_gizmo_specs() -> Array:
 	return [
 		{"name": "ChaseRangeGizmo", "radius": chase_range, "color": Color(1.0, 0.35, 0.2, 0.2)},
@@ -698,13 +700,13 @@ func _hunt_seek(delta: float) -> void:
 	_face_horizontal(desired)
 
 
-## Straight-line `goal_pos` nudged to steer around world geometry in the way.
-## Shared by every walking approach; the committed charge does not use it.
+## `goal_pos` steered around world geometry + off nearby walls. Every walking
+## approach uses it; the committed charge does not.
 func _nav_goal(goal_pos: Vector3) -> Vector3:
 	if not is_inside_tree():
 		return goal_pos
 	return MonsterAIScript.avoid_obstacles(
-		get_world_3d(), global_position, goal_pos, get_rid()
+		get_world_3d(), global_position, goal_pos, get_rid(), wall_clearance_m
 	)
 
 
@@ -760,12 +762,6 @@ func _ensure_chase_wait_armed() -> void:
 	_sync_chase_move_config()
 	if _chase_move != null:
 		_chase_move.ensure_wait_armed()
-
-
-func _arm_chase_wait() -> void:
-	_sync_chase_move_config()
-	if _chase_move != null:
-		_chase_move.arm_wait()
 
 
 func _optimal_combat_range() -> float:
