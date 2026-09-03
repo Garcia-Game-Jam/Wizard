@@ -27,23 +27,19 @@ static func begin_stalk(c: Charger, target: Node3D) -> void:
 		c._stalk_last_target_pos = target.global_position
 	c._cancel_cast()
 	c._clear_chase_move()
-	_sync_stalk_shield(c, target)
+	_sync_stalk_shield(c)
 	c._apply_charge_tint(0.0)
 	c._set_body_lean(0.0)
 	c._set_head_pitch_goal(0.0, c.head_return_speed_rad)
 	c._set_chase_eyes_active(true)
 
 
-## One-way: raise the held ward once a stalked player comes inside shield_up_range
-## and keep it up through the telegraph and ram. It comes down only when the whole
-## sequence ends — wall-stun / recover / search / give-up all call _shatter_ward.
-static func _sync_stalk_shield(c: Charger, target: Node3D) -> void:
-	if not c.stalk_with_shield or is_instance_valid(c._held_ward):
-		return
-	if not is_instance_valid(target):
-		return
-	if c.global_position.distance_to(target.global_position) <= c.shield_up_range:
-		c._held_ward = c._spawn_held_ward()
+## Hold the ward up for the whole approach whenever the charger has a target of
+## any kind (seen / heard / remembered). _maybe_raise_ward keeps it one-way and
+## respects a break. It drops via _shatter_ward when the engagement ends.
+static func _sync_stalk_shield(c: Charger) -> void:
+	if c.stalk_with_shield and c._interest_is_actionable(c._interest):
+		c._maybe_raise_ward()
 
 
 static func tick_stalk(c: Charger, delta: float) -> void:
@@ -52,8 +48,12 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		c.velocity.x = 0.0
 		c.velocity.z = 0.0
 		return
-	var target := reacquire_sight_target(c)
-	if not Charger.is_player_charge_target(target):
+
+	var live := reacquire_sight_target(c)  # sets c._interest (sight / hearing / last-known)
+	_sync_stalk_shield(c)
+
+	if not c._interest_is_actionable(c._interest):
+		## No sight, no sound, no memory — wind down and hand back to the base hunt.
 		c._stalk_lost_sec += delta
 		var brake := c.combat_speed(c.stalk_speed) * delta * 4.0
 		c.velocity.x = move_toward(c.velocity.x, 0.0, brake)
@@ -62,57 +62,56 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 			c._reset_to_idle()
 		return
 	c._stalk_lost_sec = 0.0
-	c._charge_target = target
-	_sync_stalk_shield(c, target)
 
-	var tp := target.global_position
-	var flat := Vector3(tp.x - c.global_position.x, 0.0, tp.z - c.global_position.z)
+	## Chase the resolved goal — the live player, or its last-known spot.
+	var goal := c.get_chase_goal(c.global_position)
+	var flat := Vector3(goal.x - c.global_position.x, 0.0, goal.z - c.global_position.z)
 	var dist := flat.length()
 	c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
 
-	var lane_clear := lane_to_target_clear(c, flat)
-	var in_band := ChargerChargeScript.in_charge_band(
-		dist, c.charge_band_min_m, c.charge_band_max_m
-	)
-	if in_band and lane_clear:
-		c._stalk_dwell += delta
+	if Charger.is_player_charge_target(live):
+		c._charge_target = live
+		var lane_clear := lane_to_target_clear(c, flat)
+		var in_range := dist <= c.charge_range and dist >= c.charge_min_range
+		if in_range and lane_clear:
+			c._stalk_dwell += delta
+		else:
+			c._stalk_dwell = 0.0
+		var moved := c._stalk_last_target_pos.distance_to(goal)
+		c._stalk_last_target_pos = goal
+		if moved <= c.combat_speed(c.stalk_speed) * delta * 0.35:
+			c._stalk_still_sec += delta
+		else:
+			c._stalk_still_sec = 0.0
+		var ready := in_range and lane_clear and c._stalk_dwell >= c.stalk_dwell_sec
+		var impatient := in_range and c._stalk_still_sec >= c.stalk_patience_sec
+		if ready or impatient:
+			enter_charge_sequence(c, live)
+			return
 	else:
+		## Only pursuing a remembered / heard position — never charge blind.
 		c._stalk_dwell = 0.0
-
-	var moved := c._stalk_last_target_pos.distance_to(tp)
-	c._stalk_last_target_pos = tp
-	if moved <= c.combat_speed(c.stalk_speed) * delta * 0.35:
-		c._stalk_still_sec += delta
-	else:
 		c._stalk_still_sec = 0.0
 
-	var ready := in_band and lane_clear and c._stalk_dwell >= c.stalk_dwell_sec
-	var impatient := in_band and lane_clear and c._stalk_still_sec >= c.stalk_patience_sec
-	if ready or impatient:
-		enter_charge_sequence(c, target)
-		return
-
-	_drive_stalk_move(c, flat, dist)
+	_drive_stalk_move(c, goal, dist, live)
 
 
-static func _drive_stalk_move(c: Charger, flat: Vector3, dist: float) -> void:
+static func _drive_stalk_move(c: Charger, goal: Vector3, dist: float, live: Node3D) -> void:
 	var spd := c.combat_speed(c.stalk_speed)
+	var flat := Vector3(goal.x - c.global_position.x, 0.0, goal.z - c.global_position.z)
 	var dir := Vector3.ZERO
 	if flat.length_squared() > 0.0001:
 		var to := flat.normalized()
-		if dist > c.charge_band_max_m:
-			## Closing in — steer the approach around cover in the lane.
-			var nav := c._nav_goal(c.global_position + flat)
+		if not Charger.is_player_charge_target(live) or dist > c.charge_range:
+			## Closing in (or pursuing a remembered spot) — steer around cover.
+			var nav := c._nav_goal(goal)
 			var nf := Vector3(nav.x - c.global_position.x, 0.0, nav.z - c.global_position.z)
 			dir = nf.normalized() if nf.length_squared() > 0.0001 else to
-		elif dist < c.charge_band_min_m:
+		elif dist < c.charge_min_range:
 			dir = -to * 0.7
 		else:
-			var anchor := c.global_position + flat
-			var side := MonsterAIScript.strafe_sign_further_from_player(
-				c.global_position, anchor
-			)
-			dir = MonsterAIScript.angled_strafe_dir(c.global_position, anchor, side, 0.2) * 0.85
+			var side := MonsterAIScript.strafe_sign_further_from_player(c.global_position, goal)
+			dir = MonsterAIScript.angled_strafe_dir(c.global_position, goal, side, 0.2) * 0.85
 	c.velocity.x = dir.x * spd
 	c.velocity.z = dir.z * spd
 
@@ -284,6 +283,7 @@ static func try_search_lock(c: Charger) -> bool:
 
 static func finish_search(c: Charger) -> void:
 	c._shatter_ward()
+	c._ward_broken = false
 	c._set_stun_stars(false)
 	c._apply_charge_tint(0.0)
 	c._set_body_lean(0.0)

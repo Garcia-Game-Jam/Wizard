@@ -81,20 +81,22 @@ var preview_feint_action := preview_feint
 ## Ground speed while stalking the player between charges. Near player sprint =
 ## it can herd you; below it, you can walk away and it has to commit.
 @export_range(1.0, 10.0, 0.1, "suffix:m/s") var stalk_speed: float = 5.0
-## Raise the held ward (blocks projectiles from the front) while approaching, so
-## you can't freely chip it during the stalk. It's held through telegraph + ram.
+## Hold the ward up (blocks projectiles from the front) for the whole approach
+## whenever the charger has a target — seen, heard, or a remembered position —
+## and through the telegraph + ram. It stays down for the rest of the engagement
+## once a player breaks it. Never raised while it is disengaged / hunting empty.
 @export var stalk_with_shield: bool = true
-## Only bother raising the stalk shield once the player is this close.
-@export_range(2.0, 40.0, 0.5, "suffix:m") var shield_up_range: float = 16.0
-## The charge only fires when the player sits inside this distance band. Below
-## min the charger backs off; above max it closes in. Wider = charges from anywhere.
-@export_range(1.0, 20.0, 0.5, "suffix:m") var charge_band_min_m: float = 4.0
-@export_range(2.0, 30.0, 0.5, "suffix:m") var charge_band_max_m: float = 14.0
-## Seconds the player must sit in-band, with a clear lane, before the charge
-## commits. Lower = twitchier / less readable.
-@export_range(0.0, 3.0, 0.05, "suffix:s") var stalk_dwell_sec: float = 0.45
-## Anti-turtle: if the player holds still in-band this long, charge regardless
-## of the lane check.
+## Once the player is THIS close and in clear, unobstructed line of sight, the
+## charger commits to a ram. Larger = it charges from farther out.
+@export_range(2.0, 30.0, 0.5, "suffix:m") var charge_range: float = 12.0
+## It will not charge from closer than this — no room for a run-up; it backs off
+## to charge_range first.
+@export_range(0.5, 12.0, 0.5, "suffix:m") var charge_min_range: float = 3.0
+## Seconds the player must stay in range + clear line of sight before the charge
+## commits. 0 = the instant both are true.
+@export_range(0.0, 3.0, 0.05, "suffix:s") var stalk_dwell_sec: float = 0.1
+## Anti-turtle: if the player holds still in range this long, charge even if the
+## lane is not perfectly clear.
 @export_range(0.5, 8.0, 0.1, "suffix:s") var stalk_patience_sec: float = 2.4
 ## Seconds the charger keeps stalking a player it has lost sight of before it
 ## drops to the base hunt (walk to last-known / advance on the fight).
@@ -126,6 +128,8 @@ var _phase: ChargePhase = ChargePhase.NONE
 var _charge := ChargerChargeScript.new()
 var _charge_target: Node3D = null
 var _held_ward: Node = null
+## True once a player has broken the ward — stays down until the engagement ends.
+var _ward_broken: bool = false
 ## Cleared at the start of each rollback tick. Not history.
 var _tick_ram_hits: Dictionary = {}
 var _stun_stars: Node = null
@@ -305,9 +309,9 @@ func begin_lock_on(
 	velocity.x = 0.0
 	velocity.z = 0.0
 	_set_chase_eyes_active(true)
-	## Keep a ward already raised during the stalk; otherwise raise one now.
-	if not is_instance_valid(_held_ward):
-		_held_ward = _spawn_held_ward()
+	## Keep a ward already raised during the stalk; raise one now unless a player
+	## already broke it this engagement.
+	_maybe_raise_ward()
 	var down := ChargerLaunchScript.plunge_pitch_rad(charge_head_plunge_deg)
 	var tuck_speed := absf(down) / maxf(_effective_telegraph_sec(), 0.05)
 	_set_head_pitch_goal(down, maxf(tuck_speed, 0.4))
@@ -611,6 +615,7 @@ func _tick_charging(delta: float) -> void:
 ## Charge sequence aborted / finished — hand control back to the base hunt loop.
 func _reset_to_idle() -> void:
 	_shatter_ward()
+	_ward_broken = false
 	_set_stun_stars(false)
 	_apply_charge_tint(0.0)
 	_set_body_lean(0.0)
@@ -631,6 +636,17 @@ func _spawn_held_ward() -> Node:
 	if ability != null and ability.has_method("spawn_held_ward"):
 		return ability.call("spawn_held_ward", self)
 	return null
+
+
+## Raise the ward unless one is already up or a player broke it this engagement.
+## Detects a break as "we thought we had one but it freed itself".
+func _maybe_raise_ward() -> void:
+	if _held_ward != null and not is_instance_valid(_held_ward):
+		_held_ward = null
+		_ward_broken = true
+	if _ward_broken or is_instance_valid(_held_ward):
+		return
+	_held_ward = _spawn_held_ward()
 
 
 func _charge_ward_ability() -> Node:

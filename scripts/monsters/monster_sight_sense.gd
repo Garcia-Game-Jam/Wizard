@@ -108,11 +108,21 @@ func _has_line_of_sight(monster: CharacterBody3D, target: Node3D) -> bool:
 	query.collide_with_bodies = true
 	query.collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
 	var exclude: Array = [monster.get_rid()]
+	## Bodies parented to the monster (e.g. the charger's held ward) must not
+	## block its own vision.
+	_collect_child_body_rids(monster, exclude)
 	if target is CollisionObject3D:
 		exclude.append((target as CollisionObject3D).get_rid())
 	query.exclude = exclude
 	var hit := world.direct_space_state.intersect_ray(query)
 	return hit.is_empty()
+
+
+static func _collect_child_body_rids(node: Node, out: Array) -> void:
+	for child in node.get_children():
+		if child is CollisionObject3D:
+			out.append((child as CollisionObject3D).get_rid())
+		_collect_child_body_rids(child, out)
 
 
 static func occlude_distance(
