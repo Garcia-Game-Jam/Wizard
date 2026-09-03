@@ -106,7 +106,7 @@ star_size = 0.075
 [node name="Sight" type="Node" parent="Senses" parent_id_path=PackedInt32Array(1569456525) index="0" unique_id=451902179]
 editor_description = "Facing cone. Tune Sight Range / Cone Angle Deg / Eye Height. Walls block it."
 script = ExtResource("3_sight")
-sight_range = 40.0
+sight_range = 65.0
 eye_height = 0.58
 sight_urgency = 1.6
 use_vision_cone = true

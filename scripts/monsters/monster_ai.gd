@@ -8,6 +8,7 @@ enum State { IDLE, PATROL, CHASE, ALERT }
 enum LookdevPose { PATROL, CHASE }
 
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 
 ## Safe Node3D from a stored ref. Freed objects are not null — never `as` before this.
@@ -121,6 +122,54 @@ static func hunt_seek_goal(scene_root: Node, fallback: Vector3) -> Vector3:
 	if n == 0:
 		return fallback
 	return Vector3(sum.x / float(n), fallback.y, sum.z / float(n))
+
+
+## Local obstacle avoidance. If the straight lane from `from` to `goal` is blocked
+## by world geometry (pit walls, cover blocks), return a nudged goal that steers
+## around the blocker's edge. One bounce only — cheap and deterministic (static
+## geometry raycasts), enough for a few convex blocks in an open pit. Returns
+## `goal` unchanged when the lane is clear or when both detours are also blocked.
+static func avoid_obstacles(
+	world: World3D,
+	from: Vector3,
+	goal: Vector3,
+	self_rid: RID,
+	probe_height: float = 0.6,
+	lookahead: float = 5.5,
+	side_step: float = 1.0
+) -> Vector3:
+	if world == null or world.direct_space_state == null:
+		return goal
+	var flat := Vector3(goal.x - from.x, 0.0, goal.z - from.z)
+	var dist := flat.length()
+	if dist < 0.6:
+		return goal
+	var dir := flat / dist
+	var reach := minf(dist, lookahead)
+	var eye := from + Vector3(0.0, probe_height, 0.0)
+	if not _lane_blocked(world, eye, eye + dir * reach, self_rid):
+		return goal
+	var right := Vector3(-dir.z, 0.0, dir.x)
+	## Bias the first probe toward whichever side the goal already leans past the
+	## blocker, so the monster peels off the near edge instead of doubling back.
+	var first := 1.0 if right.dot(flat) >= 0.0 else -1.0
+	for s in [first, -first]:
+		var blend: Vector3 = (dir * 0.4 + right * (s * maxf(side_step, 0.1)))
+		if blend.length_squared() < 0.0001:
+			continue
+		var way: Vector3 = from + blend.normalized() * reach
+		if not _lane_blocked(world, eye, Vector3(way.x, eye.y, way.z), self_rid):
+			return Vector3(way.x, goal.y, way.z)
+	return goal
+
+
+static func _lane_blocked(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(a, b)
+	q.collide_with_areas = false
+	q.collision_mask = CollisionLayersScript.WORLD
+	if self_rid.is_valid():
+		q.exclude = [self_rid]
+	return not world.direct_space_state.intersect_ray(q).is_empty()
 
 
 static func lookdev_eyes_visible(pose: LookdevPose) -> bool:

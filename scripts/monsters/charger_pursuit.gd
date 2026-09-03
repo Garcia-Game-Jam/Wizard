@@ -27,11 +27,23 @@ static func begin_stalk(c: Charger, target: Node3D) -> void:
 		c._stalk_last_target_pos = target.global_position
 	c._cancel_cast()
 	c._clear_chase_move()
-	c._shatter_ward()
+	_sync_stalk_shield(c, target)
 	c._apply_charge_tint(0.0)
 	c._set_body_lean(0.0)
 	c._set_head_pitch_goal(0.0, c.head_return_speed_rad)
 	c._set_chase_eyes_active(true)
+
+
+## One-way: raise the held ward once a stalked player comes inside shield_up_range
+## and keep it up through the telegraph and ram. It comes down only when the whole
+## sequence ends — wall-stun / recover / search / give-up all call _shatter_ward.
+static func _sync_stalk_shield(c: Charger, target: Node3D) -> void:
+	if not c.stalk_with_shield or is_instance_valid(c._held_ward):
+		return
+	if not is_instance_valid(target):
+		return
+	if c.global_position.distance_to(target.global_position) <= c.shield_up_range:
+		c._held_ward = c._spawn_held_ward()
 
 
 static func tick_stalk(c: Charger, delta: float) -> void:
@@ -51,6 +63,7 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		return
 	c._stalk_lost_sec = 0.0
 	c._charge_target = target
+	_sync_stalk_shield(c, target)
 
 	var tp := target.global_position
 	var flat := Vector3(tp.x - c.global_position.x, 0.0, tp.z - c.global_position.z)
@@ -88,7 +101,10 @@ static func _drive_stalk_move(c: Charger, flat: Vector3, dist: float) -> void:
 	if flat.length_squared() > 0.0001:
 		var to := flat.normalized()
 		if dist > c.charge_band_max_m:
-			dir = to
+			## Closing in — steer the approach around cover in the lane.
+			var nav := c._nav_goal(c.global_position + flat)
+			var nf := Vector3(nav.x - c.global_position.x, 0.0, nav.z - c.global_position.z)
+			dir = nf.normalized() if nf.length_squared() > 0.0001 else to
 		elif dist < c.charge_band_min_m:
 			dir = -to * 0.7
 		else:

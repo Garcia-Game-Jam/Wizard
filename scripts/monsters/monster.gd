@@ -655,6 +655,8 @@ func _approach_target(target: Node3D, goal_pos: Vector3, _delta: float) -> void:
 		_move_keep_away(target)
 		return
 
+	## Arrival is judged against the real goal; the walk is aimed at the nav
+	## waypoint so cover blocks get steered around, not walked into.
 	var to_goal := Vector3(
 		goal_pos.x - global_position.x, 0.0, goal_pos.z - global_position.z
 	)
@@ -665,7 +667,7 @@ func _approach_target(target: Node3D, goal_pos: Vector3, _delta: float) -> void:
 			_try_touch_damage(target)
 		return
 	var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
-		global_position, goal_pos, combat_speed(move_speed), velocity.y
+		global_position, _nav_goal(goal_pos), combat_speed(move_speed), velocity.y
 	)
 	velocity.x = desired.x
 	velocity.z = desired.z
@@ -684,11 +686,21 @@ func _hunt_seek(delta: float) -> void:
 		rotation.y += HUNT_SCAN_SPEED_RAD * delta
 		return
 	var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
-		global_position, goal, combat_speed(move_speed), velocity.y
+		global_position, _nav_goal(goal), combat_speed(move_speed), velocity.y
 	)
 	velocity.x = desired.x
 	velocity.z = desired.z
 	_face_horizontal(desired)
+
+
+## Straight-line `goal_pos` nudged to steer around world geometry in the way.
+## Shared by every walking approach; the committed charge does not use it.
+func _nav_goal(goal_pos: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return goal_pos
+	return MonsterAIScript.avoid_obstacles(
+		get_world_3d(), global_position, goal_pos, get_rid()
+	)
 
 
 func _hunt_seek_goal() -> Vector3:

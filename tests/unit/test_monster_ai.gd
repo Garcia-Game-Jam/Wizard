@@ -5,6 +5,7 @@ extends RefCounted
 
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 const MonsterTargetMemoryScript := preload("res://scripts/monsters/monster_target_memory.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
 
 func run() -> int:
@@ -14,6 +15,7 @@ func run() -> int:
 	failures += _test_priority_stickiness()
 	failures += _test_target_memory_notes_and_expires()
 	failures += _test_seek_goal_centroid_of_spawns()
+	failures += await _test_avoid_obstacles()
 	return failures
 
 
@@ -107,5 +109,42 @@ func _test_seek_goal_centroid_of_spawns() -> int:
 	var empty_goal := MonsterAIScript.hunt_seek_goal(null, Vector3(3, 1, 3))
 	if empty_goal != Vector3(3, 1, 3):
 		push_error("seek goal: null root should return the fallback")
+		return 1
+	return 0
+
+
+func _test_avoid_obstacles() -> int:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		push_error("avoid: expected a SceneTree")
+		return 1
+	var world := Node3D.new()
+	tree.root.add_child(world)
+	# A wall blocking the straight line from origin toward +Z.
+	var block := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(6, 4, 1)
+	cs.shape = box
+	block.add_child(cs)
+	block.collision_layer = CollisionLayersScript.WORLD
+	block.collision_mask = 0
+	world.add_child(block)
+	block.global_position = Vector3(0, 0, 5)
+	await tree.physics_frame  # let the static body register with the physics space
+	var w := world.get_world_3d()
+
+	var from := Vector3(0, 0, 0)
+	var goal := Vector3(0, 0, 10)
+	var nav := MonsterAIScript.avoid_obstacles(w, from, goal, RID())
+	var clear := MonsterAIScript.avoid_obstacles(w, from, Vector3(12, 0, 0), RID())
+	world.queue_free()
+	await tree.process_frame
+
+	if absf(nav.x) < 1.0:
+		push_error("avoid: blocked lane was not steered aside (nav=%s)" % nav)
+		return 1
+	if clear != Vector3(12, 0, 0):
+		push_error("avoid: a clear lane should return the goal unchanged (got %s)" % clear)
 		return 1
 	return 0
