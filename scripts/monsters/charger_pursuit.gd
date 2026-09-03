@@ -10,10 +10,6 @@ extends RefCounted
 const ChargerChargeScript := preload("res://scripts/monsters/charger_charge.gd")
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 
-## Seconds of no sight-lock during STALK before the charger drops back to the
-## base hunt (advance toward last-known / the fight).
-const STALK_LOST_GIVEUP_SEC := 2.0
-
 
 ## --- Stalk: prowl toward the player, wait for a clean charge lane ---
 
@@ -50,7 +46,7 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		var brake := c.combat_speed(c.stalk_speed) * delta * 4.0
 		c.velocity.x = move_toward(c.velocity.x, 0.0, brake)
 		c.velocity.z = move_toward(c.velocity.z, 0.0, brake)
-		if c._stalk_lost_sec >= STALK_LOST_GIVEUP_SEC:
+		if c._stalk_lost_sec >= c.stalk_giveup_sec:
 			c._reset_to_idle()
 		return
 	c._stalk_lost_sec = 0.0
@@ -129,7 +125,7 @@ static func begin_feint(c: Charger, target: Node3D) -> void:
 
 static func tick_feint(c: Charger, delta: float) -> void:
 	c._charge.tick(delta)
-	var t := c._charge.telegraph_progress(ChargerChargeScript.DEFAULT_FEINT_SEC)
+	var t := c._charge.telegraph_progress(c.feint_sec)
 	c._apply_charge_tint(0.15 + 0.35 * (1.0 - t))
 	c._set_body_lean(0.12 * (1.0 - t))
 	if not c._charge.pose_only and c._target_is_valid():
@@ -143,7 +139,7 @@ static func tick_feint(c: Charger, delta: float) -> void:
 		c.velocity.z = 0.0
 	if c._charge.pose_only:
 		return
-	if c._charge.feint_ready(ChargerChargeScript.DEFAULT_FEINT_SEC):
+	if c._charge.feint_ready(c.feint_sec):
 		if c._target_is_valid():
 			c.begin_lock_on(c._charge_target, false)
 		else:
@@ -178,7 +174,7 @@ static func tick_recover(c: Charger, delta: float) -> void:
 		c._charge_target = target
 		if c._recover_double_planned:
 			c._snap_yaw(c._flat_to_target())
-			c.begin_lock_on(target, false, 0.45)
+			c.begin_lock_on(target, false, c.double_charge_telegraph_scale)
 		else:
 			begin_stalk(c, target)
 		return

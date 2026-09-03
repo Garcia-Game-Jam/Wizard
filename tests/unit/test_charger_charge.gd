@@ -23,7 +23,7 @@ func _test_commit_window_steers_then_freezes() -> int:
 	# Inside the commit window: repeated steering should bend locked_dir toward it.
 	var before := charge.locked_dir
 	for _i in 10:
-		charge.steer_locked_dir(toward, ChargerChargeScript.COMMIT_TURN_RAD, 1.0 / 60.0)
+		charge.steer_locked_dir(toward, 4.5, 1.0 / 60.0)  # commit_turn_speed_rad
 	var bent := charge.locked_dir
 	if before.angle_to(bent) < 0.05:
 		push_error("commit-window steering did not turn locked_dir toward the target")

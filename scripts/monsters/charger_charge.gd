@@ -20,18 +20,11 @@ const SEARCH_PITCH_AMP_RAD := 0.1
 const SEARCH_ABOUT_FACE_EPS := 0.08
 const WARD_GROUP := &"spell_ward"
 
-## Redesign tuning defaults (Charger exports override these per scene).
-const DEFAULT_COMMIT_DIST_M := 1.6
-const DEFAULT_MAX_CHARGE_M := 15.0
-const DEFAULT_BAND_MIN_M := 4.0
-const DEFAULT_BAND_MAX_M := 14.0
-const DEFAULT_RECOVER_SEC := 1.0
-const DEFAULT_FEINT_SEC := 0.45
-const DEFAULT_FEINT_CHANCE := 0.3
+## Forward lunge speed during the first half of a feint. (All the tunable
+## charge/stalk/feint values live as exports on charger.gd / charger.tscn.)
 const FEINT_HOP_SPEED := 4.0
-## Turn rate (rad/s) while the ram is still homing inside the commit window.
-const COMMIT_TURN_RAD := 4.5
-## Consecutive near-zero-progress charge ticks that count as "wedged".
+## Belt-and-suspenders wedged check: N consecutive charge ticks making less than
+## FRAC of the intended forward progress → treat as blocked → wall stun.
 const STALL_TICKS := 5
 const STALL_PROGRESS_FRAC := 0.15
 

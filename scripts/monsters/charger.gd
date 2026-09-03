@@ -41,9 +41,10 @@ var walk_turn_speed_rad: float = 1.4
 var search_turn_speed_rad: float = 1.1
 ## Ram speed as a multiple of player sprint. Higher = faster.
 @export_range(1.5, 6.0, 0.05, "suffix:x sprint") var charge_speed_mult: float = 3.2
-## Seconds stunned with orbiting stars after the ram hits a wall.
+## Seconds stunned with orbiting stars after the ram hits a wall. The big
+## counter-attack window — longer = more punishing to the charger.
 @export_range(1.0, 8.0, 0.1, "suffix:s") var self_stun_sec: float = 3.0
-## Seconds of looking after the 180° about-face, before returning to patrol.
+## Seconds spent looking around after the 180° about-face before it resumes the hunt.
 @export_range(0.6, 8.0, 0.1, "suffix:s") var search_sec: float = 3.2
 ## Head tuck before the ram. 360 = level, 330 = 30° down. Finishes as running starts.
 @export_range(330.0, 360.0, 0.5) var charge_head_plunge_deg: float = 338.0
@@ -51,19 +52,20 @@ var search_turn_speed_rad: float = 1.1
 @export_range(30.0, 90.0, 1.0) var charge_head_toss_deg: float = 60.0
 ## How fast the head eases back to rest after a wall (rad/s). Does not snap.
 @export_range(0.4, 8.0, 0.1) var head_return_speed_rad: float = 2.8
-## Body color while idle / patrol / after stun.
+## Body color at rest / while hunting / after a stun.
 @export var rest_tint: Color = Color(0.22, 0.72, 0.28, 1.0)
 ## Body color at full telegraph and during the ram.
 @export var charge_tint: Color = Color(0.88, 0.12, 0.1, 1.0)
-@export_group("Knockup")
+
+@export_group("Ram hit")
 ## Live: launch the nearest sandbox player along the current knockup arc.
 @export_tool_button("Preview Knockup", "Callable")
 var preview_knockup_action := preview_knockup
-## Horizontal throw distance in maze cells (converted to launch speed).
+## How far a rammed player is thrown, in arena cells (converted to launch speed).
 @export_range(2, 24, 1, "suffix:cells") var knockup_cells: int = 6
-## Extra height above maze walls at the apex so the hop never tunnels.
+## Extra apex height above the arena walls so the thrown player never tunnels.
 @export_range(0.8, 8.0, 0.1, "suffix:m") var knockup_over_wall_m: float = 3.5
-## HP spent on a successful ram. 0 = launch only (old pit).
+## HP a connected ram costs the player. 0 = knock + stun only, no damage.
 @export_range(0.0, 200.0, 1.0) var ram_damage: float = 22.0
 
 @export_group("Stalk & mixup")
@@ -76,25 +78,44 @@ var preview_recover_action := preview_recover
 ## Pose only: short fake windup + hop, then the real telegraph.
 @export_tool_button("Preview Feint", "Callable")
 var preview_feint_action := preview_feint
-## Ground speed while stalking the player between charges.
+## Ground speed while stalking the player between charges. Near player sprint =
+## it can herd you; below it, you can walk away and it has to commit.
 @export_range(1.0, 10.0, 0.1, "suffix:m/s") var stalk_speed: float = 5.0
-## Charge only fires when the player sits within this distance band.
+## The charge only fires when the player sits inside this distance band. Below
+## min the charger backs off; above max it closes in. Wider = charges from anywhere.
 @export_range(1.0, 20.0, 0.5, "suffix:m") var charge_band_min_m: float = 4.0
 @export_range(2.0, 30.0, 0.5, "suffix:m") var charge_band_max_m: float = 14.0
-## Seconds the player must sit in-band (with a clear lane) before the charge.
+## Seconds the player must sit in-band, with a clear lane, before the charge
+## commits. Lower = twitchier / less readable.
 @export_range(0.0, 3.0, 0.05, "suffix:s") var stalk_dwell_sec: float = 0.45
-## If the player holds still in-band this long, charge anyway (anti-turtle).
+## Anti-turtle: if the player holds still in-band this long, charge regardless
+## of the lane check.
 @export_range(0.5, 8.0, 0.1, "suffix:s") var stalk_patience_sec: float = 2.4
-## Distance into the ram that the charger keeps homing before it hard-locks.
+## Seconds the charger keeps stalking a player it has lost sight of before it
+## drops to the base hunt (walk to last-known / advance on the fight).
+@export_range(0.5, 6.0, 0.1, "suffix:s") var stalk_giveup_sec: float = 2.0
+## How far into the ram the charger keeps homing at the player before it
+## hard-locks its heading. 0 = locked from the first frame (dodge early and it
+## whiffs); higher = it tracks a late sidestep and clips you.
 @export_range(0.0, 8.0, 0.1, "suffix:m") var charge_commit_dist_m: float = 3.0
-## A ram that travels this far without a hit skids to a stop instead of forever.
+## Turn rate while still homing inside the commit window. Higher = it corrects
+## harder onto a dodging player before the lock.
+@export_range(0.5, 12.0, 0.1, "suffix:rad/s") var commit_turn_speed_rad: float = 4.5
+## A ram that travels this far with no wall and no hit skids to a stop (RECOVER)
+## instead of charging forever. Roughly the pit's long axis.
 @export_range(4.0, 40.0, 0.5, "suffix:m") var charge_max_dist_m: float = 15.0
-## Seconds of vulnerable skid after a whiffed charge.
+## Seconds of vulnerable skid after a whiffed charge before it re-engages.
 @export_range(0.3, 3.0, 0.05, "suffix:s") var recover_sec: float = 1.0
-## Chance (0-1) a charge opens with a fake windup first. Max once per engagement.
+## Chance (0-1) a charge opens with a short fake windup + hop first. At most one
+## feint per engagement.
 @export_range(0.0, 1.0, 0.05) var feint_chance: float = 0.3
-## Chance (0-1) a skid recovery snaps straight into a short re-charge.
+## Length of the fake-windup feint.
+@export_range(0.2, 1.5, 0.05, "suffix:s") var feint_sec: float = 0.45
+## Chance (0-1) a skid recovery snaps straight into a short-telegraph re-charge
+## instead of returning to the stalk.
 @export_range(0.0, 1.0, 0.05) var double_charge_chance: float = 0.35
+## Telegraph length of that double-charge as a fraction of the normal telegraph.
+@export_range(0.2, 1.0, 0.05) var double_charge_telegraph_scale: float = 0.45
 
 var _phase: ChargePhase = ChargePhase.NONE
 var _charge := ChargerChargeScript.new()
@@ -571,9 +592,7 @@ func _tick_charging(delta: float) -> void:
 			ChargerPursuitScript.charge_travelled(self), charge_commit_dist_m
 		)
 	):
-		_charge.steer_locked_dir(
-			_flat_to_target(), ChargerChargeScript.COMMIT_TURN_RAD, delta
-		)
+		_charge.steer_locked_dir(_flat_to_target(), commit_turn_speed_rad, delta)
 	var speed := ChargerChargeScript.charge_speed(
 		Player.SPRINT_SPEED, charge_speed_mult
 	)
