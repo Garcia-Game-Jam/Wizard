@@ -49,6 +49,7 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 		c.velocity.z = 0.0
 		return
 
+	c._target_memory.tick(delta)  # STALK skips _simulate_monster, so age it here
 	var live := reacquire_sight_target(c)  # sets c._interest (sight / hearing / last-known)
 	_sync_stalk_shield(c)
 
@@ -68,6 +69,12 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 	var flat := Vector3(goal.x - c.global_position.x, 0.0, goal.z - c.global_position.z)
 	var dist := flat.length()
 	c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
+
+	## Walked to a remembered spot and still nothing — forget it, hand to the base hunt.
+	if not Charger.is_player_charge_target(live) and dist <= c.charge_min_range:
+		c._target_memory.clear()
+		c._reset_to_idle()
+		return
 
 	if Charger.is_player_charge_target(live):
 		c._charge_target = live
