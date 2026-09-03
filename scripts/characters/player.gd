@@ -149,7 +149,6 @@ func _ready() -> void:
 
 	add_to_group("player")
 	collision_layer = 1
-	floor_block_on_wall = false
 	floor_snap_length = 0.15
 	safe_margin = 0.04
 	_wand = get_node_or_null("Head/CameraPivot/Wand") as PlayerWand

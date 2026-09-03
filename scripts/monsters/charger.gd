@@ -4,13 +4,13 @@ extends Monster
 
 ## Sight-cone rammer: lock-on telegraph, then a locked ram, then wall stun.
 
-enum ChargePhase { NONE, TELEGRAPH, CHARGE, WALL_STUN, SEARCH }
+enum ChargePhase { NONE, TELEGRAPH, CHARGE, WALL_STUN, SEARCH, STALK, RECOVER, FEINT }
 
 const ChargerChargeScript := preload("res://scripts/monsters/charger_charge.gd")
+const ChargerPursuitScript := preload("res://scripts/monsters/charger_pursuit.gd")
 const ChargerLaunchScript := preload("res://scripts/monsters/charger_launch.gd")
 const SIGHT_SOURCE := &"sight"
 const RAM_HIT_RANGE := 0.55
-const RAM_WALL_RAY := 1.15
 const GORE_TOSS_SPEED_RAD := 10.0
 const EYE_REST := Color(0.96, 0.96, 0.94, 1.0)
 const EYE_REST_ENERGY := 0.32
@@ -28,48 +28,128 @@ var preview_wall_stun_action := preview_wall_stun
 ## Pose only: turn 180°, then slowly look around for players.
 @export_tool_button("Preview Search", "Callable")
 var preview_search_action := preview_search
-## Seconds locked on the player, bowing and turning red, before the ram.
+## Seconds locked on the player — bowing, turning red — before the ram fires. A
+## double-charge after a recovery scales this down (see double_charge_*).
 @export_range(0.4, 3.0, 0.05, "suffix:s") var telegraph_sec: float = 1.2
-## How fast it turns to face the locked player during telegraph. Lower = slower.
-@export_range(0.2, 12.0, 0.1, "suffix:rad/s")
-var lock_on_turn_speed_rad: float = 2.2
-## How fast it turns while walking the patrol path. Lower = slower.
-@export_range(0.2, 12.0, 0.1, "suffix:rad/s")
-var patrol_turn_speed_rad: float = 1.4
-## How fast it about-faces and sweeps during search. Lower = slower.
-@export_range(0.2, 8.0, 0.1, "suffix:rad/s")
-var search_turn_speed_rad: float = 1.1
+## Turn rate while keeping the player centred: the lock-on telegraph, the
+## commit-window homing at the ram's start, and lining up a shot mid-stalk.
+## Lower = easier to juke.
+@export_range(0.2, 12.0, 0.1, "suffix:rad/s") var lock_on_turn_speed_rad: float = 2.2
+## Turn rate while walking / stalking / searching / turning back after a charge
+## (everything except the lock-on).
+@export_range(0.2, 12.0, 0.1, "suffix:rad/s") var walk_turn_speed_rad: float = 1.4
 ## Ram speed as a multiple of player sprint. Higher = faster.
 @export_range(1.5, 6.0, 0.05, "suffix:x sprint") var charge_speed_mult: float = 3.2
-## Seconds stunned with orbiting stars after the ram hits a wall.
+## Seconds stunned with orbiting stars after the ram hits a wall. The big
+## counter-attack window — longer = more punishing to the charger.
 @export_range(1.0, 8.0, 0.1, "suffix:s") var self_stun_sec: float = 3.0
-## Seconds of looking after the 180° about-face, before returning to patrol.
+## Seconds it sweeps its view for players before giving up — after a charge (while
+## turning back toward where you were) and when peeking around cover mid-stalk.
 @export_range(0.6, 8.0, 0.1, "suffix:s") var search_sec: float = 3.2
-## Head tuck before the ram. 360 = level, 330 = 30° down. Finishes as running starts.
+## Cosmetic: head tuck as the ram winds up. 360 = level, 330 = 30° down. An
+## extreme value can hold the ram until the tuck finishes.
 @export_range(330.0, 360.0, 0.5) var charge_head_plunge_deg: float = 338.0
-## Head toss (degrees up) when a player is gored during the ram.
+## Cosmetic: head toss (degrees up) when a player is gored during the ram.
 @export_range(30.0, 90.0, 1.0) var charge_head_toss_deg: float = 60.0
-## How fast the head eases back to rest after a wall (rad/s). Does not snap.
+## How fast the head lifts back to level when a charge ends (rad/s). Never snaps.
 @export_range(0.4, 8.0, 0.1) var head_return_speed_rad: float = 2.8
-## Body color while idle / patrol / after stun.
+## Body colour at rest / hunting / after a stun. Copied from Body Tint at spawn —
+## edit Body Tint, not this.
 @export var rest_tint: Color = Color(0.22, 0.72, 0.28, 1.0)
-## Body color at full telegraph and during the ram.
+## Body colour at full telegraph and during the ram.
 @export var charge_tint: Color = Color(0.88, 0.12, 0.1, 1.0)
-@export_group("Knockup")
+
+@export_group("Ram hit")
 ## Live: launch the nearest sandbox player along the current knockup arc.
 @export_tool_button("Preview Knockup", "Callable")
 var preview_knockup_action := preview_knockup
-## Horizontal throw distance in maze cells (converted to launch speed).
+## How far a rammed player is thrown, in arena cells (converted to launch speed).
 @export_range(2, 24, 1, "suffix:cells") var knockup_cells: int = 6
-## Extra height above maze walls at the apex so the hop never tunnels.
+## Extra apex height above the arena walls so the thrown player never tunnels.
 @export_range(0.8, 8.0, 0.1, "suffix:m") var knockup_over_wall_m: float = 3.5
-## HP spent on a successful ram. 0 = launch only (old pit).
-@export_range(0.0, 200.0, 1.0) var ram_damage: float = 40.0
+## HP a connected ram costs the player. 0 = knock + stun only, no damage.
+@export_range(0.0, 200.0, 1.0) var ram_damage: float = 22.0
+
+@export_group("Stalk & mixup")
+## Pose only: prowl toward the player waiting for a charge lane.
+@export_tool_button("Preview Stalk", "Callable")
+var preview_stalk_action := preview_stalk
+## Pose only: skid-stop after a whiffed charge (no wall needed).
+@export_tool_button("Preview Recover", "Callable")
+var preview_recover_action := preview_recover
+## Pose only: short fake windup + hop, then the real telegraph.
+@export_tool_button("Preview Feint", "Callable")
+var preview_feint_action := preview_feint
+## Ground speed while stalking the player between charges. Near player sprint =
+## it can herd you; below it, you can walk away and it has to commit.
+@export_range(1.0, 10.0, 0.1, "suffix:m/s") var stalk_speed: float = 5.0
+## Hold the ward up (blocks projectiles from the front) for the whole approach
+## whenever the charger has a target — seen, heard, or a remembered position —
+## and through the telegraph + ram. It stays down for the rest of the engagement
+## once a player breaks it. Never raised while it is disengaged / hunting empty.
+@export var stalk_with_shield: bool = true
+## Ram commit ceiling: the charger only starts a charge when the player is within
+## this distance (plus ~2.5 m slack). Bigger = it charges from farther out.
+@export_range(2.0, 30.0, 0.5, "suffix:m") var charge_range: float = 12.0
+## Half-width (m) of clear lane the charger demands — straight to the player and
+## along its run-up — before it commits. Bigger = it sidesteps for a cleaner
+## angle and clips corners less; too big and it stalls in tight spots.
+@export_range(0.4, 3.0, 0.05, "suffix:m") var charge_lane_clearance_m: float = 0.85
+## Run-up distance: the charger backs off to a spot this far from the player,
+## with a clean lane, then charges. Keep it <= charge_range.
+@export_range(2.0, 24.0, 0.5, "suffix:m") var charge_stage_range_m: float = 8.0
+## It won't ram from closer than this (no room for a run-up) — it repositions
+## back out to the run-up distance first.
+@export_range(0.5, 12.0, 0.5, "suffix:m") var charge_min_range: float = 3.0
+## Seconds the shot must stay clean — in position, lane clear, in range — before
+## the charge fires. 0 = the instant it lines up.
+@export_range(0.0, 3.0, 0.05, "suffix:s") var stalk_dwell_sec: float = 0.1
+## Anti-turtle: if the player barely moves while a lane is open, charge anyway
+## after this long.
+@export_range(0.5, 8.0, 0.1, "suffix:s") var stalk_patience_sec: float = 2.4
+## Once the charger has NO contact at all — no sight, no sound, no live memory of
+## where you went — it holds the stalk stance this long before dropping to the
+## plain hunt. It still re-locks onto any closer player it can see.
+@export_range(0.5, 12.0, 0.1, "suffix:s") var stalk_giveup_sec: float = 6.0
+## How far into the ram the charger keeps homing at the player before it
+## hard-locks its heading. 0 = locked from the first frame (dodge early and it
+## whiffs); higher = it tracks a late sidestep and clips you.
+@export_range(0.0, 8.0, 0.1, "suffix:m") var charge_commit_dist_m: float = 3.0
+## A ram that travels this far with no wall and no hit skids to a stop (RECOVER)
+## instead of charging forever. Roughly the pit's long axis.
+@export_range(4.0, 40.0, 0.5, "suffix:m") var charge_max_dist_m: float = 15.0
+## Seconds of vulnerable skid after a whiffed charge before it re-engages.
+@export_range(0.3, 3.0, 0.05, "suffix:s") var recover_sec: float = 1.0
+## Chance (0-1) a charge opens with a short fake windup + hop first. At most one
+## feint per engagement.
+@export_range(0.0, 1.0, 0.05) var feint_chance: float = 0.3
+## Length of the fake-windup feint.
+@export_range(0.2, 1.5, 0.05, "suffix:s") var feint_sec: float = 0.45
+## Chance (0-1) a skid recovery snaps straight into a short-telegraph re-charge
+## instead of returning to the stalk.
+@export_range(0.0, 1.0, 0.05) var double_charge_chance: float = 0.35
+## Telegraph length of that double-charge as a fraction of the normal telegraph.
+@export_range(0.2, 1.0, 0.05) var double_charge_telegraph_scale: float = 0.45
+
+@export_group("Gizmos")
+## With Show Combat Ranges on: draw every charger distance as a coloured ground
+## ring ("All"), or pick one to see it alone against the arena. Editor only.
+@export_enum(
+	"All", "charge_range", "charge_stage_range", "charge_min_range",
+	"charge_lane_clearance", "charge_commit_dist", "charge_max_dist",
+	"ram_hit_range", "wall_clearance"
+) var distance_gizmo: int = 0:
+	set(value):
+		distance_gizmo = value
+		if is_inside_tree() and show_combat_ranges:
+			_refresh_range_gizmos()
 
 var _phase: ChargePhase = ChargePhase.NONE
 var _charge := ChargerChargeScript.new()
 var _charge_target: Node3D = null
 var _held_ward: Node = null
+## True once a player has broken the ward — stays down until the engagement ends.
+var _ward_broken: bool = false
 ## Cleared at the start of each rollback tick. Not history.
 var _tick_ram_hits: Dictionary = {}
 var _stun_stars: Node = null
@@ -81,14 +161,37 @@ var _head_pitch: float = 0.0
 var _head_pitch_goal: float = 0.0
 var _head_pitch_speed: float = 3.0
 var _lookdev_launch_stuns: Array[Node] = []
+var _painted_tint: Color = Color(0, 0, 0, 0)
+## Ram book-keeping: start pose for the commit window / whiff cap, and a stall
+## counter for the belt-and-suspenders "wedged against geometry" check.
+var _charge_start_pos: Vector3 = Vector3.ZERO
+var _charge_prev_pos: Vector3 = Vector3.ZERO
+var _charge_stall_ticks: int = 0
+## Shortens the next telegraph (double-charge after a recovery).
+var _telegraph_scale: float = 1.0
+
+## Phase state the ChargerPursuit helper drives (search sweep, stalk timers,
+## once-per-phase mixup rolls). Declared here so it survives rollback with the
+## Charger; the analyzer only sees intra-class use, hence the suppression.
+@warning_ignore_start("unused_private_class_variable")
 var _search_base_yaw: float = 0.0
 var _search_about_faced: bool = false
-var _painted_tint: Color = Color(0, 0, 0, 0)
+var _stalk_lost_sec: float = 0.0
+var _stalk_dwell: float = 0.0
+var _stalk_still_sec: float = 0.0
+var _stalk_search_sec: float = 0.0
+var _stalk_last_target_pos: Vector3 = Vector3.ZERO
+var _stalk_feint_planned: bool = false
+var _recover_double_planned: bool = false
+## Where the target stood when the last ram launched. SEARCH turns to face here
+## and holds until it re-sights a player (the player likely bolted from here).
+var _precharge_focus: Vector3 = Vector3.ZERO
+var _has_precharge_focus: bool = false
+@warning_ignore_restore("unused_private_class_variable")
 
 
 func _ready() -> void:
 	super._ready()
-	patrol_speed = ChargerLaunchScript.patrol_speed(Player.WALK_SPEED)
 	_los_eye = eye_glow_color
 	rest_tint = body_tint
 	_body_lean = get_node_or_null("%Body") as Node3D
@@ -124,7 +227,11 @@ func _on_death(from: Node3D) -> void:
 
 
 func apply_knockback(dir: Vector3, impulse: Vector3 = Vector3.ZERO) -> void:
-	if _phase == ChargePhase.TELEGRAPH or _phase == ChargePhase.CHARGE:
+	if (
+		_phase == ChargePhase.TELEGRAPH
+		or _phase == ChargePhase.CHARGE
+		or _phase == ChargePhase.FEINT
+	):
 		return
 	super.apply_knockback(dir, impulse)
 
@@ -139,31 +246,53 @@ func _try_start_cast(_target: Node3D) -> bool:
 
 
 func preview_telegraph() -> void:
-	## Inspector pose: lock, ward, bow, turn red. Holds when finished.
 	begin_lock_on(null, true)
 
 
 func preview_charge_pose() -> void:
-	## Inspector pose: locked red ram in place. No wall stun. No steering.
 	begin_charge_now(true, null)
 
 
 func preview_wall_stun() -> void:
-	## Inspector pose: wall stars, then 180° about-face and a slow search.
 	if not is_inside_tree() or not is_alive():
 		return
 	_charge.pose_only = true
 	set_process(true)
-	_begin_wall_stun()
+	ChargerPursuitScript.begin_wall_stun(self)
 
 
 func preview_search() -> void:
-	## Inspector pose: turn 180°, then slowly look around. Loops until another preview.
 	if not is_inside_tree() or not is_alive():
 		return
 	_charge.pose_only = true
 	set_process(true)
-	_begin_search()
+	ChargerPursuitScript.begin_search(self)
+
+
+func preview_stalk() -> void:
+	if not is_inside_tree() or not is_alive():
+		return
+	_charge.pose_only = true
+	set_process(true)
+	ChargerPursuitScript.begin_stalk(self, null)
+
+
+func preview_recover() -> void:
+	if not is_inside_tree() or not is_alive():
+		return
+	_charge.pose_only = true
+	set_process(true)
+	_charge.locked_dir = _locked_forward()
+	ChargerPursuitScript.begin_recover(self)
+
+
+func preview_feint() -> void:
+	## Inspector pose: short fake windup, then holds at the real telegraph.
+	if not is_inside_tree() or not is_alive():
+		return
+	_charge.pose_only = true
+	set_process(true)
+	ChargerPursuitScript.begin_feint(self, null)
 
 
 func preview_knockup(player: Node3D = null) -> void:
@@ -184,12 +313,15 @@ func preview_charge(target: Node3D) -> void:
 	begin_lock_on(target, false)
 
 
-func begin_lock_on(target: Node3D, pose_only: bool = false) -> void:
+func begin_lock_on(
+	target: Node3D, pose_only: bool = false, telegraph_scale: float = 1.0
+) -> void:
 	if not is_inside_tree() or not is_alive():
 		return
 	if target != null and not pose_only and not is_player_charge_target(target):
 		return
 	lookdev_override = false
+	_telegraph_scale = clampf(telegraph_scale, 0.2, 1.0)
 	_charge.pose_only = pose_only
 	_charge.begin_telegraph()
 	_phase = ChargePhase.TELEGRAPH
@@ -199,12 +331,17 @@ func begin_lock_on(target: Node3D, pose_only: bool = false) -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
 	_set_chase_eyes_active(true)
-	_shatter_ward()
-	_held_ward = _spawn_held_ward()
+	## Keep a ward already raised during the stalk; raise one now unless a player
+	## already broke it this engagement.
+	_maybe_raise_ward()
 	var down := ChargerLaunchScript.plunge_pitch_rad(charge_head_plunge_deg)
-	var tuck_speed := absf(down) / maxf(telegraph_sec, 0.05)
+	var tuck_speed := absf(down) / maxf(_effective_telegraph_sec(), 0.05)
 	_set_head_pitch_goal(down, maxf(tuck_speed, 0.4))
 	_arm_charge_ticks(pose_only)
+
+
+func _effective_telegraph_sec() -> float:
+	return maxf(telegraph_sec * _telegraph_scale, 0.2)
 
 
 func begin_charge_now(pose_only: bool = false, target: Node3D = null) -> void:
@@ -229,7 +366,7 @@ func begin_wall_stun_now() -> void:
 	lookdev_override = false
 	_charge.pose_only = false
 	_arm_charge_ticks(false)
-	_begin_wall_stun()
+	ChargerPursuitScript.begin_wall_stun(self)
 
 
 func begin_search_now() -> void:
@@ -238,7 +375,7 @@ func begin_search_now() -> void:
 	lookdev_override = false
 	_charge.pose_only = false
 	_arm_charge_ticks(false)
-	_begin_search()
+	ChargerPursuitScript.begin_search(self)
 
 
 func _notification(what: int) -> void:
@@ -273,29 +410,33 @@ func _process(delta: float) -> void:
 
 
 func _validate_property(property: Dictionary) -> void:
-	## Charger ignores kite/KEEP_AWAY timers — hide them so Combat stays readable.
+	## The charger runs its own stalk → telegraph → ram → recover loop, so the
+	## generic Monster kite / chase-approach / route-patrol knobs do nothing here.
+	## Hide them to keep the inspector to the dials that actually tune this fight.
 	var hidden := PackedStringArray([
-		"chase_style",
-		"keep_away_range",
-		"chase_wait_min_sec",
-		"chase_wait_max_sec",
-		"chase_strafe_min_sec",
-		"chase_strafe_max_sec",
-		"chase_retreat_min_sec",
-		"chase_retreat_max_sec",
-		"chase_optimal_eps",
-		"face_turn_speed_rad",
+		"chase_style", "keep_away_range", "chase_wait_min_sec", "chase_wait_max_sec",
+		"chase_strafe_min_sec", "chase_strafe_max_sec", "chase_retreat_min_sec",
+		"chase_retreat_max_sec", "chase_optimal_eps", "face_turn_speed_rad",
+		"move_speed", "chase_range", "attack_range",
 	])
 	if hidden.has(property.name):
 		property.usage = (
-			PROPERTY_USAGE_STORAGE
-			| PROPERTY_USAGE_SCRIPT_VARIABLE
-			| PROPERTY_USAGE_NO_EDITOR
+			PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_NO_EDITOR
 		)
 
 
 func _uses_continuous_chase_move_timer() -> bool:
 	return false
+
+
+## Show Combat Ranges draws the charger's tuned distances as ground rings (all,
+## or just the one `distance_gizmo` picks), not the unused base chase/attack
+## discs. The sight cone is on Show Sense Ranges.
+func _range_gizmo_specs() -> Array:
+	return MonsterRangeGizmosScript.charger_distance_specs([
+		charge_range, charge_stage_range_m, charge_min_range, charge_lane_clearance_m,
+		charge_commit_dist_m, charge_max_dist_m, RAM_HIT_RANGE, wall_clearance_m,
+	], distance_gizmo)
 
 
 func _net_state_extra() -> PackedStringArray:
@@ -305,7 +446,7 @@ func _net_state_extra() -> PackedStringArray:
 
 
 func _face_horizontal(desired_vel: Vector3) -> void:
-	_face_horizontal_at_speed(desired_vel, _face_delta(), patrol_turn_speed_rad)
+	_face_horizontal_at_speed(desired_vel, _face_delta(), walk_turn_speed_rad)
 
 
 func _physics_process(delta: float) -> void:
@@ -362,25 +503,26 @@ func _sync_charge_net_pose() -> void:
 			tell = net_telegraph
 		elif _phase == ChargePhase.CHARGE:
 			tell = 1.0
+		elif _phase == ChargePhase.FEINT:
+			tell = 0.35
 		_apply_charge_tint(tell)
 		return
 	net_phase = int(_phase)
 	if _phase == ChargePhase.TELEGRAPH:
-		net_telegraph = _charge.telegraph_progress(telegraph_sec)
+		net_telegraph = _charge.telegraph_progress(_effective_telegraph_sec())
 	else:
 		net_telegraph = 0.0
 
 
-func _tick_chase(delta: float) -> void:
-	if not _interest_is_actionable(_interest):
-		super._tick_chase(delta)
-		return
-	if _interest_source() == SIGHT_SOURCE:
+func _tick_hunt(delta: float) -> void:
+	## See a live player → commit to the stalk machine; otherwise fall back to the
+	## base hunt (walk to last-known / advance toward the fight).
+	if _interest_is_actionable(_interest) and _interest_source() == SIGHT_SOURCE:
 		var target := get_chase_target()
 		if is_player_charge_target(target):
-			begin_lock_on(target, false)
+			ChargerPursuitScript.begin_stalk(self, target)
 			return
-	super._tick_chase(delta)
+	super._tick_hunt(delta)
 
 
 func _tick_locked_phase(delta: float) -> void:
@@ -392,14 +534,20 @@ func _tick_locked_phase(delta: float) -> void:
 		else:
 			velocity.y = 0.0
 	match _phase:
+		ChargePhase.STALK:
+			ChargerPursuitScript.tick_stalk(self, delta)
 		ChargePhase.TELEGRAPH:
 			_tick_telegraph(delta)
+		ChargePhase.FEINT:
+			ChargerPursuitScript.tick_feint(self, delta)
 		ChargePhase.CHARGE:
 			_tick_charging(delta)
 		ChargePhase.WALL_STUN:
-			_tick_wall_stun(delta)
+			ChargerPursuitScript.tick_wall_stun(self, delta)
+		ChargePhase.RECOVER:
+			ChargerPursuitScript.tick_recover(self, delta)
 		ChargePhase.SEARCH:
-			_tick_search(delta)
+			ChargerPursuitScript.tick_search(self, delta)
 	if _phase != ChargePhase.SEARCH:
 		_tick_head_pitch(delta)
 	if _charge.pose_only:
@@ -408,14 +556,14 @@ func _tick_locked_phase(delta: float) -> void:
 		if _phase == ChargePhase.CHARGE:
 			velocity.y = 0.0
 			global_position += Vector3(velocity.x, 0.0, velocity.z) * delta
-			_try_ram_contacts()
+			ChargerPursuitScript.try_ram_contacts(self)
 			_sync_ram_ghosts()
 		else:
 			MonsterAIScript.apply_move(self, delta)
 		return
 	NetClockScript.move_character(self)
 	if _phase == ChargePhase.CHARGE:
-		_try_ram_contacts()
+		ChargerPursuitScript.try_ram_contacts(self)
 		_sync_ram_ghosts()
 
 
@@ -424,24 +572,39 @@ func _tick_telegraph(delta: float) -> void:
 	velocity.z = 0.0
 	_charge.tick(delta)
 	if not _charge.pose_only:
-		if not _target_is_valid():
-			_reset_to_idle()
+		var live := ChargerPursuitScript.reacquire_sight_target(self)
+		if not is_player_charge_target(live) or live != _charge_target:
+			## Lost sight of the target mid-windup, or a closer visible player is
+			## now the priority — never charge blind. Back to the stalk, which
+			## re-locks the new player or walks to the last-seen spot.
+			ChargerPursuitScript.begin_stalk(self, live)
 			return
 		_face_horizontal_at_speed(_flat_to_target(), delta, lock_on_turn_speed_rad)
-	var t := _charge.telegraph_progress(telegraph_sec)
+	var t := _charge.telegraph_progress(_effective_telegraph_sec())
 	_apply_charge_tint(t)
 	_set_body_lean(t * 0.28)
 	var plunge := ChargerLaunchScript.plunge_pitch_rad(charge_head_plunge_deg)
 	if (
 		not _charge.pose_only
-		and _charge.telegraph_ready(telegraph_sec, _head_pitch, plunge)
+		and _charge.telegraph_ready(_effective_telegraph_sec(), _head_pitch, plunge)
 	):
 		_begin_charging()
 
 
 func _begin_charging() -> void:
 	_phase = ChargePhase.CHARGE
+	_telegraph_scale = 1.0
 	_charge.begin_charge(_locked_forward())
+	_charge_start_pos = global_position
+	_charge_prev_pos = global_position
+	_charge_stall_ticks = 0
+	## Remember where the target is right now — SEARCH turns back to this spot.
+	if _target_is_valid():
+		_precharge_focus = _charge_target.global_position
+		_has_precharge_focus = true
+	elif _target_memory.has_goal():
+		_precharge_focus = _target_memory.last_goal()
+		_has_precharge_focus = true
 	_clear_ram_ghosts()
 	_tick_ram_hits.clear()
 	_apply_charge_tint(1.0)
@@ -463,6 +626,15 @@ func _tick_charging(delta: float) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		return
+	## Commit window: keep homing at the player for the first metre or so of the
+	## ram, then hard-lock. Distance-driven so rollback resim stays deterministic.
+	if (
+		_target_is_valid()
+		and not ChargerChargeScript.is_committed(
+			ChargerPursuitScript.charge_travelled(self), charge_commit_dist_m
+		)
+	):
+		_charge.steer_locked_dir(_flat_to_target(), lock_on_turn_speed_rad, delta)
 	var speed := ChargerChargeScript.charge_speed(
 		Player.SPRINT_SPEED, charge_speed_mult
 	)
@@ -472,112 +644,10 @@ func _tick_charging(delta: float) -> void:
 	_face_horizontal_at_speed(_charge.locked_dir, delta, lock_on_turn_speed_rad * 4.0)
 
 
-func _begin_wall_stun() -> void:
-	_clear_ram_ghosts()
-	_shatter_ward()
-	_phase = ChargePhase.WALL_STUN
-	_charge.begin_wall_stun()
-	velocity.x = 0.0
-	velocity.z = 0.0
-	_apply_charge_tint(0.0)
-	_set_body_lean(0.0)
-	_set_head_pitch_goal(0.0, head_return_speed_rad)
-	_set_stun_stars(true)
-
-
-func _tick_wall_stun(delta: float) -> void:
-	velocity.x = 0.0
-	velocity.z = 0.0
-	_charge.tick(delta)
-	if _charge.wall_stun_ready(self_stun_sec):
-		_begin_search()
-
-
-func _begin_search() -> void:
-	_shatter_ward()
-	_set_stun_stars(false)
-	_apply_charge_tint(0.0)
-	_set_body_lean(0.0)
-	_phase = ChargePhase.SEARCH
-	_charge.begin_search()
-	_search_base_yaw = rotation.y
-	_search_about_faced = false
-	_charge_target = null
-	_interest = null
-	velocity.x = 0.0
-	velocity.z = 0.0
-	_set_chase_eyes_active(true)
-
-
-func _tick_search(delta: float) -> void:
-	velocity.x = 0.0
-	velocity.z = 0.0
-	if not _search_about_faced:
-		_tick_search_about_face(delta)
-		return
-	_charge.tick(delta)
-	var yaw_off := ChargerChargeScript.search_yaw_offset(
-		_charge.age,
-		ChargerChargeScript.SEARCH_YAW_AMP_RAD,
-		ChargerChargeScript.SEARCH_YAW_HZ
-	)
-	var sweep := ChargerChargeScript.heading_from_yaw(_search_base_yaw + yaw_off)
-	_face_horizontal_at_speed(sweep, delta, search_turn_speed_rad)
-	_head_pitch = ChargerChargeScript.search_head_pitch(
-		_charge.age,
-		ChargerChargeScript.SEARCH_PITCH_AMP_RAD,
-		ChargerChargeScript.SEARCH_YAW_HZ
-	)
-	_apply_head_pitch()
-	if _charge.pose_only:
-		return
-	if _try_search_lock():
-		return
-	if _charge.search_ready(search_sec):
-		_finish_search_to_patrol()
-
-
-func _tick_search_about_face(delta: float) -> void:
-	var back := ChargerChargeScript.about_face_heading(_search_base_yaw)
-	_face_horizontal_at_speed(back, delta, search_turn_speed_rad)
-	_head_pitch = 0.0
-	_apply_head_pitch()
-	if not ChargerChargeScript.about_face_done(rotation.y, _search_base_yaw):
-		return
-	_search_about_faced = true
-	_search_base_yaw = rotation.y
-	_charge.age = 0.0
-
-
-func _try_search_lock() -> bool:
-	_interest = _gather_interest()
-	if _interest_source() != SIGHT_SOURCE:
-		return false
-	var target := get_chase_target()
-	if not is_player_charge_target(target):
-		return false
-	begin_lock_on(target, false)
-	return true
-
-
-func _finish_search_to_patrol() -> void:
-	_shatter_ward()
-	_set_stun_stars(false)
-	_apply_charge_tint(0.0)
-	_set_body_lean(0.0)
-	_head_pitch = 0.0
-	_head_pitch_goal = 0.0
-	_apply_head_pitch()
-	_phase = ChargePhase.NONE
-	_charge.reset()
-	_charge_target = null
-	_clear_ram_ghosts()
-	_tick_ram_hits.clear()
-	_begin_patrol()
-
-
+## Charge sequence aborted / finished — hand control back to the base hunt loop.
 func _reset_to_idle() -> void:
 	_shatter_ward()
+	_ward_broken = false
 	_set_stun_stars(false)
 	_apply_charge_tint(0.0)
 	_set_body_lean(0.0)
@@ -586,10 +656,12 @@ func _reset_to_idle() -> void:
 	_apply_head_pitch()
 	_phase = ChargePhase.NONE
 	_charge.reset()
+	_telegraph_scale = 1.0
 	_charge_target = null
+	_has_precharge_focus = false
 	_clear_ram_ghosts()
 	_tick_ram_hits.clear()
-	_enter_idle()
+	_enter_hunt()
 
 
 func _spawn_held_ward() -> Node:
@@ -597,6 +669,17 @@ func _spawn_held_ward() -> Node:
 	if ability != null and ability.has_method("spawn_held_ward"):
 		return ability.call("spawn_held_ward", self)
 	return null
+
+
+## Raise the ward unless one is already up or a player broke it this engagement.
+## Detects a break as "we thought we had one but it freed itself".
+func _maybe_raise_ward() -> void:
+	if _held_ward != null and not is_instance_valid(_held_ward):
+		_held_ward = null
+		_ward_broken = true
+	if _ward_broken or is_instance_valid(_held_ward):
+		return
+	_held_ward = _spawn_held_ward()
 
 
 func _charge_ward_ability() -> Node:
@@ -616,71 +699,6 @@ func _shatter_ward() -> void:
 		else:
 			_held_ward.queue_free()
 	_held_ward = null
-
-
-func _try_ram_contacts() -> void:
-	var hit_wall := false
-	for i in get_slide_collision_count():
-		var col := get_slide_collision(i)
-		var collider := col.get_collider()
-		if collider is Node:
-			var corpse := Corpse.resolve_from(collider as Node)
-			if corpse != null:
-				Corpse.ram_if_new(corpse, _tick_ram_hits, _ram_launch_velocity())
-			else:
-				_try_hit_player(collider as Node)
-		if (
-			_charge.can_read_walls()
-			and ChargerChargeScript.is_wall_collider(collider, col.get_normal())
-		):
-			hit_wall = true
-	_try_ram_proximity_hit()
-	if hit_wall:
-		_begin_wall_stun()
-		return
-	if _sandbox_charge_tick():
-		_try_editor_wall_stun()
-
-
-func _try_ram_proximity_hit() -> void:
-	if _target_is_valid() and _flat_to_target().length() <= RAM_HIT_RANGE:
-		_try_hit_player(_charge_target)
-		Corpse.ram_nearby(self, RAM_HIT_RANGE, _tick_ram_hits, _ram_launch_velocity())
-		return
-	if not is_inside_tree():
-		return
-	for node in get_tree().get_nodes_in_group("player"):
-		if not (node is Node3D):
-			continue
-		var body := node as Node3D
-		if not is_player_charge_target(body):
-			continue
-		var flat := Vector3(
-			body.global_position.x - global_position.x,
-			0.0,
-			body.global_position.z - global_position.z
-		)
-		if flat.length() <= RAM_HIT_RANGE:
-			_try_hit_player(body)
-	Corpse.ram_nearby(self, RAM_HIT_RANGE, _tick_ram_hits, _ram_launch_velocity())
-
-
-func _try_editor_wall_stun() -> void:
-	if not _charge.can_read_walls():
-		return
-	var world := get_world_3d()
-	if world == null:
-		return
-	var from := global_position + Vector3(0.0, 0.45, 0.0)
-	var ahead := from + _charge.locked_dir * RAM_WALL_RAY
-	var exclude: Array = ChargerChargeScript.collect_wall_excludes(self, _held_ward)
-	if is_inside_tree():
-		for node in get_tree().get_nodes_in_group("player"):
-			if node is CollisionObject3D:
-				exclude.append((node as CollisionObject3D).get_rid())
-	var hit_dist := MonsterSightSense.occlude_distance(world, from, ahead, exclude)
-	if hit_dist + 0.02 < from.distance_to(ahead):
-		_begin_wall_stun()
 
 
 func _try_hit_corpse(body: Node) -> void:
@@ -815,12 +833,6 @@ func _find_sandbox_player() -> Node3D:
 	return null
 
 
-func _interest_source() -> StringName:
-	if _interest == null:
-		return &""
-	return _interest.get("source") as StringName
-
-
 func _target_is_valid() -> bool:
 	## Freed refs are not null — check before any typed Node param call.
 	if not is_instance_valid(_charge_target):
@@ -913,9 +925,13 @@ func _sync_los_eyes() -> void:
 
 
 func _has_los_lock() -> bool:
-	if _phase == ChargePhase.TELEGRAPH or _phase == ChargePhase.CHARGE:
+	if (
+		_phase == ChargePhase.TELEGRAPH
+		or _phase == ChargePhase.CHARGE
+		or _phase == ChargePhase.FEINT
+	):
 		return true
-	if _phase == ChargePhase.WALL_STUN:
+	if _phase == ChargePhase.WALL_STUN or _phase == ChargePhase.RECOVER:
 		return false
 	return _interest_source() == SIGHT_SOURCE
 
@@ -949,12 +965,9 @@ func _reapply_charge_visuals() -> void:
 		var t := _charge.telegraph_progress(telegraph_sec)
 		_apply_charge_tint(t)
 		_set_body_lean(t * 0.28)
-	elif _phase == ChargePhase.CHARGE:
-		_apply_charge_tint(1.0)
-		_set_body_lean(0.32)
 	else:
-		_apply_charge_tint(0.0)
-		_set_body_lean(0.0)
+		_apply_charge_tint(1.0 if _phase == ChargePhase.CHARGE else 0.0)
+		_set_body_lean(0.32 if _phase == ChargePhase.CHARGE else 0.0)
 	_apply_head_pitch()
 
 

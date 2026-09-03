@@ -8,6 +8,11 @@ enum State { IDLE, PATROL, CHASE, ALERT }
 enum LookdevPose { PATROL, CHASE }
 
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
+const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
+
+## A charge capsule this wide (half-width, m) must fit the whole lane for the ram
+## to be worth committing — a single centre ray "clear" still clips corners.
+const CHARGE_LANE_HALF_W := 0.85
 
 
 ## Safe Node3D from a stored ref. Freed objects are not null — never `as` before this.
@@ -65,18 +70,284 @@ static func prefer_highest_urgency(candidates: Array) -> RefCounted:
 	return best
 
 
-## Interest always forces CHASE. Without interest, CHASE/ALERT persist so the
-## monster can time CHASE→ALERT (lost target) and ALERT→PATROL. IDLE→PATROL is
-## owned by the monster idle tick.
-static func resolve_state(current: State, has_chase_target: bool) -> State:
-	if has_chase_target:
-		return State.CHASE
-	return current
+## The arena is a closed pit — a living monster is always hunting. Kept as a
+## function (and the State enum kept) so callers/subclasses do not have to change.
+static func resolve_state(_current: State, _has_chase_target: bool) -> State:
+	return State.CHASE
 
 
-## Eyes stay on while chasing or alert (lost-player vigilance).
+## Eyes stay on while a monster is hunting (which is always, while alive).
 static func chase_eyes_visible(state: State) -> bool:
 	return state == State.CHASE or state == State.ALERT
+
+
+## Composite "chase this one" score for a candidate player. Higher wins.
+## proximity dominates; being dead-ahead and being seen (vs heard/remembered)
+## add on; the current target gets a stickiness bonus to stop flip-flop.
+static func score_player_target(
+	from_pos: Vector3,
+	facing_flat: Vector3,
+	player_pos: Vector3,
+	sense_range: float,
+	seen: bool,
+	is_current: bool
+) -> float:
+	var flat := Vector3(player_pos.x - from_pos.x, 0.0, player_pos.z - from_pos.z)
+	var dist := flat.length()
+	var rng := maxf(sense_range, 0.5)
+	var score := (1.0 - clampf(dist / rng, 0.0, 1.0)) * 2.0
+	if dist > 0.05:
+		var fwd := Vector3(facing_flat.x, 0.0, facing_flat.z)
+		if fwd.length_squared() > 0.0001:
+			score += maxf(0.0, fwd.normalized().dot(flat / dist)) * 0.5
+	if seen:
+		score += 0.6
+	if is_current:
+		score += 0.4
+	return score
+
+
+## Where a monster with no target and no memory should advance: the centroid of
+## PlayerSpawn* markers under `scene_root`, else `fallback` (arena centre).
+static func hunt_seek_goal(scene_root: Node, fallback: Vector3) -> Vector3:
+	if scene_root == null:
+		return fallback
+	var sum := Vector3.ZERO
+	var n := 0
+	var stack: Array[Node] = [scene_root]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		if node is Node3D and str(node.name).begins_with("PlayerSpawn"):
+			sum += (node as Node3D).global_position
+			n += 1
+			continue
+		for child in node.get_children():
+			stack.append(child)
+	if n == 0:
+		return fallback
+	return Vector3(sum.x / float(n), fallback.y, sum.z / float(n))
+
+
+## Local obstacle steering. Returns a nudged goal that (a) rounds the near edge
+## of anything blocking the straight lane and (b) pushes away from nearby walls
+## so the monster keeps `clearance_m` of breathing room and takes a wide arc
+## around corners instead of hugging them. Cheap and deterministic (static
+## geometry raycasts). One detour bounce; returns `goal` when nothing applies.
+static func avoid_obstacles(
+	world: World3D,
+	from: Vector3,
+	goal: Vector3,
+	self_rid: RID,
+	clearance_m: float = 0.0,
+	probe_height: float = 0.6,
+	lookahead: float = 6.0,
+	side_step: float = 1.6
+) -> Vector3:
+	if world == null or world.direct_space_state == null:
+		return goal
+	var flat := Vector3(goal.x - from.x, 0.0, goal.z - from.z)
+	var dist := flat.length()
+	if dist < 0.5:
+		return goal
+	var dir := flat / dist
+	var reach := minf(dist, lookahead)
+	var eye := from + Vector3(0.0, probe_height, 0.0)
+	var lane_open := not _lane_blocked(world, eye, eye + dir * reach, self_rid)
+	if lane_open and clearance_m <= 0.05:
+		return goal
+
+	## 1. Round a blocker in the lane — take the near edge on a wide arc, or if
+	## both sides are blocked, commit to sliding along the clearer one.
+	if not lane_open:
+		var right := Vector3(-dir.z, 0.0, dir.x)
+		var first := 1.0 if right.dot(flat) >= 0.0 else -1.0
+		var found := false
+		for s in [first, -first]:
+			var blend: Vector3 = dir + right * (s * maxf(side_step, 0.1))
+			if blend.length_squared() < 0.0001:
+				continue
+			var b_dir := blend.normalized()
+			if not _lane_blocked(world, eye, eye + b_dir * reach, self_rid):
+				dir = b_dir
+				found = true
+				break
+		if not found:
+			dir = (right * first + dir * 0.2).normalized()
+
+	## 2. Push off nearby walls (also widens the arc at corners).
+	if clearance_m > 0.05:
+		var repel := wall_repulsion(world, eye, self_rid, clearance_m)
+		if repel.length_squared() > 0.0001:
+			var steered: Vector3 = dir + repel
+			if steered.length_squared() > 0.0001:
+				dir = steered.normalized()
+
+	return from + dir * reach
+
+
+## Sum of "get away from me" pushes from world surfaces within `clearance` of
+## `eye`, each weighted by how close it is. Zero when nothing is near.
+static func wall_repulsion(
+	world: World3D, eye: Vector3, self_rid: RID, clearance: float
+) -> Vector3:
+	if world == null or world.direct_space_state == null or clearance <= 0.0:
+		return Vector3.ZERO
+	var push := Vector3.ZERO
+	for i in 8:
+		var ang := float(i) * TAU / 8.0
+		var probe := Vector3(cos(ang), 0.0, sin(ang))
+		var q := PhysicsRayQueryParameters3D.create(eye, eye + probe * clearance)
+		q.collide_with_areas = false
+		q.collision_mask = CollisionLayersScript.WORLD
+		if self_rid.is_valid():
+			q.exclude = [self_rid]
+		var hit := world.direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var d := eye.distance_to(hit.get("position"))
+		var strength := 1.0 - clampf(d / clearance, 0.0, 1.0)
+		var away := Vector3((hit.get("normal") as Vector3).x, 0.0, (hit.get("normal") as Vector3).z)
+		if away.length_squared() < 0.01:
+			away = -probe
+		push += away.normalized() * strength
+	return Vector3(push.x, 0.0, push.z)
+
+
+## True when a corridor `2 * half_w` wide from `a` to `b` is unobstructed.
+static func corridor_clear(
+	world: World3D, a: Vector3, b: Vector3, half_w: float, self_rid: RID
+) -> bool:
+	if world == null or world.direct_space_state == null:
+		return true
+	var span := Vector3(b.x - a.x, 0.0, b.z - a.z)
+	if span.length_squared() < 0.01:
+		return true
+	var perp := Vector3(-span.z, 0.0, span.x).normalized() * maxf(half_w, 0.05)
+	for o in [Vector3.ZERO, perp, -perp]:
+		if _lane_blocked(world, a + o, b + o, self_rid):
+			return false
+	return true
+
+
+## Widest half-width (up to ~2.6x the base) for which the a→b corridor stays
+## clear. Higher = a wider, safer angle to charge through.
+static func lane_margin(
+	world: World3D,
+	a: Vector3,
+	b: Vector3,
+	self_rid: RID,
+	base_half_w: float = CHARGE_LANE_HALF_W
+) -> float:
+	var w0 := maxf(base_half_w, 0.1)
+	var best := 0.0
+	for w in [w0, w0 * 1.7, w0 * 2.6]:
+		if not corridor_clear(world, a, b, w, self_rid):
+			break
+		best = w
+	return best
+
+
+## Best spot to line up a threatening charge at `player`: `stage_range` out on a
+## bearing whose corridor to the player is clear and at least `lane_half_w` wide
+## on each side (so it doesn't graze a corner), with run-up room behind and room
+## off the walls. Samples a fan biased toward the charger's current side. Returns
+## {pos, ok} — ok is false when no bearing gives a wide clean corridor; pos is
+## then the widest-margin bearing so the charger keeps sidestepping toward a real
+## angle instead of committing.
+static func pick_charge_staging(
+	world: World3D,
+	charger_pos: Vector3,
+	player_pos: Vector3,
+	stage_range: float,
+	lane_half_w: float,
+	clearance: float,
+	self_rid: RID
+) -> Dictionary:
+	var radius := maxf(stage_range, 1.0)
+	var lane_w := maxf(lane_half_w, 0.1)
+	var to_charger := Vector3(charger_pos.x - player_pos.x, 0.0, charger_pos.z - player_pos.z)
+	var fallback: Vector3 = player_pos + (
+		to_charger.normalized() if to_charger.length_squared() > 0.01 else Vector3.FORWARD
+	) * radius
+	fallback.y = charger_pos.y
+	if world == null or world.direct_space_state == null:
+		return {"pos": fallback, "ok": true}
+	var base := atan2(to_charger.z, to_charger.x) if to_charger.length_squared() > 0.01 else 0.0
+	var up := Vector3(0.0, 0.6, 0.0)
+	var pe: Vector3 = player_pos + up
+	var best := fallback
+	var best_score := -INF
+	var best_open := Vector3.ZERO
+	var best_open_margin := -1.0
+	for off in [0.0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8, 1.15, -1.15, 1.6, -1.6]:
+		var a: float = base + off
+		var s: Vector3 = player_pos + Vector3(cos(a), 0.0, sin(a)) * radius
+		s.y = charger_pos.y
+		var se: Vector3 = s + up
+		var margin := lane_margin(world, se, pe, self_rid, lane_w)
+		if margin > best_open_margin:
+			best_open_margin = margin
+			best_open = s
+		if margin < lane_w:
+			continue  # corridor would clip a wall / corner
+		var behind: Vector3 = s + (s - player_pos).normalized() * (radius * 0.3)
+		if _lane_blocked(world, se, behind + up, self_rid):
+			continue  # no run-up room behind
+		if wall_repulsion(world, se, self_rid, clearance).length() > 0.85:
+			continue  # jammed against a wall
+		var score := margin * 4.0 - charger_pos.distance_to(s) * 0.5 - absf(off) * radius * 0.4
+		if score > best_score:
+			best_score = score
+			best = s
+	if best_score == -INF:
+		return {"pos": best_open, "ok": false}
+	return {"pos": best, "ok": true}
+
+
+## Guess where a just-lost player went: if cover / a wall is close to their
+## last-seen spot, the far side of that edge (circling away from `from`).
+## Returns `last_seen` unchanged when nothing is close enough to hide behind.
+static func peek_past_cover(
+	world: World3D, from: Vector3, last_seen: Vector3, self_rid: RID, peek_dist: float = 3.0
+) -> Vector3:
+	if world == null or world.direct_space_state == null:
+		return last_seen
+	var eye := last_seen + Vector3(0.0, 0.6, 0.0)
+	var near_dir := Vector3.ZERO
+	var near_d := 4.0
+	for i in 12:
+		var ang := float(i) * TAU / 12.0
+		var probe := Vector3(cos(ang), 0.0, sin(ang))
+		var q := PhysicsRayQueryParameters3D.create(eye, eye + probe * near_d)
+		q.collide_with_areas = false
+		q.collision_mask = CollisionLayersScript.WORLD
+		if self_rid.is_valid():
+			q.exclude = [self_rid]
+		var hit := world.direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var d := eye.distance_to(hit.get("position"))
+		if d < near_d:
+			near_d = d
+			near_dir = probe
+	if near_dir.length_squared() < 0.01:
+		return last_seen
+	var tangent := Vector3(-near_dir.z, 0.0, near_dir.x)
+	var to_from := Vector3(from.x - last_seen.x, 0.0, from.z - last_seen.z)
+	if tangent.dot(to_from) > 0.0:
+		tangent = -tangent  # step to the side away from the charger
+	var peek: Vector3 = last_seen + tangent * peek_dist + near_dir * 0.6
+	peek.y = last_seen.y
+	return peek
+
+
+static func _lane_blocked(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(a, b)
+	q.collide_with_areas = false
+	q.collision_mask = CollisionLayersScript.WORLD
+	if self_rid.is_valid():
+		q.exclude = [self_rid]
+	return not world.direct_space_state.intersect_ray(q).is_empty()
 
 
 static func lookdev_eyes_visible(pose: LookdevPose) -> bool:

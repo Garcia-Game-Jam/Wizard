@@ -1,11 +1,12 @@
 class_name ChargerCharge
 extends RefCounted
 
-## Lock-on telegraph → locked ram → wall stun → frantic search. Shared by
-## charger.tscn lookdev, monster workspace, and the match. Pose-only previews
-## never auto-stun.
+## Stalk → lock-on telegraph → locked ram → (wall stun | skid recovery) → search.
+## Shared by charger.tscn lookdev, monster workspace, and the match. Pose-only
+## previews never auto-stun. FEINT is a short fake windup that resolves back into
+## a real TELEGRAPH once per engagement.
 
-enum Phase { IDLE, TELEGRAPH, CHARGE, WALL_STUN, SEARCH }
+enum Phase { IDLE, TELEGRAPH, CHARGE, WALL_STUN, SEARCH, STALK, RECOVER, FEINT }
 
 const CHARGE_SPEED_MULT := 2.3
 const DEFAULT_TELEGRAPH_SEC := 1.2
@@ -19,11 +20,21 @@ const SEARCH_PITCH_AMP_RAD := 0.1
 const SEARCH_ABOUT_FACE_EPS := 0.08
 const WARD_GROUP := &"spell_ward"
 
+## Forward lunge speed during the first half of a feint. (All the tunable
+## charge/stalk/feint values live as exports on charger.gd / charger.tscn.)
+const FEINT_HOP_SPEED := 4.0
+## Belt-and-suspenders wedged check: N consecutive charge ticks making less than
+## FRAC of the intended forward progress → treat as blocked → wall stun.
+const STALL_TICKS := 5
+const STALL_PROGRESS_FRAC := 0.15
+
 
 var phase: Phase = Phase.IDLE
 var age: float = 0.0
 var pose_only: bool = false
 var locked_dir: Vector3 = Vector3.FORWARD
+## One pre-charge feint per engagement; cleared by reset().
+var feint_used: bool = false
 
 
 func reset() -> void:
@@ -31,11 +42,23 @@ func reset() -> void:
 	age = 0.0
 	pose_only = false
 	locked_dir = Vector3.FORWARD
+	feint_used = false
 
 
 func begin_telegraph() -> void:
 	phase = Phase.TELEGRAPH
 	age = 0.0
+
+
+func begin_stalk() -> void:
+	phase = Phase.STALK
+	age = 0.0
+
+
+func begin_feint() -> void:
+	phase = Phase.FEINT
+	age = 0.0
+	feint_used = true
 
 
 func begin_charge(dir: Vector3) -> void:
@@ -50,6 +73,11 @@ func begin_charge(dir: Vector3) -> void:
 
 func begin_wall_stun() -> void:
 	phase = Phase.WALL_STUN
+	age = 0.0
+
+
+func begin_recover() -> void:
+	phase = Phase.RECOVER
 	age = 0.0
 
 
@@ -76,8 +104,59 @@ func wall_stun_ready(duration_sec: float) -> bool:
 	return age + 0.0001 >= maxf(duration_sec, 0.05)
 
 
+func recover_ready(duration_sec: float) -> bool:
+	return age + 0.0001 >= maxf(duration_sec, 0.05)
+
+
+func feint_ready(duration_sec: float) -> bool:
+	return age + 0.0001 >= maxf(duration_sec, 0.05)
+
+
 func search_ready(duration_sec: float) -> bool:
 	return age + 0.0001 >= maxf(duration_sec, 0.05)
+
+
+## --- Commit window / whiff / band (pure, distance-driven so rollback is safe) ---
+
+## Steer locked_dir toward a flat world direction, capped at max_turn_rad/s.
+func steer_locked_dir(toward_flat: Vector3, max_turn_rad: float, delta: float) -> void:
+	var flat := Vector3(toward_flat.x, 0.0, toward_flat.z)
+	if flat.length_squared() < 0.0001:
+		return
+	var cur := locked_dir
+	if cur.length_squared() < 0.0001:
+		cur = Vector3.FORWARD
+	var cur_yaw := atan2(-cur.x, -cur.z)
+	var want_yaw := atan2(-flat.x, -flat.z)
+	var next_yaw := rotate_toward(
+		cur_yaw, want_yaw, maxf(max_turn_rad, 0.0) * maxf(delta, 0.0)
+	)
+	locked_dir = Vector3(-sin(next_yaw), 0.0, -cos(next_yaw)).normalized()
+
+
+static func is_committed(dist_travelled: float, commit_m: float) -> bool:
+	return dist_travelled >= maxf(commit_m, 0.0)
+
+
+static func whiffed(dist_travelled: float, max_m: float) -> bool:
+	return dist_travelled >= maxf(max_m, 0.5)
+
+
+static func in_charge_band(dist: float, band_min_m: float, band_max_m: float) -> bool:
+	return dist >= minf(band_min_m, band_max_m) and dist <= maxf(band_min_m, band_max_m)
+
+
+## True (once) when a pre-charge feint should fire this engagement.
+func roll_feint(rng: RandomNumberGenerator, chance: float) -> bool:
+	if feint_used or rng == null or chance <= 0.0:
+		return false
+	if rng.randf() >= chance:
+		return false
+	return true
+
+
+static func roll_chance(rng: RandomNumberGenerator, chance: float) -> bool:
+	return rng != null and chance > 0.0 and rng.randf() < chance
 
 
 static func heading_from_yaw(yaw_rad: float) -> Vector3:

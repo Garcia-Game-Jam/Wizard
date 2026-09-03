@@ -12,15 +12,20 @@ const MonsterChaseMoveScript := preload("res://scripts/monsters/monster_chase_mo
 const MonsterCombatSpacingScript := preload("res://scripts/monsters/monster_combat_spacing.gd")
 const MonsterCasterCombatScript := preload("res://scripts/monsters/monster_caster_combat.gd")
 const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_gizmos.gd")
-const MonsterPatrolScript := preload("res://scripts/monsters/monster_patrol.gd")
+const MonsterTargetMemoryScript := preload("res://scripts/monsters/monster_target_memory.gd")
 const SlideSurfaceScript := preload("res://scripts/slide_surface.gd")
 const Profiles := preload("res://scripts/net/net_rewindable_profiles.gd")
 const NetLivenessScript := preload("res://scripts/net/net_liveness.gd")
-const TestEnvScript := preload("res://scripts/test/test_env.gd")
 
 const DEFAULT_TINT := Color(0.72, 0.28, 0.22, 1.0)
 const DEFAULT_PLAYER_SOURCE := &"player"
 const RANGE_DISC_HEIGHT := 0.02
+## Synthetic interest source: pursuing a remembered position, not a live sense.
+const LAST_KNOWN_SOURCE := &"last_known"
+const LAST_KNOWN_URGENCY := 1.5
+## Hunt-seek: how close to the fight before holding and scanning; scan turn rate.
+const HUNT_SEEK_ARRIVE_M := 3.0
+const HUNT_SCAN_SPEED_RAD := 0.7
 
 @export_group("Appearance")
 @export var body_tint: Color = DEFAULT_TINT:
@@ -79,13 +84,12 @@ const RANGE_DISC_HEIGHT := 0.02
 
 @export var touch_damage: float = 8.0
 @export var gravity: float = 18.0
-@export var idle_duration_sec: float = 1.2
-@export var patrol_speed: float = 2.4
-@export var patrol_radius: float = 8.0
-## After chase loses all sight/hearing interest for this long → ALERT.
-@export_range(0.5, 30.0, 0.25) var lost_chase_to_alert_sec: float = 4.0
-## How long ALERT lasts with no detection before returning to PATROL.
-@export_range(1.0, 60.0, 0.25) var alert_duration_sec: float = 12.0
+## Seconds a monster keeps chasing a lost player's last-seen spot before it
+## forgets and advances toward the fight instead.
+@export_range(0.0, 20.0, 0.25, "suffix:s") var last_known_memory_sec: float = 6.0
+## Room the monster keeps from walls / cover while walking — rounds corners wide
+## instead of hugging them. 0 = only dodge what is directly in the lane.
+@export_range(0.0, 6.0, 0.1, "suffix:m") var wall_clearance_m: float = 1.5
 ## CLOSE_IN rushes melee. KEEP_AWAY holds at keep_away_range.
 @export var chase_style: ChaseStyle = ChaseStyle.CLOSE_IN
 @export_range(1.0, 40.0, 0.5) var keep_away_range: float = 20.0
@@ -101,16 +105,14 @@ const RANGE_DISC_HEIGHT := 0.02
 @export_range(0.25, 8.0, 0.05) var chase_retreat_max_sec: float = 3.2
 @export_range(0.1, 3.0, 0.05) var chase_optimal_eps: float = 0.55
 
-var _ai_state: int = MonsterAIScript.State.IDLE
-var _idle_timer: float = 0.0
-var _undetected_sec: float = 0.0
-var _alert_timer: float = 0.0
-var _patrol: RefCounted = null
+var _ai_state: int = MonsterAIScript.State.CHASE
 var _interest: MonsterInterest = null
+var _target_memory := MonsterTargetMemoryScript.new()
+## Cached once: where to advance when nothing is sensed (§ _hunt_seek).
+var _seek_goal_cache: Variant = null
 var _rng := RandomNumberGenerator.new()
 var _senses_root: Node = null
-var _chase_range_mesh: MeshInstance3D = null
-var _attack_range_mesh: MeshInstance3D = null
+var _range_gizmo_meshes: Array = []
 var _cast_windup_left: float = 0.0
 var _casting_ability: Node = null
 var _cast_prefer_index: int = 0
@@ -127,6 +129,7 @@ func _ready() -> void:
 	_rng.randomize()
 	_chase_move = MonsterChaseMoveScript.new() as MonsterChaseMove
 	_sync_chase_move_config()
+	_target_memory.configure(last_known_memory_sec)
 	_senses_root = get_node_or_null("Senses")
 	_cache_eyes()
 	_refresh_appearance()
@@ -142,9 +145,9 @@ func _ready() -> void:
 	if Engine.is_editor_hint() and live_ai:
 		set_physics_process(false)
 		set_process(true)
-		call_deferred("_begin_patrol")
+		call_deferred("_enter_hunt")
 		return
-	_enter_idle()
+	_enter_hunt()
 	set_physics_process(true)
 	## Bind on this frame so spawn_tick is the dump tick, not a deferred hitch later.
 	_bind_rewindable()
@@ -230,11 +233,12 @@ func get_combat_abilities() -> Array[Node]:
 
 
 func is_ai_chasing() -> bool:
-	return _ai_state == MonsterAIScript.State.CHASE
+	return is_alive()
 
 
+## Kept for callers/subclasses; a closed-arena monster never idles into ALERT.
 func is_ai_alert() -> bool:
-	return _ai_state == MonsterAIScript.State.ALERT
+	return false
 
 
 ## Live chase interest target, or null if freed / position-only interest.
@@ -256,7 +260,7 @@ func _combat_groups() -> Array[StringName]:
 
 func restore_after_revive() -> void:
 	super.restore_after_revive()
-	_enter_idle()
+	_enter_hunt()
 
 
 func _on_death(_from: Node3D) -> void:
@@ -316,10 +320,9 @@ func _set_living_meshes_visible(meshes_on: bool) -> void:
 
 ## Drop every AI intent so nothing keeps ticking between death and free.
 func _end_ai_for_death() -> void:
-	_ai_state = MonsterAIScript.State.IDLE
+	_ai_state = MonsterAIScript.State.CHASE
 	_interest = null
-	_undetected_sec = 0.0
-	_alert_timer = 0.0
+	_target_memory.clear()
 	_cancel_cast()
 	_kill_owned_summons()
 	_set_chase_eyes_active(false)
@@ -368,12 +371,17 @@ func _refresh_lookdev_eyes() -> void:
 
 
 func _refresh_range_gizmos() -> void:
-	var result: Dictionary = MonsterRangeGizmosScript.refresh(
-		self, show_combat_ranges, _chase_range_mesh, _attack_range_mesh,
-		chase_range, attack_range, RANGE_DISC_HEIGHT
+	_range_gizmo_meshes = MonsterRangeGizmosScript.refresh_specs(
+		self, show_combat_ranges, _range_gizmo_specs(), _range_gizmo_meshes, RANGE_DISC_HEIGHT
 	)
-	_chase_range_mesh = result.get("chase") as MeshInstance3D
-	_attack_range_mesh = result.get("attack") as MeshInstance3D
+
+
+## Editor combat-range discs; override per monster for the ranges that matter.
+func _range_gizmo_specs() -> Array:
+	return [
+		{"name": "ChaseRangeGizmo", "radius": chase_range, "color": Color(1.0, 0.35, 0.2, 0.2)},
+		{"name": "AttackRangeGizmo", "radius": attack_range, "color": Color(1.0, 0.85, 0.2, 0.26)},
+	]
 
 
 ## Collects candidates (default players + senses) and prefers one. Override to replace.
@@ -383,7 +391,18 @@ func _gather_interest() -> MonsterInterest:
 	var candidates: Array = []
 	_append_default_interest_candidates(candidates)
 	_append_sense_interest_candidates(candidates)
-	return _prefer_interest(candidates)
+	var preferred := _prefer_interest(candidates)
+	var live: Node3D = preferred.get_live_target() if preferred != null else null
+	if live != null and live.is_in_group("player"):
+		_target_memory.note_seen(live.get_instance_id(), live.global_position)
+		return preferred
+	if _interest_is_actionable(preferred):
+		return preferred
+	if _target_memory.has_goal():
+		return MonsterInterestScript.from_position(
+			_target_memory.last_goal(), LAST_KNOWN_URGENCY, LAST_KNOWN_SOURCE
+		)
+	return null
 
 
 ## Default: nearest living player in chase_range as a proximity-scored interest.
@@ -429,6 +448,8 @@ func has_aggro_player() -> bool:
 ## Last known aggro position for monsters that keep hunting after losing sight.
 ## Vector3 when remembered, null otherwise.
 func get_last_aggro_player_aim() -> Variant:
+	if _target_memory.has_goal():
+		return _target_memory.last_goal()
 	return null
 
 
@@ -443,9 +464,59 @@ func _append_sense_interest_candidates(out: Array) -> void:
 			child.call("append_interest_candidates", self, out)
 
 
-## Default preferencing: highest urgency. Children override to weight sources.
+## Priority: among candidates that resolve to a live player, take the highest
+## composite score; else the strongest position ping (hearing); else null.
+## Children override to weight sources (e.g. Rat Queen: rat sight first).
 func _prefer_interest(candidates: Array) -> MonsterInterest:
-	return MonsterAIScript.prefer_highest_urgency(candidates) as MonsterInterest
+	var current := get_chase_target()
+	var best_player: MonsterInterest = null
+	var best_score := -INF
+	var best_pos: MonsterInterest = null
+	var best_pos_u := 0.0
+	for item in candidates:
+		var interest := item as MonsterInterest
+		if interest == null or not interest.is_actionable():
+			continue
+		var live := interest.get_live_target()
+		if live != null and live.is_in_group("player"):
+			var s := _score_player_candidate(live, interest, live == current)
+			if s > best_score:
+				best_score = s
+				best_player = interest
+		elif interest.has_goal_position and interest.urgency > best_pos_u:
+			best_pos_u = interest.urgency
+			best_pos = interest
+	return best_player if best_player != null else best_pos
+
+
+## Composite chase-priority for one player candidate. Override to add weights
+## (low HP, "hit me recently", focus-fire, …).
+func _score_player_candidate(
+	player: Node3D, interest: MonsterInterest, is_current: bool
+) -> float:
+	var seen := interest.source == &"sight" or interest.source == &"summon_sight"
+	return MonsterAIScript.score_player_target(
+		global_position, -global_transform.basis.z, player.global_position,
+		_detection_range(), seen, is_current
+	)
+
+
+## Widest range this monster can meaningfully engage from (senses ∪ chase_range).
+func _detection_range() -> float:
+	var r := chase_range
+	if _senses_root != null:
+		for child in _senses_root.get_children():
+			if "sight_range" in child:
+				r = maxf(r, float(child.get("sight_range")))
+			if "hear_range" in child:
+				r = maxf(r, float(child.get("hear_range")))
+	return maxf(r, 1.0)
+
+
+func _interest_source() -> StringName:
+	if _interest == null:
+		return &""
+	return _interest.source
 
 func _physics_process(delta: float) -> void:
 	if tick_death_physics_if_active(delta):
@@ -486,10 +557,9 @@ func _simulate_monster(delta: float) -> void:
 	tick_speed_boost(delta)
 	tick_burn(delta)
 
+	_target_memory.tick(delta)
 	_interest = _gather_interest()
-	var has_interest := _interest_is_actionable(_interest)
-	_ai_state = MonsterAIScript.resolve_state(_ai_state, has_interest)
-	_update_alert_timers(delta, has_interest)
+	_ai_state = MonsterAIScript.State.CHASE
 
 	var chase_target := get_chase_target()
 	var keep_x := velocity.x
@@ -505,15 +575,7 @@ func _simulate_monster(delta: float) -> void:
 	elif _try_start_cast(chase_target):
 		pass
 	else:
-		match _ai_state:
-			MonsterAIScript.State.IDLE:
-				_tick_idle(delta)
-			MonsterAIScript.State.PATROL:
-				_tick_patrol(delta)
-			MonsterAIScript.State.CHASE:
-				_tick_chase(delta)
-			MonsterAIScript.State.ALERT:
-				_tick_alert(delta)
+		_tick_hunt(delta)
 
 	if lookdev_override:
 		_refresh_lookdev_eyes()
@@ -552,107 +614,110 @@ func _ability_owns_horizontal() -> bool:
 	return false
 
 
-func _update_alert_timers(delta: float, has_interest: bool) -> void:
-	## 4s fully undetected after chase → ALERT; 12s more undetected → PATROL.
-	if has_interest:
-		_undetected_sec = 0.0
-		_alert_timer = 0.0
-		return
-	if _ai_state == MonsterAIScript.State.CHASE:
-		_undetected_sec += delta
-		if _undetected_sec >= lost_chase_to_alert_sec:
-			_enter_alert()
-	elif _ai_state == MonsterAIScript.State.ALERT:
-		_alert_timer += delta
-		if _alert_timer >= alert_duration_sec:
-			_undetected_sec = 0.0
-			_alert_timer = 0.0
-			_begin_patrol()
-	else:
-		_undetected_sec = 0.0
-		_alert_timer = 0.0
-
-
 func _interest_is_actionable(interest: MonsterInterest) -> bool:
 	return interest != null and interest.is_actionable()
 
 
-func _enter_idle() -> void:
-	_ai_state = MonsterAIScript.State.IDLE
-	_idle_timer = 0.0
-	if TestEnvScript.is_e2e():
-		_idle_timer = idle_duration_sec
-	_undetected_sec = 0.0
-	_alert_timer = 0.0
+## The arena is closed; a living monster is always hunting.
+func _enter_hunt() -> void:
+	_ai_state = MonsterAIScript.State.CHASE
 	_clear_chase_move()
 	velocity.x = 0.0
 	velocity.z = 0.0
 
 
-func _enter_alert() -> void:
-	_cancel_cast()
-	_ai_state = MonsterAIScript.State.ALERT
-	_undetected_sec = 0.0
-	_alert_timer = 0.0
-	_clear_chase_move()
-	velocity.x = 0.0
-	velocity.z = 0.0
+## One hunt tick: pursue a live player, else its last-known / heard spot, else
+## advance toward the fight. Charger overrides this to run its stalk machine.
+func _tick_hunt(delta: float) -> void:
+	if not _interest_is_actionable(_interest):
+		_hunt_seek(delta)
+		return
+	var target := get_chase_target()
+	var goal := get_chase_goal(global_position)
+	if target == null and _interest_source() == LAST_KNOWN_SOURCE:
+		var reach := Vector3(goal.x - global_position.x, 0.0, goal.z - global_position.z)
+		if reach.length() <= attack_range + 1.0:
+			_target_memory.clear()
+			_hunt_seek(delta)
+			return
+	if _try_tick_chase_reposition(delta, target):
+		return
+	if _tick_chase_reposition_wait(delta, target):
+		return
+	_approach_target(target, goal, delta)
 
 
-func _tick_idle(delta: float) -> void:
-	_idle_timer += delta
-	velocity.x = 0.0
-	velocity.z = 0.0
-	if _idle_timer >= idle_duration_sec:
-		_begin_patrol()
+## Overridable: close on `target` (or a bare `goal_pos` when target is null) for
+## a combat advantage. Default = walk to attack_range / hold cast spacing / kite.
+func _approach_target(target: Node3D, goal_pos: Vector3, _delta: float) -> void:
+	if (
+		chase_style == ChaseStyle.CLOSE_IN
+		and target
+		and _has_ranged_spacing_abilities()
+	):
+		if _tick_ranged_cast_chase(target):
+			return
 
+	if chase_style == ChaseStyle.KEEP_AWAY and target:
+		_move_keep_away(target)
+		return
 
-func _ensure_patrol() -> RefCounted:
-	if _patrol == null:
-		_patrol = MonsterPatrolScript.new()
-	return _patrol
-
-
-func _begin_patrol() -> void:
-	_ai_state = MonsterAIScript.State.PATROL
-	_undetected_sec = 0.0
-	_alert_timer = 0.0
-	_clear_chase_move()
-	_ensure_patrol().call("begin", self, _rng, patrol_radius)
-
-
-func _tick_patrol(_delta: float) -> void:
-	var patrol := _ensure_patrol()
-	patrol.call("tick", self, _rng)
-	var desired: Vector3 = patrol.call("follow_velocity", self, combat_speed(patrol_speed))
+	## Arrival is judged against the real goal; the walk is aimed at the nav
+	## waypoint so cover blocks get steered around, not walked into.
+	var to_goal := Vector3(
+		goal_pos.x - global_position.x, 0.0, goal_pos.z - global_position.z
+	)
+	if to_goal.length() <= attack_range:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if target:
+			_try_touch_damage(target)
+		return
+	var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
+		global_position, _nav_goal(goal_pos), combat_speed(move_speed), velocity.y
+	)
 	velocity.x = desired.x
 	velocity.z = desired.z
 	_face_horizontal(desired)
 
 
-func _tick_alert(_delta: float) -> void:
-	velocity.x = 0.0
-	velocity.z = 0.0
-
-
-func _tick_chase(delta: float) -> void:
-	if not _interest_is_actionable(_interest):
-		## Grace window before ALERT: hold position, keep eyes on.
-		_cancel_cast()
-		_clear_chase_move()
+## No player and no memory: walk toward where the fight is, scanning.
+func _hunt_seek(delta: float) -> void:
+	_cancel_cast()
+	_clear_chase_move()
+	var goal := _hunt_seek_goal()
+	var flat := Vector3(goal.x - global_position.x, 0.0, goal.z - global_position.z)
+	if flat.length() <= HUNT_SEEK_ARRIVE_M:
 		velocity.x = 0.0
 		velocity.z = 0.0
+		rotation.y += HUNT_SCAN_SPEED_RAD * delta
 		return
-	var goal := get_chase_goal(global_position)
-	var target := get_chase_target()
+	var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
+		global_position, _nav_goal(goal), combat_speed(move_speed), velocity.y
+	)
+	velocity.x = desired.x
+	velocity.z = desired.z
+	_face_horizontal(desired)
 
-	if _try_tick_chase_reposition(delta, target):
-		return
 
-	if _tick_chase_reposition_wait(delta, target):
-		return
+## `goal_pos` steered around world geometry + off nearby walls. Every walking
+## approach uses it; the committed charge does not.
+func _nav_goal(goal_pos: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return goal_pos
+	return MonsterAIScript.avoid_obstacles(
+		get_world_3d(), global_position, goal_pos, get_rid(), wall_clearance_m
+	)
 
-	_tick_chase_approach(goal, target)
+
+func _hunt_seek_goal() -> Vector3:
+	if _seek_goal_cache == null:
+		var tree := get_tree()
+		var root: Node = tree.current_scene if tree != null else null
+		_seek_goal_cache = MonsterAIScript.hunt_seek_goal(
+			root, Vector3(0.0, global_position.y, 0.0)
+		)
+	return _seek_goal_cache
 
 
 func _tick_chase_reposition_wait(delta: float, target: Node3D) -> bool:
@@ -673,34 +738,6 @@ func _tick_chase_reposition_wait(delta: float, target: Node3D) -> bool:
 			return true
 	_hold_chase_while_waiting(target)
 	return true
-
-
-func _tick_chase_approach(goal: Vector3, target: Node3D) -> void:
-	if (
-		chase_style == ChaseStyle.CLOSE_IN
-		and target
-		and _has_ranged_spacing_abilities()
-	):
-		if _tick_ranged_cast_chase(target):
-			return
-
-	if chase_style == ChaseStyle.KEEP_AWAY and target:
-		_move_keep_away(target)
-		return
-
-	var to_goal := Vector3(goal.x - global_position.x, 0.0, goal.z - global_position.z)
-	if to_goal.length() <= attack_range:
-		velocity.x = 0.0
-		velocity.z = 0.0
-		if target:
-			_try_touch_damage(target)
-		return
-	var desired: Vector3 = MonsterAIScript.horizontal_velocity_toward(
-		global_position, goal, combat_speed(move_speed), velocity.y
-	)
-	velocity.x = desired.x
-	velocity.z = desired.z
-	_face_horizontal(desired)
 
 
 func _uses_continuous_chase_move_timer() -> bool:
@@ -725,12 +762,6 @@ func _ensure_chase_wait_armed() -> void:
 	_sync_chase_move_config()
 	if _chase_move != null:
 		_chase_move.ensure_wait_armed()
-
-
-func _arm_chase_wait() -> void:
-	_sync_chase_move_config()
-	if _chase_move != null:
-		_chase_move.arm_wait()
 
 
 func _optimal_combat_range() -> float:

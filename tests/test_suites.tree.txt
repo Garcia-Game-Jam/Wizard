@@ -7,3 +7,4 @@ res://tests/unit/test_stone_throw_projectile.gd
 res://tests/unit/test_ember_lob_projectile.gd
 res://tests/unit/test_combat_payload.gd
 res://tests/unit/test_player_stun.gd
+res://tests/unit/test_charger_wall_stun.gd

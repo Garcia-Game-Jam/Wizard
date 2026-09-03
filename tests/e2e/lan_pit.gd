@@ -157,8 +157,8 @@ func _assert_dump(role: String) -> bool:
 
 
 func _assert_dump_moved(role: String) -> bool:
-	## Fight-1 charger chase_range is 3 m; players spawn ~26 m away. Motion
-	## here is idle→patrol, not aggro. Guest motion means rewind state arrived.
+	## Fight-1 charger spawns far from the players and immediately advances on the
+	## fight (no patrol). Guest motion means rewind state arrived.
 	var dump_name := ArenaEncountersScript.dump_node_name(0, 0)
 	var body := _monsters_root().get_node_or_null(dump_name) as Node3D
 	if body == null:

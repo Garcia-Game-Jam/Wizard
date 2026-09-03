@@ -3,34 +3,49 @@ extends RefCounted
 
 ## Editor combat-range disc helpers for Monster.
 
+## Charger tuning-distance ring names, in the order charger.gd passes their radii
+## and the order its `distance_gizmo` enum selects.
+const CHARGER_DISTANCE_KEYS := [
+	"charge_range", "charge_stage_range", "charge_min_range", "charge_lane_clearance",
+	"charge_commit_dist", "charge_max_dist", "ram_hit_range", "wall_clearance"
+]
 
-static func refresh(
-	host: Node3D,
-	show: bool,
-	chase_mesh: MeshInstance3D,
-	attack_mesh: MeshInstance3D,
-	chase_range: float,
-	attack_range: float,
-	disc_height: float
-) -> Dictionary:
-	## Returns {chase, attack} mesh refs after refresh.
+
+## Rebuild one flat translucent disc per spec ({name, radius, color}). Frees the
+## previous batch first; returns the new mesh refs. Editor-only, so simple.
+static func refresh_specs(
+	host: Node3D, show: bool, specs: Array, cache: Array, disc_height: float
+) -> Array:
+	for mesh_inst in cache:
+		free_gizmo(mesh_inst as MeshInstance3D)
 	if not show:
-		free_gizmo(chase_mesh)
-		free_gizmo(attack_mesh)
-		return {"chase": null, "attack": null}
-	return {
-		"chase": ensure_disc(
-			host, chase_mesh, "ChaseRangeGizmo", chase_range, Color(1.0, 0.35, 0.2, 0.22), disc_height
-		),
-		"attack": ensure_disc(
-			host,
-			attack_mesh,
-			"AttackRangeGizmo",
-			attack_range,
-			Color(1.0, 0.85, 0.2, 0.28),
-			disc_height
-		),
-	}
+		return []
+	var out: Array = []
+	for spec in specs:
+		var radius := float(spec.get("radius", 0.0))
+		if radius <= 0.05:
+			continue
+		var color: Color = spec.get("color", Color(1, 1, 1, 0.2))
+		## set_editor_owner false: the disc renders in the viewport but is NOT
+		## an owned child, so toggling the gizmo never bakes it into the .tscn.
+		out.append(ensure_disc(
+			host, null, str(spec.get("name", "RangeGizmo")), radius, color, disc_height, false
+		))
+	return out
+
+
+static func charger_distance_specs(radii: Array, pick: int) -> Array:
+	var out: Array = []
+	for i in mini(radii.size(), CHARGER_DISTANCE_KEYS.size()):
+		if pick > 0 and pick != i + 1:
+			continue
+		var hue := float(i) / float(CHARGER_DISTANCE_KEYS.size())
+		out.append({
+			"name": CHARGER_DISTANCE_KEYS[i],
+			"radius": float(radii[i]),
+			"color": Color.from_hsv(hue, 0.65, 1.0, 0.22),
+		})
+	return out
 
 
 static func apply_unshaded(mesh_inst: MeshInstance3D, color: Color) -> void:

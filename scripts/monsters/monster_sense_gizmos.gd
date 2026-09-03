@@ -235,12 +235,13 @@ func _sense_signature(hearing: Node, sight: Node, light: Node) -> String:
 	var sight_r := _sense_float(sight, "sight_range")
 	var eye_h := _sense_float(sight, "eye_height")
 	var cone_w := _sense_float(sight, "cone_width_at_max_range")
+	var cone_deg := _sense_float(sight, "cone_angle_deg")
 	var use_cone := _sense_bool(sight, "use_vision_cone")
 	var sight_on := _sense_enabled(sight)
 	var light_r := _sense_float(light, "sense_range")
 	var light_on := _sense_enabled(light)
-	return "%s:%s:%s:%s:%s:%s:%s:%s:%s" % [
-		hear_r, hear_on, sight_r, eye_h, cone_w, use_cone, sight_on, light_r, light_on
+	return "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s" % [
+		hear_r, hear_on, sight_r, eye_h, cone_w, cone_deg, use_cone, sight_on, light_r, light_on
 	]
 
 
@@ -275,8 +276,10 @@ func _rebuild_sight(sight: Node) -> void:
 	var use_cone := _sense_bool(sight, "use_vision_cone")
 	_sight_outline = _ensure_mesh(_sight_outline, "SightOutline")
 	if use_cone:
-		var half := MonsterSightSenseScript.cone_half_angle(
-			sight_range, _sense_float(sight, "cone_width_at_max_range")
+		var half := MonsterSightSenseScript.effective_half_angle(
+			sight_range,
+			_sense_float(sight, "cone_width_at_max_range"),
+			_sense_float(sight, "cone_angle_deg")
 		)
 		_sight_outline.mesh = build_cone_outline_mesh(sight_range, half)
 	else:
@@ -322,8 +325,10 @@ func _update_sight_fill() -> void:
 	var half := 0.0
 	var samples := DISC_SEGMENTS
 	if use_cone:
-		half = MonsterSightSenseScript.cone_half_angle(
-			sight_range, _sense_float(sight, "cone_width_at_max_range")
+		half = MonsterSightSenseScript.effective_half_angle(
+			sight_range,
+			_sense_float(sight, "cone_width_at_max_range"),
+			_sense_float(sight, "cone_angle_deg")
 		)
 		samples = CONE_SEGMENTS
 	var dirs := PackedVector3Array()
@@ -405,8 +410,10 @@ func _classify_player_los(sight: Node, target_global: Vector3) -> int:
 		return LosKind.UNSEEN
 	if not _sense_bool(sight, "use_vision_cone"):
 		return LosKind.CLEAR
-	var half := MonsterSightSenseScript.cone_half_angle(
-		sight_range, _sense_float(sight, "cone_width_at_max_range")
+	var half := MonsterSightSenseScript.effective_half_angle(
+		sight_range,
+		_sense_float(sight, "cone_width_at_max_range"),
+		_sense_float(sight, "cone_angle_deg")
 	)
 	var forward := -global_transform.basis.z
 	forward.y = 0.0

@@ -67,7 +67,8 @@ func _make_body() -> CharacterBody3D:
 	body.add_child(shape)
 	body.collision_layer = CollisionLayersScript.CHARACTER
 	body.collision_mask = CollisionLayersScript.CHARACTER_AND_WORLD
-	body.floor_block_on_wall = false
+	## Engine default (true). The mid-air wall hang was a MOTION_MODE_FLOATING bug;
+	## GROUNDED resolves it with floor_block_on_wall left alone. See AGENTS.md.
 	body.safe_margin = 0.04
 	body.floor_snap_length = 0.0
 	body.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
