@@ -28,30 +28,35 @@ var preview_wall_stun_action := preview_wall_stun
 ## Pose only: turn 180°, then slowly look around for players.
 @export_tool_button("Preview Search", "Callable")
 var preview_search_action := preview_search
-## Seconds locked on the player, bowing and turning red, before the ram.
+## Seconds locked on the player — bowing, turning red — before the ram fires. A
+## double-charge after a recovery scales this down (see double_charge_*).
 @export_range(0.4, 3.0, 0.05, "suffix:s") var telegraph_sec: float = 1.2
-## How fast it turns to face the locked player during telegraph. Lower = slower.
-@export_range(0.2, 12.0, 0.1, "suffix:rad/s")
-var lock_on_turn_speed_rad: float = 2.2
-## How fast it turns while walking / stalking / searching (not the lock-on).
-@export_range(0.2, 12.0, 0.1, "suffix:rad/s")
-var walk_turn_speed_rad: float = 1.4
+## Turn rate while keeping the player centred: the lock-on telegraph, the
+## commit-window homing at the ram's start, and lining up a shot mid-stalk.
+## Lower = easier to juke.
+@export_range(0.2, 12.0, 0.1, "suffix:rad/s") var lock_on_turn_speed_rad: float = 2.2
+## Turn rate while walking / stalking / searching / turning back after a charge
+## (everything except the lock-on).
+@export_range(0.2, 12.0, 0.1, "suffix:rad/s") var walk_turn_speed_rad: float = 1.4
 ## Ram speed as a multiple of player sprint. Higher = faster.
 @export_range(1.5, 6.0, 0.05, "suffix:x sprint") var charge_speed_mult: float = 3.2
 ## Seconds stunned with orbiting stars after the ram hits a wall. The big
 ## counter-attack window — longer = more punishing to the charger.
 @export_range(1.0, 8.0, 0.1, "suffix:s") var self_stun_sec: float = 3.0
-## Seconds spent looking around after the 180° about-face before it resumes the hunt.
+## Seconds it sweeps its view for players before giving up — after a charge (while
+## turning back toward where you were) and when peeking around cover mid-stalk.
 @export_range(0.6, 8.0, 0.1, "suffix:s") var search_sec: float = 3.2
-## Head tuck before the ram. 360 = level, 330 = 30° down. Finishes as running starts.
+## Cosmetic: head tuck as the ram winds up. 360 = level, 330 = 30° down. An
+## extreme value can hold the ram until the tuck finishes.
 @export_range(330.0, 360.0, 0.5) var charge_head_plunge_deg: float = 338.0
-## Head toss (degrees up) when a player is gored during the ram.
+## Cosmetic: head toss (degrees up) when a player is gored during the ram.
 @export_range(30.0, 90.0, 1.0) var charge_head_toss_deg: float = 60.0
-## How fast the head eases back to rest after a wall (rad/s). Does not snap.
+## How fast the head lifts back to level when a charge ends (rad/s). Never snaps.
 @export_range(0.4, 8.0, 0.1) var head_return_speed_rad: float = 2.8
-## Body color at rest / while hunting / after a stun.
+## Body colour at rest / hunting / after a stun. Copied from Body Tint at spawn —
+## edit Body Tint, not this.
 @export var rest_tint: Color = Color(0.22, 0.72, 0.28, 1.0)
-## Body color at full telegraph and during the ram.
+## Body colour at full telegraph and during the ram.
 @export var charge_tint: Color = Color(0.88, 0.12, 0.1, 1.0)
 
 @export_group("Ram hit")
@@ -83,27 +88,28 @@ var preview_feint_action := preview_feint
 ## and through the telegraph + ram. It stays down for the rest of the engagement
 ## once a player breaks it. Never raised while it is disengaged / hunting empty.
 @export var stalk_with_shield: bool = true
-## Once the player is THIS close, in clear line of sight, with a lane this wide
-## to spare on each side, the charger commits to a ram. Larger range = charges
-## from farther out; larger lane clearance = it insists on a cleaner angle
-## (sidesteps more) before committing.
+## Ram commit ceiling: the charger only starts a charge when the player is within
+## this distance (plus ~2.5 m slack). Bigger = it charges from farther out.
 @export_range(2.0, 30.0, 0.5, "suffix:m") var charge_range: float = 12.0
+## Half-width (m) of clear lane the charger demands — straight to the player and
+## along its run-up — before it commits. Bigger = it sidesteps for a cleaner
+## angle and clips corners less; too big and it stalls in tight spots.
 @export_range(0.4, 3.0, 0.05, "suffix:m") var charge_lane_clearance_m: float = 0.85
-## How far from the player the charger backs off to line up a ram — its run-up
-## distance. It walks/sidesteps to a spot this far out with a clean lane, then
-## charges. Keep it <= charge_range or it will stage outside its own commit band.
+## Run-up distance: the charger backs off to a spot this far from the player,
+## with a clean lane, then charges. Keep it <= charge_range.
 @export_range(2.0, 24.0, 0.5, "suffix:m") var charge_stage_range_m: float = 8.0
-## It will not charge from closer than this — no room for a run-up; it backs off
-## to charge_range first.
+## It won't ram from closer than this (no room for a run-up) — it repositions
+## back out to the run-up distance first.
 @export_range(0.5, 12.0, 0.5, "suffix:m") var charge_min_range: float = 3.0
-## Seconds the player must stay lined up before the charge commits. 0 = instant.
+## Seconds the shot must stay clean — in position, lane clear, in range — before
+## the charge fires. 0 = the instant it lines up.
 @export_range(0.0, 3.0, 0.05, "suffix:s") var stalk_dwell_sec: float = 0.1
-## Anti-turtle: if the player holds still in range this long, charge anyway.
+## Anti-turtle: if the player barely moves while a lane is open, charge anyway
+## after this long.
 @export_range(0.5, 8.0, 0.1, "suffix:s") var stalk_patience_sec: float = 2.4
-## Seconds the charger keeps stalking a player it has lost sight of (walking to
-## the last-seen spot, then peeking round the nearest cover) before it forgets.
-## It still switches to any closer player it can see. `search_sec` is reused as
-## the peek duration.
+## Once the charger has NO contact at all — no sight, no sound, no live memory of
+## where you went — it holds the stalk stance this long before dropping to the
+## plain hunt. It still re-locks onto any closer player it can see.
 @export_range(0.5, 12.0, 0.1, "suffix:s") var stalk_giveup_sec: float = 6.0
 ## How far into the ram the charger keeps homing at the player before it
 ## hard-locks its heading. 0 = locked from the first frame (dodge early and it
@@ -126,9 +132,8 @@ var preview_feint_action := preview_feint
 @export_range(0.2, 1.0, 0.05) var double_charge_telegraph_scale: float = 0.45
 
 @export_group("Gizmos")
-## With Show Combat Ranges on, draw every distance knob as a ground ring at once
-## ("All"), or pick one to see it alone against the arena. Editor only. Order
-## matches MonsterRangeGizmos.CHARGER_DISTANCE_KEYS.
+## With Show Combat Ranges on: draw every charger distance as a coloured ground
+## ring ("All"), or pick one to see it alone against the arena. Editor only.
 @export_enum(
 	"All", "charge_range", "charge_stage_range", "charge_min_range",
 	"charge_lane_clearance", "charge_commit_dist", "charge_max_dist",
@@ -960,12 +965,9 @@ func _reapply_charge_visuals() -> void:
 		var t := _charge.telegraph_progress(telegraph_sec)
 		_apply_charge_tint(t)
 		_set_body_lean(t * 0.28)
-	elif _phase == ChargePhase.CHARGE:
-		_apply_charge_tint(1.0)
-		_set_body_lean(0.32)
 	else:
-		_apply_charge_tint(0.0)
-		_set_body_lean(0.0)
+		_apply_charge_tint(1.0 if _phase == ChargePhase.CHARGE else 0.0)
+		_set_body_lean(0.32 if _phase == ChargePhase.CHARGE else 0.0)
 	_apply_head_pitch()
 
 
