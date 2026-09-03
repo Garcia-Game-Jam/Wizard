@@ -10,6 +10,10 @@ enum LookdevPose { PATROL, CHASE }
 const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
 
+## A charge capsule this wide (half-width, m) must fit the whole lane for the ram
+## to be worth committing — a single centre ray "clear" still clips corners.
+const CHARGE_LANE_HALF_W := 0.85
+
 
 ## Safe Node3D from a stored ref. Freed objects are not null — never `as` before this.
 static func live_node3d(node: Variant) -> Node3D:
@@ -209,12 +213,39 @@ static func wall_repulsion(
 	return Vector3(push.x, 0.0, push.z)
 
 
+## True when a corridor `2 * half_w` wide from `a` to `b` is unobstructed.
+static func corridor_clear(
+	world: World3D, a: Vector3, b: Vector3, half_w: float, self_rid: RID
+) -> bool:
+	if world == null or world.direct_space_state == null:
+		return true
+	var span := Vector3(b.x - a.x, 0.0, b.z - a.z)
+	if span.length_squared() < 0.01:
+		return true
+	var perp := Vector3(-span.z, 0.0, span.x).normalized() * maxf(half_w, 0.05)
+	for o in [Vector3.ZERO, perp, -perp]:
+		if _lane_blocked(world, a + o, b + o, self_rid):
+			return false
+	return true
+
+
+## Widest half-width (up to ~2.2 m) for which the a→b corridor stays clear.
+## Higher = a wider, safer angle to charge through.
+static func lane_margin(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> float:
+	var best := 0.0
+	for w in [CHARGE_LANE_HALF_W, 1.4, 2.2]:
+		if not corridor_clear(world, a, b, w, self_rid):
+			break
+		best = w
+	return best
+
+
 ## Best spot to line up a threatening charge at `player`: `charge_range` out on a
-## bearing that has a clear straight lane to the player, open ground behind for
-## the run-up, and room off the walls. Samples a fan biased toward the charger's
-## current side so it does not circle the arena. Returns {pos, ok} — ok is false
-## when nothing clean exists (deeply cornered player); pos is then the least-bad
-## fallback straight out from the player toward the charger.
+## bearing whose corridor to the player is clear and *wide* (so it doesn't graze
+## a corner), with run-up room behind and room off the walls. Samples a fan
+## biased toward the charger's current side. Returns {pos, ok} — ok is false when
+## no bearing gives a wide clean corridor; pos is then the widest-margin bearing
+## so the charger keeps sidestepping toward a real angle instead of committing.
 static func pick_charge_staging(
 	world: World3D,
 	charger_pos: Vector3,
@@ -234,27 +265,70 @@ static func pick_charge_staging(
 	var base := atan2(to_charger.z, to_charger.x) if to_charger.length_squared() > 0.01 else 0.0
 	var up := Vector3(0.0, 0.6, 0.0)
 	var pe: Vector3 = player_pos + up
-	var best := Vector3.ZERO
+	var best := fallback
 	var best_score := -INF
-	for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.95, -0.95, 1.35, -1.35]:
+	var best_open := Vector3.ZERO
+	var best_open_margin := -1.0
+	for off in [0.0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8, 1.15, -1.15, 1.6, -1.6]:
 		var a: float = base + off
 		var s: Vector3 = player_pos + Vector3(cos(a), 0.0, sin(a)) * radius
 		s.y = charger_pos.y
 		var se: Vector3 = s + up
-		if _lane_blocked(world, se, pe, self_rid):
-			continue  # can't see / can't ram straight through
+		var margin := lane_margin(world, se, pe, self_rid)
+		if margin > best_open_margin:
+			best_open_margin = margin
+			best_open = s
+		if margin < CHARGE_LANE_HALF_W:
+			continue  # corridor would clip a wall / corner
 		var behind: Vector3 = s + (s - player_pos).normalized() * (radius * 0.3)
 		if _lane_blocked(world, se, behind + up, self_rid):
-			continue  # no run-up room behind the staging point
+			continue  # no run-up room behind
 		if wall_repulsion(world, se, self_rid, clearance).length() > 0.85:
 			continue  # jammed against a wall
-		var score := -charger_pos.distance_to(s) - absf(off) * radius * 0.6
+		var score := margin * 4.0 - charger_pos.distance_to(s) * 0.5 - absf(off) * radius * 0.4
 		if score > best_score:
 			best_score = score
 			best = s
 	if best_score == -INF:
-		return {"pos": fallback, "ok": false}
+		return {"pos": best_open, "ok": false}
 	return {"pos": best, "ok": true}
+
+
+## Guess where a just-lost player went: if cover / a wall is close to their
+## last-seen spot, the far side of that edge (circling away from `from`).
+## Returns `last_seen` unchanged when nothing is close enough to hide behind.
+static func peek_past_cover(
+	world: World3D, from: Vector3, last_seen: Vector3, self_rid: RID, peek_dist: float = 3.0
+) -> Vector3:
+	if world == null or world.direct_space_state == null:
+		return last_seen
+	var eye := last_seen + Vector3(0.0, 0.6, 0.0)
+	var near_dir := Vector3.ZERO
+	var near_d := 4.0
+	for i in 12:
+		var ang := float(i) * TAU / 12.0
+		var probe := Vector3(cos(ang), 0.0, sin(ang))
+		var q := PhysicsRayQueryParameters3D.create(eye, eye + probe * near_d)
+		q.collide_with_areas = false
+		q.collision_mask = CollisionLayersScript.WORLD
+		if self_rid.is_valid():
+			q.exclude = [self_rid]
+		var hit := world.direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var d := eye.distance_to(hit.get("position"))
+		if d < near_d:
+			near_d = d
+			near_dir = probe
+	if near_dir.length_squared() < 0.01:
+		return last_seen
+	var tangent := Vector3(-near_dir.z, 0.0, near_dir.x)
+	var to_from := Vector3(from.x - last_seen.x, 0.0, from.z - last_seen.z)
+	if tangent.dot(to_from) > 0.0:
+		tangent = -tangent  # step to the side away from the charger
+	var peek: Vector3 = last_seen + tangent * peek_dist + near_dir * 0.6
+	peek.y = last_seen.y
+	return peek
 
 
 static func _lane_blocked(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> bool:

@@ -84,26 +84,40 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 	## No live player — walk to the last-seen spot, never charging blind.
 	c._stalk_dwell = 0.0
 	c._stalk_still_sec = 0.0
-	if dist > STALK_ARRIVE_M:
-		c._stalk_search_sec = 0.0
+	var arrived := dist <= STALK_ARRIVE_M or c._stalk_search_sec > 0.0
+	if not arrived:
 		c._face_horizontal_at_speed(flat, delta, c.lock_on_turn_speed_rad * 1.6)
-		var nav := MonsterAIScript.avoid_obstacles(
-			c.get_world_3d(), c.global_position, goal, c.get_rid(), 0.0
-		)
-		var mv := Vector3(nav.x - c.global_position.x, 0.0, nav.z - c.global_position.z)
-		if mv.length_squared() > 0.0001:
-			mv = mv.normalized() * c.combat_speed(c.stalk_speed)
-		c.velocity.x = mv.x
-		c.velocity.z = mv.z
+		_walk_to(c, goal, delta)
 		return
 
-	## Arrived — peek around the nearby cover, sweeping for the player.
+	## At the last-seen spot with no re-sight: the player likely rounded a corner.
+	## Go to the far side of the nearest cover, then give up.
 	c._stalk_search_sec += delta
 	if c._stalk_search_sec >= c.stalk_search_sec:
 		c._target_memory.clear()
 		c._reset_to_idle()
 		return
-	_peek_around(c, goal, delta)
+	var corner := MonsterAIScript.peek_past_cover(
+		c.get_world_3d(), c.global_position, goal, c.get_rid()
+	)
+	if c.global_position.distance_to(corner) > STALK_ARRIVE_M:
+		var to_c := Vector3(corner.x - c.global_position.x, 0.0, corner.z - c.global_position.z)
+		c._face_horizontal_at_speed(to_c, delta, c.lock_on_turn_speed_rad)
+		_walk_to(c, corner, delta)
+	else:
+		_peek_around(c, goal, delta)
+
+
+## Steer to `goal` at stalk speed, dodging only what is directly in the lane.
+static func _walk_to(c: Charger, goal: Vector3, _delta: float) -> void:
+	var nav := MonsterAIScript.avoid_obstacles(
+		c.get_world_3d(), c.global_position, goal, c.get_rid(), 0.0
+	)
+	var mv := Vector3(nav.x - c.global_position.x, 0.0, nav.z - c.global_position.z)
+	if mv.length_squared() > 0.0001:
+		mv = mv.normalized() * c.combat_speed(c.stalk_speed)
+	c.velocity.x = mv.x
+	c.velocity.z = mv.z
 
 
 ## Live player in sight: pick a staging spot with a clean charge lane and room
@@ -121,36 +135,40 @@ static func _tick_stalk_live(c: Charger, live: Node3D, delta: float) -> void:
 	var d_p := to_p.length()
 	c._face_horizontal_at_speed(to_p, delta, c.lock_on_turn_speed_rad * 1.6)
 
+	var world := c.get_world_3d()
+	var eye := Vector3(0.0, 0.6, 0.0)
 	var stage: Dictionary = MonsterAIScript.pick_charge_staging(
-		c.get_world_3d(), here, pp, c.charge_range, c.wall_clearance_m, c.get_rid()
+		world, here, pp, c.charge_range, c.wall_clearance_m, c.get_rid()
 	)
 	var s: Vector3 = stage.get("pos")
+	var stage_ok: bool = stage.get("ok")
 	var at_stage := Vector3(s.x - here.x, 0.0, s.z - here.z).length() <= STAGE_ARRIVE_M
-	var lane_clear := lane_to_target_clear(c, to_p)
-	var banded := (
-		d_p >= c.charge_min_range and d_p <= c.charge_range + STAGE_BAND_SLACK_M
+	## Wide corridor, not a single hair-thin ray — this is what stops the sheer
+	## corner-clipping charges.
+	var lane_wide := MonsterAIScript.corridor_clear(
+		world, here + eye, pp + eye, MonsterAIScript.CHARGE_LANE_HALF_W, c.get_rid()
 	)
-	var set_up := at_stage and lane_clear and banded
+	var banded := d_p >= c.charge_min_range and d_p <= c.charge_range + STAGE_BAND_SLACK_M
+	var set_up := stage_ok and at_stage and lane_wide and banded
 
 	c._stalk_dwell = (c._stalk_dwell + delta) if set_up else 0.0
 	var moved := c._stalk_last_target_pos.distance_to(pp)
 	c._stalk_last_target_pos = pp
 	c._stalk_still_sec = (c._stalk_still_sec + delta) if moved < 0.15 else 0.0
-	var turtling := c._stalk_still_sec >= c.stalk_patience_sec and lane_clear and banded
+	var turtling := c._stalk_still_sec >= c.stalk_patience_sec and lane_wide and banded
 
 	if (set_up and c._stalk_dwell >= c.stalk_dwell_sec) or turtling:
 		enter_charge_sequence(c, live)
 		return
 
-	## Walk to the staging spot, only dodging things directly in the lane (the
-	## spot itself already accounts for wall clearance, so no repulsion here).
-	if at_stage:
+	## Move to the staging bearing. When no clean bearing exists yet, `s` is the
+	## widest-margin one, so this reads as sidestepping around the obstruction to
+	## open the angle rather than backing up along a sheer line.
+	if at_stage and stage_ok:
 		c.velocity.x = move_toward(c.velocity.x, 0.0, c.combat_speed(c.stalk_speed) * delta * 4.0)
 		c.velocity.z = move_toward(c.velocity.z, 0.0, c.combat_speed(c.stalk_speed) * delta * 4.0)
 		return
-	var nav: Vector3 = MonsterAIScript.avoid_obstacles(
-		c.get_world_3d(), here, s, c.get_rid(), 0.0
-	)
+	var nav: Vector3 = MonsterAIScript.avoid_obstacles(world, here, s, c.get_rid(), 0.0)
 	var mv := Vector3(nav.x - here.x, 0.0, nav.z - here.z)
 	if mv.length_squared() > 0.0001:
 		mv = mv.normalized() * c.combat_speed(c.stalk_speed)
