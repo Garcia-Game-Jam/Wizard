@@ -3,6 +3,13 @@ extends RefCounted
 
 ## Editor combat-range disc helpers for Monster.
 
+## Charger tuning-distance ring names, in the order charger.gd passes their radii
+## and the order its `distance_gizmo` enum selects.
+const CHARGER_DISTANCE_KEYS := [
+	"charge_range", "charge_stage_range", "charge_min_range", "charge_lane_clearance",
+	"charge_commit_dist", "charge_max_dist", "ram_hit_range", "wall_clearance"
+]
+
 
 ## Rebuild one flat translucent disc per spec ({name, radius, color}). Frees the
 ## previous batch first; returns the new mesh refs. Editor-only, so simple.
@@ -24,6 +31,20 @@ static func refresh_specs(
 		out.append(ensure_disc(
 			host, null, str(spec.get("name", "RangeGizmo")), radius, color, disc_height, false
 		))
+	return out
+
+
+static func charger_distance_specs(radii: Array, pick: int) -> Array:
+	var out: Array = []
+	for i in mini(radii.size(), CHARGER_DISTANCE_KEYS.size()):
+		if pick > 0 and pick != i + 1:
+			continue
+		var hue := float(i) / float(CHARGER_DISTANCE_KEYS.size())
+		out.append({
+			"name": CHARGER_DISTANCE_KEYS[i],
+			"radius": float(radii[i]),
+			"color": Color.from_hsv(hue, 0.65, 1.0, 0.22),
+		})
 	return out
 
 

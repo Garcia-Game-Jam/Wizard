@@ -229,32 +229,42 @@ static func corridor_clear(
 	return true
 
 
-## Widest half-width (up to ~2.2 m) for which the a→b corridor stays clear.
-## Higher = a wider, safer angle to charge through.
-static func lane_margin(world: World3D, a: Vector3, b: Vector3, self_rid: RID) -> float:
+## Widest half-width (up to ~2.6x the base) for which the a→b corridor stays
+## clear. Higher = a wider, safer angle to charge through.
+static func lane_margin(
+	world: World3D,
+	a: Vector3,
+	b: Vector3,
+	self_rid: RID,
+	base_half_w: float = CHARGE_LANE_HALF_W
+) -> float:
+	var w0 := maxf(base_half_w, 0.1)
 	var best := 0.0
-	for w in [CHARGE_LANE_HALF_W, 1.4, 2.2]:
+	for w in [w0, w0 * 1.7, w0 * 2.6]:
 		if not corridor_clear(world, a, b, w, self_rid):
 			break
 		best = w
 	return best
 
 
-## Best spot to line up a threatening charge at `player`: `charge_range` out on a
-## bearing whose corridor to the player is clear and *wide* (so it doesn't graze
-## a corner), with run-up room behind and room off the walls. Samples a fan
-## biased toward the charger's current side. Returns {pos, ok} — ok is false when
-## no bearing gives a wide clean corridor; pos is then the widest-margin bearing
-## so the charger keeps sidestepping toward a real angle instead of committing.
+## Best spot to line up a threatening charge at `player`: `stage_range` out on a
+## bearing whose corridor to the player is clear and at least `lane_half_w` wide
+## on each side (so it doesn't graze a corner), with run-up room behind and room
+## off the walls. Samples a fan biased toward the charger's current side. Returns
+## {pos, ok} — ok is false when no bearing gives a wide clean corridor; pos is
+## then the widest-margin bearing so the charger keeps sidestepping toward a real
+## angle instead of committing.
 static func pick_charge_staging(
 	world: World3D,
 	charger_pos: Vector3,
 	player_pos: Vector3,
-	charge_range: float,
+	stage_range: float,
+	lane_half_w: float,
 	clearance: float,
 	self_rid: RID
 ) -> Dictionary:
-	var radius := maxf(charge_range, 1.0)
+	var radius := maxf(stage_range, 1.0)
+	var lane_w := maxf(lane_half_w, 0.1)
 	var to_charger := Vector3(charger_pos.x - player_pos.x, 0.0, charger_pos.z - player_pos.z)
 	var fallback: Vector3 = player_pos + (
 		to_charger.normalized() if to_charger.length_squared() > 0.01 else Vector3.FORWARD
@@ -274,11 +284,11 @@ static func pick_charge_staging(
 		var s: Vector3 = player_pos + Vector3(cos(a), 0.0, sin(a)) * radius
 		s.y = charger_pos.y
 		var se: Vector3 = s + up
-		var margin := lane_margin(world, se, pe, self_rid)
+		var margin := lane_margin(world, se, pe, self_rid, lane_w)
 		if margin > best_open_margin:
 			best_open_margin = margin
 			best_open = s
-		if margin < CHARGE_LANE_HALF_W:
+		if margin < lane_w:
 			continue  # corridor would clip a wall / corner
 		var behind: Vector3 = s + (s - player_pos).normalized() * (radius * 0.3)
 		if _lane_blocked(world, se, behind + up, self_rid):

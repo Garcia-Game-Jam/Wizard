@@ -33,12 +33,9 @@ var preview_search_action := preview_search
 ## How fast it turns to face the locked player during telegraph. Lower = slower.
 @export_range(0.2, 12.0, 0.1, "suffix:rad/s")
 var lock_on_turn_speed_rad: float = 2.2
-## How fast it turns while walking (stalk approach / advancing on the fight).
+## How fast it turns while walking / stalking / searching (not the lock-on).
 @export_range(0.2, 12.0, 0.1, "suffix:rad/s")
 var walk_turn_speed_rad: float = 1.4
-## How fast it about-faces and sweeps during search. Lower = slower.
-@export_range(0.2, 8.0, 0.1, "suffix:rad/s")
-var search_turn_speed_rad: float = 1.1
 ## Ram speed as a multiple of player sprint. Higher = faster.
 @export_range(1.5, 6.0, 0.05, "suffix:x sprint") var charge_speed_mult: float = 3.2
 ## Seconds stunned with orbiting stars after the ram hits a wall. The big
@@ -86,32 +83,32 @@ var preview_feint_action := preview_feint
 ## and through the telegraph + ram. It stays down for the rest of the engagement
 ## once a player breaks it. Never raised while it is disengaged / hunting empty.
 @export var stalk_with_shield: bool = true
-## Once the player is THIS close and in clear, unobstructed line of sight, the
-## charger commits to a ram. Larger = it charges from farther out.
+## Once the player is THIS close, in clear line of sight, with a lane this wide
+## to spare on each side, the charger commits to a ram. Larger range = charges
+## from farther out; larger lane clearance = it insists on a cleaner angle
+## (sidesteps more) before committing.
 @export_range(2.0, 30.0, 0.5, "suffix:m") var charge_range: float = 12.0
+@export_range(0.4, 3.0, 0.05, "suffix:m") var charge_lane_clearance_m: float = 0.85
+## How far from the player the charger backs off to line up a ram — its run-up
+## distance. It walks/sidesteps to a spot this far out with a clean lane, then
+## charges. Keep it <= charge_range or it will stage outside its own commit band.
+@export_range(2.0, 24.0, 0.5, "suffix:m") var charge_stage_range_m: float = 8.0
 ## It will not charge from closer than this — no room for a run-up; it backs off
 ## to charge_range first.
 @export_range(0.5, 12.0, 0.5, "suffix:m") var charge_min_range: float = 3.0
-## Seconds the player must stay in range + clear line of sight before the charge
-## commits. 0 = the instant both are true.
+## Seconds the player must stay lined up before the charge commits. 0 = instant.
 @export_range(0.0, 3.0, 0.05, "suffix:s") var stalk_dwell_sec: float = 0.1
-## Anti-turtle: if the player holds still in range this long, charge even if the
-## lane is not perfectly clear.
+## Anti-turtle: if the player holds still in range this long, charge anyway.
 @export_range(0.5, 8.0, 0.1, "suffix:s") var stalk_patience_sec: float = 2.4
 ## Seconds the charger keeps stalking a player it has lost sight of (walking to
-## their last-seen spot) before it forgets and drops to the base hunt. It will
-## switch to any closer player it can still see instead.
+## the last-seen spot, then peeking round the nearest cover) before it forgets.
+## It still switches to any closer player it can see. `search_sec` is reused as
+## the peek duration.
 @export_range(0.5, 12.0, 0.1, "suffix:s") var stalk_giveup_sec: float = 6.0
-## On reaching the last-seen spot with no re-sight, seconds spent peeking around
-## the nearby cover before giving up.
-@export_range(0.0, 6.0, 0.1, "suffix:s") var stalk_search_sec: float = 2.5
 ## How far into the ram the charger keeps homing at the player before it
 ## hard-locks its heading. 0 = locked from the first frame (dodge early and it
 ## whiffs); higher = it tracks a late sidestep and clips you.
 @export_range(0.0, 8.0, 0.1, "suffix:m") var charge_commit_dist_m: float = 3.0
-## Turn rate while still homing inside the commit window. Higher = it corrects
-## harder onto a dodging player before the lock.
-@export_range(0.5, 12.0, 0.1, "suffix:rad/s") var commit_turn_speed_rad: float = 4.5
 ## A ram that travels this far with no wall and no hit skids to a stop (RECOVER)
 ## instead of charging forever. Roughly the pit's long axis.
 @export_range(4.0, 40.0, 0.5, "suffix:m") var charge_max_dist_m: float = 15.0
@@ -127,6 +124,20 @@ var preview_feint_action := preview_feint
 @export_range(0.0, 1.0, 0.05) var double_charge_chance: float = 0.35
 ## Telegraph length of that double-charge as a fraction of the normal telegraph.
 @export_range(0.2, 1.0, 0.05) var double_charge_telegraph_scale: float = 0.45
+
+@export_group("Gizmos")
+## With Show Combat Ranges on, draw every distance knob as a ground ring at once
+## ("All"), or pick one to see it alone against the arena. Editor only. Order
+## matches MonsterRangeGizmos.CHARGER_DISTANCE_KEYS.
+@export_enum(
+	"All", "charge_range", "charge_stage_range", "charge_min_range",
+	"charge_lane_clearance", "charge_commit_dist", "charge_max_dist",
+	"ram_hit_range", "wall_clearance"
+) var distance_gizmo: int = 0:
+	set(value):
+		distance_gizmo = value
+		if is_inside_tree() and show_combat_ranges:
+			_refresh_range_gizmos()
 
 var _phase: ChargePhase = ChargePhase.NONE
 var _charge := ChargerChargeScript.new()
@@ -167,6 +178,10 @@ var _stalk_search_sec: float = 0.0
 var _stalk_last_target_pos: Vector3 = Vector3.ZERO
 var _stalk_feint_planned: bool = false
 var _recover_double_planned: bool = false
+## Where the target stood when the last ram launched. SEARCH turns to face here
+## and holds until it re-sights a player (the player likely bolted from here).
+var _precharge_focus: Vector3 = Vector3.ZERO
+var _has_precharge_focus: bool = false
 @warning_ignore_restore("unused_private_class_variable")
 
 
@@ -226,17 +241,14 @@ func _try_start_cast(_target: Node3D) -> bool:
 
 
 func preview_telegraph() -> void:
-	## Inspector pose: lock, ward, bow, turn red. Holds when finished.
 	begin_lock_on(null, true)
 
 
 func preview_charge_pose() -> void:
-	## Inspector pose: locked red ram in place. No wall stun. No steering.
 	begin_charge_now(true, null)
 
 
 func preview_wall_stun() -> void:
-	## Inspector pose: wall stars, then 180° about-face and a slow search.
 	if not is_inside_tree() or not is_alive():
 		return
 	_charge.pose_only = true
@@ -245,7 +257,6 @@ func preview_wall_stun() -> void:
 
 
 func preview_search() -> void:
-	## Inspector pose: turn 180°, then slowly look around. Loops until another preview.
 	if not is_inside_tree() or not is_alive():
 		return
 	_charge.pose_only = true
@@ -254,7 +265,6 @@ func preview_search() -> void:
 
 
 func preview_stalk() -> void:
-	## Inspector pose: eyes-on prowl stance, no tint, waiting for a lane.
 	if not is_inside_tree() or not is_alive():
 		return
 	_charge.pose_only = true
@@ -263,7 +273,6 @@ func preview_stalk() -> void:
 
 
 func preview_recover() -> void:
-	## Inspector pose: skid-stop lean after a whiffed charge.
 	if not is_inside_tree() or not is_alive():
 		return
 	_charge.pose_only = true
@@ -400,25 +409,14 @@ func _validate_property(property: Dictionary) -> void:
 	## generic Monster kite / chase-approach / route-patrol knobs do nothing here.
 	## Hide them to keep the inspector to the dials that actually tune this fight.
 	var hidden := PackedStringArray([
-		"chase_style",
-		"keep_away_range",
-		"chase_wait_min_sec",
-		"chase_wait_max_sec",
-		"chase_strafe_min_sec",
-		"chase_strafe_max_sec",
-		"chase_retreat_min_sec",
-		"chase_retreat_max_sec",
-		"chase_optimal_eps",
-		"face_turn_speed_rad",
-		"move_speed",
-		"chase_range",
-		"attack_range",
+		"chase_style", "keep_away_range", "chase_wait_min_sec", "chase_wait_max_sec",
+		"chase_strafe_min_sec", "chase_strafe_max_sec", "chase_retreat_min_sec",
+		"chase_retreat_max_sec", "chase_optimal_eps", "face_turn_speed_rad",
+		"move_speed", "chase_range", "attack_range",
 	])
 	if hidden.has(property.name):
 		property.usage = (
-			PROPERTY_USAGE_STORAGE
-			| PROPERTY_USAGE_SCRIPT_VARIABLE
-			| PROPERTY_USAGE_NO_EDITOR
+			PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_NO_EDITOR
 		)
 
 
@@ -426,13 +424,14 @@ func _uses_continuous_chase_move_timer() -> bool:
 	return false
 
 
-## Show Combat Ranges draws the charger's real trigger rings, not the unused
-## base chase/attack discs. The sight cone is on Show Sense Ranges.
+## Show Combat Ranges draws the charger's tuned distances as ground rings (all,
+## or just the one `distance_gizmo` picks), not the unused base chase/attack
+## discs. The sight cone is on Show Sense Ranges.
 func _range_gizmo_specs() -> Array:
-	return [
-		{"name": "ChargeRangeGizmo", "radius": charge_range, "color": Color(1.0, 0.4, 0.15, 0.16)},
-		{"name": "ChargeMinRangeGizmo", "radius": charge_min_range, "color": Color(1.0, 0.1, 0.1, 0.3)},
-	]
+	return MonsterRangeGizmosScript.charger_distance_specs([
+		charge_range, charge_stage_range_m, charge_min_range, charge_lane_clearance_m,
+		charge_commit_dist_m, charge_max_dist_m, RAM_HIT_RANGE, wall_clearance_m,
+	], distance_gizmo)
 
 
 func _net_state_extra() -> PackedStringArray:
@@ -594,6 +593,13 @@ func _begin_charging() -> void:
 	_charge_start_pos = global_position
 	_charge_prev_pos = global_position
 	_charge_stall_ticks = 0
+	## Remember where the target is right now — SEARCH turns back to this spot.
+	if _target_is_valid():
+		_precharge_focus = _charge_target.global_position
+		_has_precharge_focus = true
+	elif _target_memory.has_goal():
+		_precharge_focus = _target_memory.last_goal()
+		_has_precharge_focus = true
 	_clear_ram_ghosts()
 	_tick_ram_hits.clear()
 	_apply_charge_tint(1.0)
@@ -623,7 +629,7 @@ func _tick_charging(delta: float) -> void:
 			ChargerPursuitScript.charge_travelled(self), charge_commit_dist_m
 		)
 	):
-		_charge.steer_locked_dir(_flat_to_target(), commit_turn_speed_rad, delta)
+		_charge.steer_locked_dir(_flat_to_target(), lock_on_turn_speed_rad, delta)
 	var speed := ChargerChargeScript.charge_speed(
 		Player.SPRINT_SPEED, charge_speed_mult
 	)
@@ -647,6 +653,7 @@ func _reset_to_idle() -> void:
 	_charge.reset()
 	_telegraph_scale = 1.0
 	_charge_target = null
+	_has_precharge_focus = false
 	_clear_ram_ghosts()
 	_tick_ram_hits.clear()
 	_enter_hunt()

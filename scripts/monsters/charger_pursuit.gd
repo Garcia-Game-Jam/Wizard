@@ -93,7 +93,7 @@ static func tick_stalk(c: Charger, delta: float) -> void:
 	## At the last-seen spot with no re-sight: the player likely rounded a corner.
 	## Go to the far side of the nearest cover, then give up.
 	c._stalk_search_sec += delta
-	if c._stalk_search_sec >= c.stalk_search_sec:
+	if c._stalk_search_sec >= c.search_sec:
 		c._target_memory.clear()
 		c._reset_to_idle()
 		return
@@ -138,15 +138,16 @@ static func _tick_stalk_live(c: Charger, live: Node3D, delta: float) -> void:
 	var world := c.get_world_3d()
 	var eye := Vector3(0.0, 0.6, 0.0)
 	var stage: Dictionary = MonsterAIScript.pick_charge_staging(
-		world, here, pp, c.charge_range, c.wall_clearance_m, c.get_rid()
+		world, here, pp, c.charge_stage_range_m, c.charge_lane_clearance_m,
+		c.wall_clearance_m, c.get_rid()
 	)
 	var s: Vector3 = stage.get("pos")
 	var stage_ok: bool = stage.get("ok")
 	var at_stage := Vector3(s.x - here.x, 0.0, s.z - here.z).length() <= STAGE_ARRIVE_M
 	## Wide corridor, not a single hair-thin ray — this is what stops the sheer
-	## corner-clipping charges.
+	## corner-clipping charges. Width is the tunable charge_lane_clearance_m.
 	var lane_wide := MonsterAIScript.corridor_clear(
-		world, here + eye, pp + eye, MonsterAIScript.CHARGE_LANE_HALF_W, c.get_rid()
+		world, here + eye, pp + eye, c.charge_lane_clearance_m, c.get_rid()
 	)
 	var banded := d_p >= c.charge_min_range and d_p <= c.charge_range + STAGE_BAND_SLACK_M
 	var set_up := stage_ok and at_stage and lane_wide and banded
@@ -190,7 +191,7 @@ static func _peek_around(c: Charger, centre: Vector3, delta: float) -> void:
 		mv = mv.normalized() * spd
 	c.velocity.x = mv.x
 	c.velocity.z = mv.z
-	c._face_horizontal_at_speed(tangent, delta, c.search_turn_speed_rad)
+	c._face_horizontal_at_speed(tangent, delta, c.walk_turn_speed_rad)
 
 
 static func enter_charge_sequence(c: Charger, target: Node3D) -> void:
@@ -325,7 +326,7 @@ static func tick_search(c: Charger, delta: float) -> void:
 		c._charge.age, ChargerChargeScript.SEARCH_YAW_AMP_RAD, ChargerChargeScript.SEARCH_YAW_HZ
 	)
 	var sweep := ChargerChargeScript.heading_from_yaw(c._search_base_yaw + yaw_off)
-	c._face_horizontal_at_speed(sweep, delta, c.search_turn_speed_rad)
+	c._face_horizontal_at_speed(sweep, delta, c.walk_turn_speed_rad)
 	c._head_pitch = ChargerChargeScript.search_head_pitch(
 		c._charge.age, ChargerChargeScript.SEARCH_PITCH_AMP_RAD, ChargerChargeScript.SEARCH_YAW_HZ
 	)
@@ -338,12 +339,32 @@ static func tick_search(c: Charger, delta: float) -> void:
 		finish_search(c)
 
 
+## First beat of the search: turn to face where the target was standing when the
+## last ram launched (it probably ran from roughly there) and hold that heading
+## until aligned — or bail early the instant it sees a player. With no remembered
+## spot it falls back to a blind 180° about-face.
 static func _tick_search_about_face(c: Charger, delta: float) -> void:
-	var back := ChargerChargeScript.about_face_heading(c._search_base_yaw)
-	c._face_horizontal_at_speed(back, delta, c.search_turn_speed_rad)
+	if not c._charge.pose_only and try_search_lock(c):
+		return
+	var heading: Vector3
+	var aligned: bool
+	if c._has_precharge_focus:
+		heading = Vector3(
+			c._precharge_focus.x - c.global_position.x,
+			0.0,
+			c._precharge_focus.z - c.global_position.z
+		)
+		if heading.length_squared() < 0.09:
+			heading = ChargerChargeScript.about_face_heading(c._search_base_yaw)
+		var off := wrapf(MonsterAIScript.yaw_from_flat(heading) - c.rotation.y, -PI, PI)
+		aligned = absf(off) <= ChargerChargeScript.SEARCH_ABOUT_FACE_EPS
+	else:
+		heading = ChargerChargeScript.about_face_heading(c._search_base_yaw)
+		aligned = ChargerChargeScript.about_face_done(c.rotation.y, c._search_base_yaw)
+	c._face_horizontal_at_speed(heading, delta, c.walk_turn_speed_rad)
 	c._head_pitch = 0.0
 	c._apply_head_pitch()
-	if not ChargerChargeScript.about_face_done(c.rotation.y, c._search_base_yaw):
+	if not aligned:
 		return
 	c._search_about_faced = true
 	c._search_base_yaw = c.rotation.y
@@ -371,6 +392,7 @@ static func finish_search(c: Charger) -> void:
 	c._charge.reset()
 	c._telegraph_scale = 1.0
 	c._charge_target = null
+	c._has_precharge_focus = false
 	c._clear_ram_ghosts()
 	c._tick_ram_hits.clear()
 	c._enter_hunt()
@@ -487,23 +509,3 @@ static func reacquire_sight_target(c: Charger) -> Node3D:
 	if not Charger.is_player_charge_target(target):
 		return null
 	return target
-
-
-static func lane_to_target_clear(c: Charger, flat_to_target: Vector3) -> bool:
-	if not c.is_inside_tree():
-		return true
-	var world := c.get_world_3d()
-	if world == null:
-		return true
-	var flat := Vector3(flat_to_target.x, 0.0, flat_to_target.z)
-	var span := flat.length()
-	if span < 0.2:
-		return true
-	var from := c.global_position + Vector3(0.0, 0.45, 0.0)
-	var to := from + flat
-	var exclude: Array = ChargerChargeScript.collect_wall_excludes(c, c._held_ward)
-	for node in c.get_tree().get_nodes_in_group("player"):
-		if node is CollisionObject3D:
-			exclude.append((node as CollisionObject3D).get_rid())
-	var hit_dist := MonsterSightSense.occlude_distance(world, from, to, exclude)
-	return hit_dist + 0.5 >= span

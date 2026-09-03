@@ -6,6 +6,7 @@ extends RefCounted
 const MonsterAIScript := preload("res://scripts/monsters/monster_ai.gd")
 const MonsterTargetMemoryScript := preload("res://scripts/monsters/monster_target_memory.gd")
 const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
+const MonsterRangeGizmosScript := preload("res://scripts/monsters/monster_range_gizmos.gd")
 
 
 func run() -> int:
@@ -16,6 +17,8 @@ func run() -> int:
 	failures += _test_target_memory_notes_and_expires()
 	failures += _test_seek_goal_centroid_of_spawns()
 	failures += await _test_avoid_obstacles()
+	failures += await _test_charge_staging()
+	failures += _test_charger_distance_specs()
 	return failures
 
 
@@ -146,5 +149,43 @@ func _test_avoid_obstacles() -> int:
 		return 1
 	if clear != Vector3(12, 0, 0):
 		push_error("avoid: a clear lane should return the goal unchanged (got %s)" % clear)
+		return 1
+	return 0
+
+
+func _test_charge_staging() -> int:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		push_error("staging: expected a SceneTree")
+		return 1
+	var world := Node3D.new()
+	tree.root.add_child(world)
+	await tree.physics_frame
+	var w := world.get_world_3d()
+	var player := Vector3(0, 0, 0)
+	var charger := Vector3(3, 0, 0)
+	# Open arena: some clean bearing at stage_range should always resolve.
+	var stage := MonsterAIScript.pick_charge_staging(w, charger, player, 8.0, 0.85, 1.5, RID())
+	world.queue_free()
+	await tree.process_frame
+	if not bool(stage.get("ok")):
+		push_error("staging: open space should give a clean staging spot")
+		return 1
+	var pos: Vector3 = stage.get("pos")
+	if absf(pos.distance_to(player) - 8.0) > 0.75:
+		push_error("staging: spot should sit ~stage_range from the player (got %s)" % pos)
+		return 1
+	return 0
+
+
+func _test_charger_distance_specs() -> int:
+	var radii := [10.0, 8.0, 3.0, 0.85, 3.0, 15.0, 0.55, 2.5]
+	var all: Array = MonsterRangeGizmosScript.charger_distance_specs(radii, 0)
+	if all.size() != radii.size():
+		push_error("specs: 'All' should return one ring per distance (got %d)" % all.size())
+		return 1
+	var one: Array = MonsterRangeGizmosScript.charger_distance_specs(radii, 2)
+	if one.size() != 1 or str(one[0].get("name")) != "charge_stage_range":
+		push_error("specs: pick=2 should return only charge_stage_range (got %s)" % one)
 		return 1
 	return 0
