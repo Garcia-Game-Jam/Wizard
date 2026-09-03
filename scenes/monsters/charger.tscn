@@ -26,7 +26,6 @@ albedo_color = Color(0.96, 0.96, 0.94, 1)
 
 [node name="Charger" unique_id=473758256 instance=ExtResource("1_monster")]
 editor_description = "Rammer: sight-cone spot, stalk, telegraph, homing-then-locked ram, wall stun or skid recovery, feint. Greybox is the monster shell plus one collider."
-transform = Transform3D(-0.665572, 0, 0.74633366, 0, 1, 0, -0.74633366, 0, -0.665572, 0, 0, 0)
 collision_mask = 3
 script = ExtResource("2_charger")
 telegraph_sec = 1.0
