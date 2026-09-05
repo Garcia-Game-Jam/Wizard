@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="LevelDefinition" format=3 uid="uid://bgpuvlfj7dxnl"]
 
-[ext_resource type="Script" uid="uid://lch3c2px2rba" path="res://scripts/arena/encounter_definition.gd" id="1_ygr3k"]
+[ext_resource type="Script" uid="uid://lch3c2px2rba" path="res://scripts/arena/combat_encounter.gd" id="1_ygr3k"]
 [ext_resource type="Script" uid="uid://oagxbmho0luy" path="res://scripts/arena/monster_spawn_entry.gd" id="2_e0unw"]
 [ext_resource type="Script" uid="uid://c74n45g40fg6d" path="res://scripts/arena/level_definition.gd" id="3_f4cfn"]
 

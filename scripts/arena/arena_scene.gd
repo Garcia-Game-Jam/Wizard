@@ -15,6 +15,8 @@ const NetClockScript := preload("res://scripts/net/net_clock.gd")
 const NetThreatFxScript := preload("res://scripts/net/net_threat_fx.gd")
 const TestEnvScript := preload("res://scripts/test/test_env.gd")
 const CollisionLayersScript := preload("res://scripts/collision_layers.gd")
+const ArenaCoverScript := preload("res://scripts/arena/arena_cover.gd")
+const ShopSpawnControllerScript := preload("res://scripts/arena/shop_spawn_controller.gd")
 
 const FIRST_FIGHT_DELAY_SEC := 0.5
 const COVER_MOVE_SEC := 1.7
@@ -140,9 +142,16 @@ func _process(delta: float) -> void:
 			_host_begin_staging()
 		return
 	if _wave_live and _live_monster_count() == 0:
-		_corpse_beat += delta
-		if _corpse_beat >= CORPSE_BEAT_SEC:
-			_host_resolve_fight()
+		## A shop stage has no monsters, so _live_monster_count() is always 0
+		## the instant it begins — skip auto-resolve there entirely (see
+		## _host_resolve_fight), or it'd advance to the next encounter
+		## within CORPSE_BEAT_SEC and yank the shop away mid-rise.
+		## Leaving/advancing past a shop stage isn't wired up yet (see
+		## shop_encounter.gd), so it just parks here.
+		if not _current_encounter_is_shop():
+			_corpse_beat += delta
+			if _corpse_beat >= CORPSE_BEAT_SEC:
+				_host_resolve_fight()
 		return
 	_corpse_beat = 0.0
 
@@ -337,6 +346,10 @@ func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
 	_pending_encounter = encounter_index
 	_clear_stage_corpses()
 	_revive_dead_players()
+	## Whatever shop stood for the encounter that just ended (a no-op if
+	## there wasn't one) — the new encounter's own rpc_show_telegraph rises
+	## a fresh one if this one turns out to be a shop too.
+	_clear_shop()
 	if restage_cover:
 		_restage_cover(encounter_index)
 	## Last round's gates stay down through its whole fight; snap them all
@@ -349,6 +362,9 @@ func rpc_stage_between(encounter_index: int, restage_cover: bool) -> void:
 @rpc("authority", "call_local", "reliable")
 func rpc_show_telegraph(encounter_index: int) -> void:
 	if _active_level() != null:
+		if _level_encounter(encounter_index) is ShopEncounter:
+			_show_shop()
+			return
 		## Level-authored monsters spawn at free positions, not fixed pad
 		## indices, so there's no pad to light up for them — each monster
 		## gets its own SpawnTelegraphFx at its exact spot instead (see
@@ -483,6 +499,16 @@ func _restage_cover(encounter_index: int) -> void:
 ## rollback-tracked bodies mid-match.
 func _resolve_cover_positions(encounter_index: int) -> Array[Vector3]:
 	var level_enc := _level_encounter(encounter_index)
+	if level_enc is ShopEncounter:
+		## A shop stage has no combat obstacles at all — sink each block
+		## straight down where it already stands (see ArenaCover.restage_to;
+		## a target y of BURIED_Y means it never actually rises back into
+		## view) instead of leaving it wherever the last fight parked it.
+		var buried: Array[Vector3] = []
+		for child in cover_root.get_children():
+			var pos: Vector3 = (child as Node3D).position
+			buried.append(Vector3(pos.x, ArenaCoverScript.BURIED_Y, pos.z))
+		return buried
 	if level_enc != null:
 		return level_enc.obstacle_positions
 	return ArenaEncountersScript.cover_positions(encounter_index)
@@ -562,6 +588,28 @@ func _clear_level_telegraph_fx() -> void:
 		child.queue_free()
 
 
+## Rises scenes/arenas/shop.tscn out of the ground at the arena's center —
+## see shop_spawn_controller.gd for the animation and its automatic
+## door-opening once seated. rpc_stage_between's own _clear_shop() call
+## removes whatever this leaves behind once the run moves past this
+## encounter.
+func _show_shop() -> void:
+	_clear_shop()
+	var controller := ShopSpawnControllerScript.new()
+	controller.name = "ShopSpawn"
+	add_child(controller)
+
+
+func _clear_shop() -> void:
+	var node := get_node_or_null("ShopSpawn")
+	if node != null:
+		node.queue_free()
+
+
+func _current_encounter_is_shop() -> bool:
+	return _level_encounter(_pending_encounter) is ShopEncounter
+
+
 ## {kind, position, facing_deg} per monster when a custom level is active
 ## (spawned exactly where authored), else the classic {kind, pad} table that
 ## _spawn_dump resolves through pads_root/_pad_marker as before.
@@ -569,6 +617,8 @@ func _resolve_dump(encounter_index: int) -> Array[Dictionary]:
 	var level_enc := _level_encounter(encounter_index)
 	if level_enc == null:
 		return ArenaEncountersScript.dump_for(encounter_index)
+	if level_enc is ShopEncounter:
+		return []
 	var out: Array[Dictionary] = []
 	for m in (level_enc.monsters as Array):
 		out.append({"kind": m.kind, "position": m.position, "facing_deg": m.facing_deg})

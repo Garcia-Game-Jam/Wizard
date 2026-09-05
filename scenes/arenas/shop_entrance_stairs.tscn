@@ -1,0 +1,454 @@
+[gd_scene load_steps=38 format=3]
+
+[sub_resource type="BoxMesh" id="LandingBox"]
+size = Vector3(2.673502, 0.09, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="LandingMat"]
+albedo_color = Color(0.351091, 0.36195, 0.376428, 1)
+roughness = 0.85
+
+[sub_resource type="BoxShape3D" id="LandingShape"]
+size = Vector3(2.673502, 0.09, 0.9)
+
+[sub_resource type="BoxMesh" id="StepBox"]
+size = Vector3(2.673502, 0.09, 0.22)
+
+[sub_resource type="StandardMaterial3D" id="Step1Mat"]
+albedo_color = Color(0.222527, 0.229409, 0.238585, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step2Mat"]
+albedo_color = Color(0.209308, 0.215781, 0.224413, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step3Mat"]
+albedo_color = Color(0.195255, 0.201294, 0.209346, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step4Mat"]
+albedo_color = Color(0.250861, 0.258619, 0.268964, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step5Mat"]
+albedo_color = Color(0.28456, 0.293361, 0.305096, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step6Mat"]
+albedo_color = Color(0.196237, 0.202306, 0.210398, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step7Mat"]
+albedo_color = Color(0.228578, 0.235647, 0.245073, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step8Mat"]
+albedo_color = Color(0.260933, 0.269003, 0.279763, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step9Mat"]
+albedo_color = Color(0.208186, 0.214625, 0.22321, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step10Mat"]
+albedo_color = Color(0.267811, 0.276093, 0.287137, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step11Mat"]
+albedo_color = Color(0.27293, 0.281371, 0.292626, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step12Mat"]
+albedo_color = Color(0.252743, 0.26056, 0.270982, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step13Mat"]
+albedo_color = Color(0.157376, 0.162243, 0.168733, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step14Mat"]
+albedo_color = Color(0.263152, 0.271291, 0.282143, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step15Mat"]
+albedo_color = Color(0.24508, 0.25266, 0.262767, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step16Mat"]
+albedo_color = Color(0.248791, 0.256486, 0.266745, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step17Mat"]
+albedo_color = Color(0.255181, 0.263073, 0.273596, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step18Mat"]
+albedo_color = Color(0.286386, 0.295243, 0.307053, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step19Mat"]
+albedo_color = Color(0.230711, 0.237846, 0.24736, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step20Mat"]
+albedo_color = Color(0.201892, 0.208136, 0.216462, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step21Mat"]
+albedo_color = Color(0.249753, 0.257477, 0.267776, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step22Mat"]
+albedo_color = Color(0.285099, 0.293916, 0.305673, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step23Mat"]
+albedo_color = Color(0.282368, 0.291102, 0.302746, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step24Mat"]
+albedo_color = Color(0.174662, 0.180064, 0.187267, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step25Mat"]
+albedo_color = Color(0.244012, 0.251558, 0.261621, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step26Mat"]
+albedo_color = Color(0.265072, 0.27327, 0.284201, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step27Mat"]
+albedo_color = Color(0.200183, 0.206374, 0.214629, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step28Mat"]
+albedo_color = Color(0.234559, 0.241813, 0.251485, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step29Mat"]
+albedo_color = Color(0.2401, 0.247525, 0.257426, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step30Mat"]
+albedo_color = Color(0.238321, 0.245692, 0.25552, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step31Mat"]
+albedo_color = Color(0.166692, 0.171848, 0.178722, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Step32Mat"]
+albedo_color = Color(0.268044, 0.276334, 0.287388, 1)
+roughness = 0.85
+
+[sub_resource type="ConvexPolygonShape3D" id="RampShape"]
+points = PackedVector3Array(-1.236751, 4.960599, 5.369217, 1.236751, 4.960599, 5.369217, -1.236751, -1.270723, 13.344947, 1.236751, -1.270723, 13.344947, -1.236751, -1.191922, 13.406513, 1.236751, -1.191922, 13.406513, -1.236751, 5, 5.4, 1.236751, 5, 5.4, -1.236751, 5, 5.481213, 1.236751, 5, 5.481213)
+
+[node name="ShopEntranceStairs" type="Node3D"]
+
+[node name="Landing" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.955, 4.95)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Landing"]
+mesh = SubResource("LandingBox")
+material_override = SubResource("LandingMat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Landing"]
+shape = SubResource("LandingShape")
+
+[node name="Step1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.84, 5.604791)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step1"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step1Mat")
+
+[node name="Step2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.68, 5.809581)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step2"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step2Mat")
+
+[node name="Step3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.52, 6.014372)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step3"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step3Mat")
+
+[node name="Step4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.36, 6.219163)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step4"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step4Mat")
+
+[node name="Step5" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 6.423953)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step5"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step5Mat")
+
+[node name="Step6" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.04, 6.628744)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step6"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step6Mat")
+
+[node name="Step7" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.88, 6.833535)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step7"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step7Mat")
+
+[node name="Step8" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.72, 7.038325)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step8"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step8Mat")
+
+[node name="Step9" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.56, 7.243116)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step9"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step9Mat")
+
+[node name="Step10" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 7.447907)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step10"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step10Mat")
+
+[node name="Step11" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.24, 7.652697)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step11"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step11Mat")
+
+[node name="Step12" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.08, 7.857488)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step12"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step12Mat")
+
+[node name="Step13" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.92, 8.062279)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step13"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step13Mat")
+
+[node name="Step14" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.76, 8.267069)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step14"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step14Mat")
+
+[node name="Step15" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 8.47186)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step15"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step15Mat")
+
+[node name="Step16" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.44, 8.676651)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step16"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step16Mat")
+
+[node name="Step17" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.28, 8.881441)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step17"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step17Mat")
+
+[node name="Step18" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.12, 9.086232)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step18"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step18Mat")
+
+[node name="Step19" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.96, 9.291023)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step19"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step19Mat")
+
+[node name="Step20" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 9.495813)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step20"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step20Mat")
+
+[node name="Step21" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.64, 9.700604)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step21"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step21Mat")
+
+[node name="Step22" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.48, 9.905395)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step22"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step22Mat")
+
+[node name="Step23" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.32, 10.110185)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step23"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step23Mat")
+
+[node name="Step24" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.16, 10.314976)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step24"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step24Mat")
+
+[node name="Step25" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10.519767)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step25"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step25Mat")
+
+[node name="Step26" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.84, 10.724557)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step26"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step26Mat")
+
+[node name="Step27" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.68, 10.929348)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step27"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step27Mat")
+
+[node name="Step28" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.52, 11.134139)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step28"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step28Mat")
+
+[node name="Step29" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 11.338929)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step29"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step29Mat")
+
+[node name="Step30" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 11.54372)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step30"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step30Mat")
+
+[node name="Step31" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, 11.74851)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step31"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step31Mat")
+
+[node name="Step32" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.005, 11.953301)
+collision_layer = 2
+collision_mask = 0
+
+[node name="Slab" type="MeshInstance3D" parent="Step32"]
+mesh = SubResource("StepBox")
+material_override = SubResource("Step32Mat")
+
+[node name="Ramp" type="StaticBody3D" parent="."]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp"]
+shape = SubResource("RampShape")

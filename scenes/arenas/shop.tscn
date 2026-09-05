@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://1w0alchlvwbc"]
+
+[ext_resource type="Script" uid="uid://dhjdgyrct2k5r" path="res://scripts/arena/shop_structure.gd" id="1_shop"]
+[ext_resource type="Script" uid="uid://c24rg14wk18un" path="res://scripts/arena/artifact_display_entry.gd" id="2_artifact"]
+[ext_resource type="Script" uid="uid://c1mcb2xf5bkix" path="res://scripts/arena/shop_display_entry.gd" id="2_ny0cw"]
+[ext_resource type="Script" uid="uid://byoioo5ytn7j7" path="res://scripts/arena/heal_display_entry.gd" id="3_bnm1g"]
+[ext_resource type="Script" uid="uid://houq01p3fetg" path="res://scripts/arena/spell_display_entry.gd" id="4_7yrde"]
+[ext_resource type="PackedScene" path="res://scenes/arenas/shop_entrance_stairs.tscn" id="5_stairs"]
+
+[sub_resource type="Resource" id="Resource_bhj4x"]
+script = ExtResource("3_bnm1g")
+bay_index = 5
+metadata/_custom_type_script = "uid://byoioo5ytn7j7"
+
+[sub_resource type="Resource" id="Resource_wmxd4"]
+script = ExtResource("4_7yrde")
+bay_index = 3
+metadata/_custom_type_script = "uid://houq01p3fetg"
+
+[sub_resource type="Resource" id="Resource_ppqgi"]
+script = ExtResource("4_7yrde")
+bay_index = 4
+metadata/_custom_type_script = "uid://houq01p3fetg"
+
+[sub_resource type="Resource" id="Resource_u3ukb"]
+script = ExtResource("2_artifact")
+bay_index = 6
+
+[sub_resource type="Resource" id="Resource_4texx"]
+script = ExtResource("2_artifact")
+bay_index = 2
+
+[node name="Shop" type="Node3D" unique_id=823073279]
+script = ExtResource("1_shop")
+radius = 4.5
+wall_height = 5.05
+arch_rise = 0.05
+roof_height = 3.0
+roof_overhang = 0.4
+floor_thickness = 0.15
+pier_size = Vector2(0.6, 0.4)
+rib_thickness = 0.12
+lantern_drop = 3.65
+foundation_riser = 5.0
+foundation_courses = 6
+foundation_joint_gap = 0.01
+foundation_corner_base_scale = 1.97
+foundation_corner_height_scale = 1.92
+ivy_coverage = 2.5
+shop_displays = Array[ExtResource("2_ny0cw")]([SubResource("Resource_bhj4x"), SubResource("Resource_wmxd4"), SubResource("Resource_ppqgi"), SubResource("Resource_u3ukb"), SubResource("Resource_4texx")])
+
+[node name="DoorStairs0" parent="." unique_id=273304702 instance=ExtResource("5_stairs")]
+transform = Transform3D(0.9263512, 0, 0.37666082, 0, 1, 0, -0.37666082, 0, 0.9263512, 0, 0, 0)

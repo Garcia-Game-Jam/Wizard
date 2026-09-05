@@ -2,20 +2,27 @@
 extends Node3D
 
 ## Encounter design workshop — author a LevelDefinition (a map id plus an
-## ordered sequence of encounters, each with monster spawns and cover
-## obstacle positions) against a live preview of the actual arena scene for
-## the level's chosen map.
+## ordered sequence of encounters) against a live preview of the actual
+## arena scene for the level's chosen map. `encounters` is heterogeneous —
+## CombatEncounter (monster spawns and cover obstacle positions),
+## ShopEncounter, ChallengeEncounter, or any other Encounter subclass — but
+## this workshop's 3D preview, marker sync, and "Add Monster/Obstacle At
+## Camera Focus" actions only apply to CombatEncounter; a non-combat
+## encounter just previews with no markers (see _rebuild_encounter_preview).
+## "Add Encounter" always adds a CombatEncounter — add a ShopEncounter/
+## ChallengeEncounter via the Inspector's own `encounters` array controls
+## (its "+" lets you pick which Encounter subclass to instantiate).
 ##
 ## New/Load/Save As for the whole level is the `level` field's own Inspector
 ## resource picker (the dropdown arrow next to it) — a LevelDefinition IS the
 ## save file, so that picker gives you those for free, and expanding it in
 ## the Inspector gives +/- and reorder for its `encounters` array, and each
-## encounter's `monsters`/`obstacle_positions` arrays. Nothing here
-## reimplements any of that. IMPORTANT: that picker's own "Save" only writes
-## whatever is already IN the resource — it does NOT pull in-viewport marker
-## drags first. Use the "Save Level" action below for that (it syncs, then
-## writes); the Level field's Save is really only for a plain "New Level" ->
-## rename -> Save As first-time-to-disk flow.
+## encounter's fields (a CombatEncounter's `monsters`/`obstacle_positions`
+## arrays included). Nothing here reimplements any of that. IMPORTANT: that
+## picker's own "Save" only writes whatever is already IN the resource — it
+## does NOT pull in-viewport marker drags first. Use the "Save Level" action
+## below for that (it syncs, then writes); the Level field's Save is really
+## only for a plain "New Level" -> rename -> Save As first-time-to-disk flow.
 ##
 ## `selected_encounter_index` picks which encounter's monsters/obstacles show
 ## as preview markers under EncounterPreview — spheres (color-coded red/
@@ -54,7 +61,8 @@ extends Node3D
 
 const ArenaCatalogScript := preload("res://scripts/arena/arena_catalog.gd")
 const LevelDefinitionScript := preload("res://scripts/arena/level_definition.gd")
-const EncounterDefinitionScript := preload("res://scripts/arena/encounter_definition.gd")
+const EncounterScript := preload("res://scripts/arena/encounter.gd")
+const CombatEncounterScript := preload("res://scripts/arena/combat_encounter.gd")
 const MonsterSpawnEntryScript := preload("res://scripts/arena/monster_spawn_entry.gd")
 const MonsterSpawnMarkerScript := preload("res://scripts/arena/monster_spawn_marker.gd")
 
@@ -78,8 +86,17 @@ const CAMERA_FOCUS_DISTANCE := 6.0
 		_last_signature = ""
 		_rebuild_map_preview()
 		_rebuild_encounter_preview()
+		## The selected_encounter_index dropdown's options come from THIS
+		## level's encounters — stale otherwise (e.g. still showing the
+		## previous level's labels right after switching).
+		notify_property_list_changed()
 
-@export_range(0, 20, 1, "or_greater") var selected_encounter_index: int = 0:
+## Presented as a dropdown of each encounter's own label (see
+## _validate_property below) rather than a bare number — that dropdown IS
+## how you pick which encounter previews; there's no way for a script to
+## detect "user expanded row N of the `encounters` array" in the Inspector,
+## so this field is the actual click target for that.
+@export var selected_encounter_index: int = 0:
 	set(value):
 		## Commit the encounter being LEFT before switching away — otherwise a
 		## drag you haven't synced yet is silently discarded the moment the
@@ -109,13 +126,16 @@ var save_level_action := _action_save_level
 var refresh_action := _refresh_preview
 
 var _last_signature: String = ""
-## Which EncounterDefinition EncounterPreview currently shows —
+## Which Encounter EncounterPreview currently shows —
 ## _rebuild_encounter_preview() only tears down and recreates markers from
 ## scratch when this changes (a real switch to a different encounter, a
 ## newly loaded level, ...). Otherwise it updates existing markers in place,
 ## which is what keeps a viewport drag from being wiped out by an unrelated
 ## field edit (map_id, open_gate_indices, ...) triggering a rebuild.
-var _previewed_encounter: EncounterDefinitionScript = null
+## Monster/obstacle markers only ever render for a CombatEncounter — a
+## ShopEncounter/ChallengeEncounter (or any other non-combat Encounter) just
+## previews with an empty EncounterPreview.
+var _previewed_encounter: EncounterScript = null
 
 
 func _ready() -> void:
@@ -163,6 +183,11 @@ func _process(_delta: float) -> void:
 	_rebuild_map_preview()
 	_rebuild_encounter_preview()
 	_nudge_scene_dock_refresh()
+	## Covers encounters.size() changing (native Inspector +/- on the array,
+	## not just this node's own Add/Delete Encounter actions) and the
+	## selected encounter's own label changing — both are part of _signature()
+	## already, so this piggybacks on the same poll instead of a second one.
+	notify_property_list_changed()
 
 
 func _refresh_preview() -> void:
@@ -226,15 +251,41 @@ func _signature() -> String:
 	)
 	var enc := _selected_encounter()
 	if enc != null:
-		for m in enc.monsters:
-			parts.append("%s@%s@%s@%s" % [m.kind, m.position, m.facing_deg, m.spawn_animation])
-		for p in enc.obstacle_positions:
-			parts.append(str(p))
-		parts.append(str(enc.open_gate_indices))
+		parts.append(enc.label)
+		var combat := enc as CombatEncounterScript
+		if combat != null:
+			for m in combat.monsters:
+				parts.append("%s@%s@%s@%s" % [m.kind, m.position, m.facing_deg, m.spawn_animation])
+			for p in combat.obstacle_positions:
+				parts.append(str(p))
+			parts.append(str(combat.open_gate_indices))
 	return "|".join(parts)
 
 
-func _selected_encounter() -> EncounterDefinitionScript:
+## Same "dropdown built live from live data" pattern as LevelDefinition's
+## map_id — each option is "<label>:<index>" so the Inspector shows the
+## encounter's own label (falling back to "Encounter N" for one authored
+## with no label) instead of a bare, meaningless number. selected_encounter_
+## index is an int, not a String, so this doesn't hit the "Label:value" leak
+## those other enum setters guard against (that leak only applies to
+## PROPERTY_HINT_ENUM on String properties) — Godot writes the numeric value
+## straight back.
+func _validate_property(property: Dictionary) -> void:
+	if property.get("name", "") != "selected_encounter_index":
+		return
+	if level == null or level.encounters.is_empty():
+		return
+	var parts := PackedStringArray()
+	for i in level.encounters.size():
+		var enc_label := level.encounters[i].label
+		if enc_label.is_empty():
+			enc_label = "Encounter %d" % i
+		parts.append("%s:%d" % [enc_label, i])
+	property["hint"] = PROPERTY_HINT_ENUM
+	property["hint_string"] = ",".join(parts)
+
+
+func _selected_encounter() -> EncounterScript:
 	if level == null or level.encounters.is_empty():
 		return null
 	var idx := clampi(selected_encounter_index, 0, level.encounters.size() - 1)
@@ -255,9 +306,10 @@ func _action_add_encounter() -> void:
 	if level == null:
 		_action_new_level()
 	var is_first := level.encounters.is_empty()
-	var enc := EncounterDefinitionScript.new()
+	var enc := CombatEncounterScript.new()
 	enc.label = "Encounter %d" % level.encounters.size()
 	level.encounters.append(enc)
+	notify_property_list_changed()
 	selected_encounter_index = level.encounters.size() - 1
 	if is_first:
 		_ensure_player_spawns_for_all_maps()
@@ -269,6 +321,7 @@ func _action_delete_selected_encounter() -> void:
 		return
 	var idx := clampi(selected_encounter_index, 0, level.encounters.size() - 1)
 	level.encounters.remove_at(idx)
+	notify_property_list_changed()
 	selected_encounter_index = clampi(
 		selected_encounter_index, 0, maxi(level.encounters.size() - 1, 0)
 	)
@@ -276,7 +329,7 @@ func _action_delete_selected_encounter() -> void:
 
 
 func _action_add_monster() -> void:
-	var enc := _selected_encounter()
+	var enc := _selected_encounter() as CombatEncounterScript
 	if enc == null:
 		return
 	var entry := MonsterSpawnEntryScript.new()
@@ -286,7 +339,7 @@ func _action_add_monster() -> void:
 
 
 func _action_add_obstacle() -> void:
-	var enc := _selected_encounter()
+	var enc := _selected_encounter() as CombatEncounterScript
 	if enc == null:
 		return
 	enc.obstacle_positions.append(_camera_focus_point())
@@ -304,7 +357,7 @@ func _sync_positions_from_markers() -> void:
 ## The pure data-copy step, with no _last_signature side effect — safe to
 ## call unconditionally from _process() every frame (see its comment).
 func _apply_marker_positions_to_resource() -> void:
-	var enc := _selected_encounter()
+	var enc := _selected_encounter() as CombatEncounterScript
 	if enc == null:
 		return
 	var marker_root := _marker_root()
@@ -373,7 +426,7 @@ func _free_level_path(level_name: String) -> String:
 func _action_delete_selected_markers() -> void:
 	if not Engine.is_editor_hint():
 		return
-	var enc := _selected_encounter()
+	var enc := _selected_encounter() as CombatEncounterScript
 	if enc == null:
 		return
 	var marker_root := _marker_root()
@@ -402,13 +455,23 @@ func _action_delete_selected_markers() -> void:
 	_refresh_preview()
 
 
+## Falls back to a real, on-the-ground spawn point rather than the world
+## origin — get_editor_viewport_3d(0) has no camera to report if the 3D
+## viewport tab hasn't been made the active editor main-screen tab yet this
+## session (e.g. clicking straight into the Inspector from the Script tab),
+## so a silent Vector3.ZERO fallback used to plant new monsters/obstacles
+## invisibly at the map's origin with no indication anything was wrong.
 func _camera_focus_point() -> Vector3:
 	if Engine.is_editor_hint():
 		var viewport := EditorInterface.get_editor_viewport_3d(0)
 		var cam := viewport.get_camera_3d() if viewport != null else null
 		if cam != null:
 			return cam.global_position + (-cam.global_transform.basis.z) * CAMERA_FOCUS_DISTANCE
-	return Vector3.ZERO
+		push_warning(
+			"EncounterDesignWorkshop: no active 3D editor camera found — switch to the 3D"
+			+ " viewport tab first. Placed at a default spawn point instead of the camera focus."
+		)
+	return REQUIRED_PLAYER_SPAWNS[0]
 
 
 ## --- Map scaffolding -------------------------------------------------------
@@ -485,7 +548,7 @@ func _rebuild_map_preview() -> void:
 ## every marker every time ANY part of the signature changes — including a
 ## completely unrelated field like open_gate_indices or map_id — would wipe
 ## an in-progress drag out from under the user. Only two things force a full
-## rebuild instead: a genuine switch to a different EncounterDefinition
+## rebuild instead: a genuine switch to a different Encounter
 ## (selected_encounter_index, a freshly loaded level, ...), which has
 ## nothing here to preserve anyway; or the arrays having SHRUNK (native
 ## Inspector's own "-", Delete Selected Markers) — index-based Monster%d/
@@ -498,17 +561,20 @@ func _rebuild_encounter_preview() -> void:
 	var marker_root := _marker_root()
 	var enc := _selected_encounter()
 	var needs_full_rebuild := enc != _previewed_encounter
-	if not needs_full_rebuild and enc != null:
-		var expected := enc.monsters.size() + enc.obstacle_positions.size()
+	var combat := enc as CombatEncounterScript
+	if not needs_full_rebuild and combat != null:
+		var expected := combat.monsters.size() + combat.obstacle_positions.size()
 		needs_full_rebuild = marker_root.get_child_count() > expected
 	if needs_full_rebuild:
 		for child in marker_root.get_children():
 			_free_child(child)
 		_previewed_encounter = enc
-	if enc == null:
+	## Non-combat encounters (ShopEncounter, ChallengeEncounter, ...) have no
+	## monster/obstacle markers to sync — an empty EncounterPreview for them.
+	if combat == null:
 		return
-	_sync_monster_markers(marker_root, enc)
-	_sync_obstacle_markers(marker_root, enc)
+	_sync_monster_markers(marker_root, combat)
+	_sync_obstacle_markers(marker_root, combat)
 
 
 ## Updates existing Monster%d markers' kind/spawn_animation in place — never
@@ -516,7 +582,7 @@ func _rebuild_encounter_preview() -> void:
 ## any that are missing (a monster the native Inspector's own +/- just
 ## added). A removed one is instead caught by _rebuild_encounter_preview()'s
 ## own needs_full_rebuild check (marker_root shrinking below the array size).
-func _sync_monster_markers(marker_root: Node3D, enc: EncounterDefinitionScript) -> void:
+func _sync_monster_markers(marker_root: Node3D, enc: CombatEncounterScript) -> void:
 	for i in enc.monsters.size():
 		var entry := enc.monsters[i]
 		var marker := marker_root.get_node_or_null("Monster%d" % i)
@@ -531,7 +597,7 @@ func _sync_monster_markers(marker_root: Node3D, enc: EncounterDefinitionScript) 
 
 ## Obstacles have no field besides position, which is the marker's own live
 ## drag state — only ever create a missing one, never touch an existing one.
-func _sync_obstacle_markers(marker_root: Node3D, enc: EncounterDefinitionScript) -> void:
+func _sync_obstacle_markers(marker_root: Node3D, enc: CombatEncounterScript) -> void:
 	for i in enc.obstacle_positions.size():
 		if marker_root.get_node_or_null("Obstacle%d" % i) != null:
 			continue

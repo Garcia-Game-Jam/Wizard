@@ -1,54 +1,60 @@
 [gd_resource type="Resource" script_class="LevelDefinition" format=3 uid="uid://cu0vdtjefjj5y"]
 
-[ext_resource type="Script" uid="uid://lch3c2px2rba" path="res://scripts/arena/encounter_definition.gd" id="1_enc"]
+[ext_resource type="Script" uid="uid://bjgk6cuxxtde7" path="res://scripts/arena/encounter.gd" id="1_e08vm"]
+[ext_resource type="Script" uid="uid://lch3c2px2rba" path="res://scripts/arena/combat_encounter.gd" id="1_enc"]
 [ext_resource type="Script" uid="uid://oagxbmho0luy" path="res://scripts/arena/monster_spawn_entry.gd" id="2_mon"]
 [ext_resource type="Script" uid="uid://c74n45g40fg6d" path="res://scripts/arena/level_definition.gd" id="3_level"]
+[ext_resource type="Script" uid="uid://sr37ctfak8oe" path="res://scripts/arena/shop_encounter.gd" id="4_e08vm"]
 
-[sub_resource type="Resource" id="Resource_hyaya"]
-script = ExtResource("2_mon")
-kind = "ember"
-position = Vector3(0, 0, 29.715567)
-spawn_animation = "Classic Beam:classic_beam"
-metadata/_custom_type_script = "uid://oagxbmho0luy"
+[sub_resource type="Resource" id="Resource_x8whn"]
+script = ExtResource("4_e08vm")
+metadata/_custom_type_script = "uid://sr37ctfak8oe"
 
 [sub_resource type="Resource" id="Resource_43pyl"]
 script = ExtResource("2_mon")
-kind = "ash"
-position = Vector3(30.29433, 0, 0)
-spawn_animation = "Classic Beam:classic_beam"
-metadata/_custom_type_script = "uid://oagxbmho0luy"
-
-[sub_resource type="Resource" id="Resource_bq7ac"]
-script = ExtResource("2_mon")
-kind = "ash"
-position = Vector3(20.388582, 0, 20.729742)
-metadata/_custom_type_script = "uid://oagxbmho0luy"
+position = Vector3(0.019169785, 0.015010357, -29.048464)
 
 [sub_resource type="Resource" id="Resource_e08vm"]
-script = ExtResource("1_enc")
-monsters = Array[ExtResource("2_mon")]([SubResource("Resource_hyaya"), SubResource("Resource_43pyl"), SubResource("Resource_bq7ac")])
-open_gate_indices = Array[int]([0, 1, 2])
-metadata/_custom_type_script = "uid://lch3c2px2rba"
+script = ExtResource("2_mon")
+position = Vector3(-20.726574, 0.04258585, 20.853655)
 
 [sub_resource type="Resource" id="Resource_brx8q"]
 script = ExtResource("2_mon")
-spawn_animation = "Classic Beam:classic_beam"
-metadata/_custom_type_script = "uid://oagxbmho0luy"
+position = Vector3(20.593048, 0.2295289, 20.508911)
 
 [sub_resource type="Resource" id="Resource_hc2a3"]
-script = ExtResource("2_mon")
-kind = "Charger:charger"
-spawn_animation = "Classic Beam:classic_beam"
-metadata/_custom_type_script = "uid://oagxbmho0luy"
+script = ExtResource("1_enc")
+monsters = Array[ExtResource("2_mon")]([SubResource("Resource_43pyl"), SubResource("Resource_e08vm"), SubResource("Resource_brx8q")])
+open_gate_indices = Array[int]([1, 4, 7])
+label = "Encounter 0"
 
 [sub_resource type="Resource" id="Resource_ugmfq"]
+script = ExtResource("2_mon")
+kind = "ash"
+position = Vector3(0.028424293, 0.17398262, 28.473694)
+
+[sub_resource type="Resource" id="Resource_bq7ac"]
+script = ExtResource("2_mon")
+kind = "ember"
+position = Vector3(28.479584, -0.06354642, -0.08446661)
+
+[sub_resource type="Resource" id="Resource_ks02h"]
+script = ExtResource("2_mon")
+kind = "ember"
+position = Vector3(-28.74431, 0.07678032, -0.1896483)
+
+[sub_resource type="Resource" id="Resource_jpnsk"]
+script = ExtResource("2_mon")
+position = Vector3(0.10182801, 1.255142, -1.6205335)
+
+[sub_resource type="Resource" id="Resource_toaye"]
 script = ExtResource("1_enc")
-monsters = Array[ExtResource("2_mon")]([SubResource("Resource_brx8q"), SubResource("Resource_hc2a3")])
-open_gate_indices = Array[int]([2, 0])
-metadata/_custom_type_script = "uid://lch3c2px2rba"
+monsters = Array[ExtResource("2_mon")]([SubResource("Resource_ugmfq"), SubResource("Resource_bq7ac"), SubResource("Resource_ks02h"), SubResource("Resource_jpnsk")])
+open_gate_indices = Array[int]([0, 2, 6])
+label = "Encounter 1"
 
 [resource]
 script = ExtResource("3_level")
 level_name = "Colosseum L1"
 map_id = "colosseum"
-encounters = Array[ExtResource("1_enc")]([SubResource("Resource_e08vm"), SubResource("Resource_ugmfq")])
+encounters = Array[ExtResource("1_e08vm")]([SubResource("Resource_x8whn"), SubResource("Resource_hc2a3"), SubResource("Resource_toaye")])
