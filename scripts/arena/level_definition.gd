@@ -11,9 +11,9 @@ extends Resource
 ## array controls on `encounters` below.
 
 const ArenaCatalogScript := preload("res://scripts/arena/arena_catalog.gd")
-## Preloaded rather than the bare "EncounterDefinition" class name — see
-## encounter_definition.gd's identical note on MonsterSpawnEntryScript.
-const EncounterDefinitionScript := preload("res://scripts/arena/encounter_definition.gd")
+## Preloaded rather than the bare "Encounter" class name — see
+## combat_encounter.gd's identical note on MonsterSpawnEntryScript.
+const EncounterScript := preload("res://scripts/arena/encounter.gd")
 
 @export var level_name: String = "New Level"
 
@@ -25,7 +25,9 @@ const EncounterDefinitionScript := preload("res://scripts/arena/encounter_defini
 	set(value):
 		map_id = value.substr(value.rfind(":") + 1) if value.contains(":") else value
 
-@export var encounters: Array[EncounterDefinitionScript] = []
+## Ordered, heterogeneous — any mix of CombatEncounter, ShopEncounter,
+## ChallengeEncounter, etc.
+@export var encounters: Array[EncounterScript] = []
 
 
 ## Presents map_id as a dropdown of every ArenaCatalog map instead of a free

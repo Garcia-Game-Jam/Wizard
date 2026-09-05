@@ -1,7 +1,7 @@
 class_name MonsterSpawnEntry
 extends Resource
 
-## One monster placement within an EncounterDefinition. kind matches a key in
+## One monster placement within a CombatEncounter. kind matches a key in
 ## ArenaEncounters.SCENE_BY_KIND (scripts/arena/arena_encounters.gd) — add a
 ## new option here if a new monster kind is ever registered there.
 

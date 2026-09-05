@@ -1,5 +1,5 @@
-class_name EncounterDefinition
-extends Resource
+class_name CombatEncounter
+extends Encounter
 
 ## One wave/fight within a LevelDefinition — its monster spawns and cover
 ## obstacle positions. Add/remove monsters and obstacle_positions with the
@@ -12,7 +12,6 @@ extends Resource
 ## rescans the project, and a bare reference fails to resolve until then.
 const MonsterSpawnEntryScript := preload("res://scripts/arena/monster_spawn_entry.gd")
 
-@export var label: String = ""
 @export var monsters: Array[MonsterSpawnEntryScript] = []
 @export var obstacle_positions: Array[Vector3] = []
 ## Which of the map's GateN colosseum gates (see colosseum_gate_ring.gd) drop

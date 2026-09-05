@@ -114,6 +114,16 @@ var net_cast_effect_id: String = ""
 var net_flashlight: bool = false
 var saved_collision_layer: int = 1
 var saved_collision_mask: int = CollisionLayersScript.CHARACTER_AND_WORLD
+## Whichever Interactable (e.g. ShopDisplayPedestal) the local player is
+## currently standing near — a plain public var rather than a
+## register/unregister method pair, since player.gd is already at
+## gdlint's public-method cap. An Interactable sets this directly on
+## entering/leaving range: `player.nearby_interactable = self` on enter,
+## and on exit only clears it if it's still the one that set it (`if
+## player.nearby_interactable == self: player.nearby_interactable = null`),
+## so a second interactable's exit can't stomp a newer one's entry.
+## _try_interact()/_resolve_interaction_prompt() are what consume it.
+var nearby_interactable: Node = null
 
 var _spell_loadout: Node
 var _casting_session: SpellCastingSession
@@ -594,6 +604,9 @@ func _separate_from_players() -> void:
 func _try_interact() -> void:
 	if _casting_session != null and _casting_session.is_active():
 		return
+	if nearby_interactable != null and is_instance_valid(nearby_interactable):
+		if nearby_interactable.has_method("interact"):
+			nearby_interactable.call("interact", self)
 
 
 func _try_toggle_wand_raise() -> bool:
@@ -796,6 +809,9 @@ func _resolve_interaction_prompt() -> String:
 				return book_prompt
 	if _casting_session != null and _casting_session.is_active():
 		return ""
+	if nearby_interactable != null and is_instance_valid(nearby_interactable):
+		if nearby_interactable.has_method("get_prompt_text"):
+			return str(nearby_interactable.call("get_prompt_text"))
 	return ""
 
 
